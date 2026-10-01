@@ -1,0 +1,17 @@
+{
+  "name": "nesthire-kickoff-deck",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Generator for the NestHire Project Kickoff & Team Alignment deck",
+  "scripts": {
+    "build": "node build_deck.js"
+  },
+  "dependencies": {
+    "jszip": "^3.10.2",
+    "pptxgenjs": "^4.0.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-icons": "^5.7.0",
+    "sharp": "^0.35.5"
+  }
+}
