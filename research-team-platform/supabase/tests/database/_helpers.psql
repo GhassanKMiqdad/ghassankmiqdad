@@ -1,0 +1,183 @@
+-- =============================================================================
+-- Shared helpers for the pgTAP suite. Included by every test file with
+--   \ir _helpers.psql
+-- The extension ".psql" keeps pg_prove (which runs *.sql / *.pg) from treating
+-- this file as a test. Everything is created inside the test transaction and
+-- rolled back at the end of each file.
+-- =============================================================================
+
+create extension if not exists pgtap with schema extensions;
+
+create schema if not exists tests;
+grant usage on schema tests to anon, authenticated, service_role;
+
+-- Deterministic identifiers for fixtures.
+create or replace function tests.uid(p_key text)
+returns uuid
+language sql
+immutable
+as $$
+  select (case p_key
+    when 'owner'                then '10000000-0000-4000-8000-000000000001'
+    when 'manager'              then '10000000-0000-4000-8000-000000000002'
+    when 'member'               then '10000000-0000-4000-8000-000000000003'
+    when 'member2'              then '10000000-0000-4000-8000-000000000004'
+    when 'reviewer'             then '10000000-0000-4000-8000-000000000005'
+    when 'outsider'             then '10000000-0000-4000-8000-000000000006'
+    when 'other_owner'          then '10000000-0000-4000-8000-000000000007'
+    when 'newcomer'             then '10000000-0000-4000-8000-000000000008'
+    when 'project_a'            then '20000000-0000-4000-8000-00000000000a'
+    when 'project_b'            then '20000000-0000-4000-8000-00000000000b'
+    when 'task_assigned_member' then '30000000-0000-4000-8000-000000000001'
+    when 'task_member2'         then '30000000-0000-4000-8000-000000000002'
+    when 'task_own_member'      then '30000000-0000-4000-8000-000000000003'
+    when 'task_review'          then '30000000-0000-4000-8000-000000000004'
+    when 'task_project_b'       then '30000000-0000-4000-8000-000000000005'
+  end)::uuid;
+$$;
+
+create or replace function tests.create_user(p_key text, p_full_name text)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into auth.users (id, email, raw_user_meta_data, raw_app_meta_data, aud, role, email_confirmed_at, created_at, updated_at)
+  values (
+    tests.uid(p_key),
+    p_key || '@example.test',
+    jsonb_build_object('full_name', p_full_name),
+    '{}'::jsonb,
+    'authenticated',
+    'authenticated',
+    now(), now(), now()
+  );
+  return tests.uid(p_key);
+end;
+$$;
+
+-- Switch the current transaction to an authenticated end user, exactly like
+-- PostgREST does for a request carrying that user's JWT.
+create or replace function tests.authenticate_as(p_key text)
+returns void
+language plpgsql
+as $$
+begin
+  perform set_config('role', 'none', true);
+  perform set_config(
+    'request.jwt.claims',
+    json_build_object('sub', tests.uid(p_key), 'role', 'authenticated', 'aud', 'authenticated')::text,
+    true
+  );
+  perform set_config('role', 'authenticated', true);
+end;
+$$;
+
+-- Behave like an unauthenticated API request (anon key only).
+create or replace function tests.authenticate_as_anon()
+returns void
+language plpgsql
+as $$
+begin
+  perform set_config('role', 'none', true);
+  perform set_config('request.jwt.claims', json_build_object('role', 'anon')::text, true);
+  perform set_config('role', 'anon', true);
+end;
+$$;
+
+-- Back to the privileged test runner (system context, RLS bypassed).
+create or replace function tests.clear_authentication()
+returns void
+language plpgsql
+as $$
+begin
+  perform set_config('role', 'none', true);
+  perform set_config('request.jwt.claims', '', true);
+end;
+$$;
+
+grant execute on all functions in schema tests to anon, authenticated, service_role;
+
+-- Standard fixture:
+--   Project A (owner: Ghassan) with a manager, two members and a reviewer.
+--   Project B (owner: other_owner) that nobody from A belongs to.
+create or replace function tests.setup_world()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  a uuid := tests.uid('project_a');
+  b uuid := tests.uid('project_b');
+begin
+  perform tests.create_user('owner', 'Ghassan');
+  perform tests.create_user('manager', 'Research Manager');
+  perform tests.create_user('member', 'Ahmad');
+  perform tests.create_user('member2', 'Sara');
+  perform tests.create_user('reviewer', 'Reviewer');
+  perform tests.create_user('outsider', 'Outsider');
+  perform tests.create_user('other_owner', 'Other Owner');
+  perform tests.create_user('newcomer', 'Newcomer');
+
+  update public.profiles set is_platform_admin = true, can_create_projects = true where id = tests.uid('owner');
+  update public.profiles set can_create_projects = true where id = tests.uid('other_owner');
+
+  insert into public.projects (id, name, description, status, created_by) values
+    (a, 'Project A', 'Main research project', 'active', tests.uid('owner')),
+    (b, 'Project B', 'Unrelated project', 'active', tests.uid('other_owner'));
+
+  insert into public.project_members (project_id, user_id, role, added_by) values
+    (a, tests.uid('owner'), 'owner', tests.uid('owner')),
+    (a, tests.uid('manager'), 'manager', tests.uid('owner')),
+    (a, tests.uid('member'), 'member', tests.uid('owner')),
+    (a, tests.uid('member2'), 'member', tests.uid('owner')),
+    (a, tests.uid('reviewer'), 'reviewer', tests.uid('owner')),
+    (b, tests.uid('other_owner'), 'owner', tests.uid('other_owner'));
+
+  insert into public.user_permissions (project_id, user_id, permission_key, granted_by)
+  select pm.project_id, pm.user_id, rp.permission_key, tests.uid('owner')
+  from public.project_members pm
+  join public.role_permissions rp on rp.role = pm.role
+  where pm.project_id in (a, b)
+    and pm.role <> 'owner';
+
+  insert into public.tasks (id, project_id, title, status, priority, assigned_to, created_by) values
+    (tests.uid('task_assigned_member'), a, 'Literature Review', 'in_progress', 'high', tests.uid('member'), tests.uid('owner')),
+    (tests.uid('task_member2'), a, 'Data Collection', 'todo', 'medium', tests.uid('member2'), tests.uid('member2')),
+    (tests.uid('task_own_member'), a, 'Draft Methodology', 'todo', 'low', null, tests.uid('member')),
+    (tests.uid('task_review'), a, 'Statistical Analysis', 'review', 'critical', tests.uid('member'), tests.uid('owner')),
+    (tests.uid('task_project_b'), b, 'Confidential B task', 'todo', 'medium', null, tests.uid('other_owner'));
+end;
+$$;
+
+-- Replace a member's grants (fixture shortcut, bypasses the RPC on purpose).
+create or replace function tests.set_grants(p_project text, p_user text, p_keys text[])
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  delete from public.user_permissions
+   where project_id = tests.uid(p_project) and user_id = tests.uid(p_user);
+  insert into public.user_permissions (project_id, user_id, permission_key)
+  select tests.uid(p_project), tests.uid(p_user), k from unnest(p_keys) as k;
+end;
+$$;
+
+-- Simulates an object uploaded to Supabase Storage.
+create or replace function tests.fake_storage_object(p_path text, p_size bigint, p_mime text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into storage.objects (bucket_id, name, metadata)
+  values ('project-documents', p_path, jsonb_build_object('size', p_size, 'mimetype', p_mime));
+end;
+$$;
+
+grant execute on all functions in schema tests to anon, authenticated, service_role;
