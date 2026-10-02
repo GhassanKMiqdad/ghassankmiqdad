@@ -20,6 +20,7 @@
     "test:db": "npx supabase@latest test db",
     "test:db:local": "bash scripts/test-db-local.sh",
     "db:types": "tsx scripts/generate-types.ts",
+    "db:bundle": "tsx scripts/bundle-migrations.ts",
     "seed": "tsx scripts/seed.ts",
     "admin:promote": "tsx scripts/promote-admin.ts"
   },

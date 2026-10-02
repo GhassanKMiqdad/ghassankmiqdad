@@ -50,6 +50,7 @@ that bypasses the UI is rejected exactly like a hidden button.
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | A. Architecture overview · B. Folder structure · C. Database ERD · F. Implementation roadmap |
 | [docs/PERMISSIONS.md](docs/PERMISSIONS.md)   | D. Permission model: catalog, templates, rules per area, where each rule is enforced         |
 | [docs/SECURITY.md](docs/SECURITY.md)         | E. Security model: layers, threat model, operating guidance                                  |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)     | Free deployment step by step — Supabase Free + Vercel Hobby (Arabic)                         |
 
 ## Quick start (local)
 
@@ -127,7 +128,10 @@ Project → Settings → Environment Variables. **Never commit real values** —
    npx supabase db push
    ```
    This creates the schema, permission catalog, policies, functions and the
-   private `project-documents` storage bucket.
+   private `project-documents` storage bucket. Without installing the CLI:
+   run `npm run db:bundle` and paste the generated `supabase-setup.sql` into
+   _Dashboard → SQL Editor_ once, on the new project (it records the
+   migrations, so `db push` keeps working for future ones).
 3. _Authentication → URL Configuration_: set **Site URL** to your domain and
    add `https://<domain>/auth/confirm` and `https://<domain>/auth/callback`
    (plus `http://localhost:3000/...` for development) to **Redirect URLs**.
@@ -143,6 +147,9 @@ Project → Settings → Environment Variables. **Never commit real values** —
    `npm run admin:promote -- you@example.org`.
 
 ## Deploying to Vercel
+
+A complete free-tier walkthrough (Supabase Free + Vercel Hobby + free SMTP)
+is in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 1. Import the GitHub repository in Vercel and set **Root Directory** to
    `research-team-platform` (framework preset: Next.js).
@@ -167,6 +174,7 @@ Supabase URL uses HTTPS.
 | `npm run seed`                                | Demo data                                                       |
 | `npm run admin:promote -- <email>`            | Make a user platform admin                                      |
 | `npm run db:types`                            | Regenerate `src/types/database.types.ts` (needs `DATABASE_URL`) |
+| `npm run db:bundle`                           | One SQL file with every migration, for the Supabase SQL Editor  |
 
 ## Tests
 
@@ -228,6 +236,8 @@ Supabase to run the pgTAP and API security suites and the seed script.
 `npx supabase db push`، واضبط _Site URL_ و*Redirect URLs* وقوالب البريد من
 مجلد `supabase/templates`، ثم أضف المتغيرات نفسها في Vercel مع جعل
 **Root Directory** هو `research-team-platform`.
+
+دليل النشر المجاني خطوة بخطوة (Supabase + Vercel): [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 جميع الصلاحيات مطبّقة في قاعدة البيانات (RLS والقيود والدوال)، لذلك يُرفض أي
 طلب غير مسموح حتى لو أُرسل مباشرةً إلى الـ API دون المرور بالواجهة.
