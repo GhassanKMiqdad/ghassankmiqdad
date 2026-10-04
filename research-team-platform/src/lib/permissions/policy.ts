@@ -2,10 +2,9 @@
  * Pure authorization rules shared by Server Actions (friendly, early errors)
  * and the UI (hiding actions the user cannot perform).
  *
- * They mirror the database rules — RLS policies, the tasks_before_update
- * trigger and the membership RPCs — which remain the source of truth: a check
- * passing here never bypasses the database, it only avoids a round trip that
- * would be rejected anyway.
+ * They mirror the Firebase Security Rules and the Admin-backed Firestore
+ * authorization checks. These UI checks improve feedback; server authorization
+ * remains mandatory for every mutation.
  */
 import {
   FINAL_TASK_STATUSES,
@@ -17,7 +16,7 @@ import {
   type TaskStatus,
 } from "@/lib/permissions/catalog";
 
-/** The caller's effective access inside one project (as returned by get_my_project_access). */
+/** The caller's effective access inside one project, computed from Firebase membership documents. */
 export type AccessSubject = {
   userId: string;
   role: ProjectRole;
@@ -66,20 +65,20 @@ export type TaskSnapshot = {
 export type TaskPatch = Partial<{
   title: string;
   description: string;
+  expectedOutput: string;
+  requiredDeliverables: string;
   priority: string;
   dueDate: string | null;
   status: TaskStatus;
   assignedTo: string | null;
+  progress: number;
+  workNotes: string;
 }>;
 
 /** Title, description, priority and due date. */
-export function canEditTaskContent(access: AccessSubject | null | undefined, task: TaskSnapshot): boolean {
+export function canEditTaskContent(access: AccessSubject | null | undefined, _task: TaskSnapshot): boolean {
   if (!access) return false;
-  return (
-    can(access, "tasks.edit") ||
-    (can(access, "tasks.edit_own") && task.createdBy === access.userId) ||
-    (can(access, "tasks.edit_assigned") && task.assignedTo === access.userId)
-  );
+  return can(access, "tasks.edit");
 }
 
 export function canChangeTaskStatus(
@@ -90,18 +89,23 @@ export function canChangeTaskStatus(
   if (!access) return false;
   if (next === task.status) return true;
   if (can(access, "tasks.edit")) return true;
-  if (can(access, "tasks.review") && (task.status === "review" || FINAL_TASK_STATUSES.includes(task.status))) {
+  if (
+    can(access, "tasks.review") &&
+    task.status === "review" &&
+    ["completed", "rejected", "revision_required"].includes(next)
+  )
     return true;
-  }
+  if (task.assignedTo !== access.userId) return false;
+  if (next === "review") return can(access, "tasks.submit") && task.status === "in_progress";
   return (
-    canEditTaskContent(access, task) &&
-    !FINAL_TASK_STATUSES.includes(task.status) &&
-    !FINAL_TASK_STATUSES.includes(next)
+    next === "in_progress" &&
+    can(access, "tasks.update_progress") &&
+    ["todo", "in_progress", "revision_required"].includes(task.status)
   );
 }
 
 export function allowedTaskStatuses(access: AccessSubject | null | undefined, task: TaskSnapshot): TaskStatus[] {
-  const all: TaskStatus[] = ["todo", "in_progress", "review", "completed", "rejected"];
+  const all: TaskStatus[] = ["todo", "in_progress", "review", "revision_required", "completed", "rejected"];
   return all.filter((status) => canChangeTaskStatus(access, task, status));
 }
 
@@ -118,6 +122,7 @@ export function canUpdateTask(access: AccessSubject | null | undefined, task: Ta
   return (
     canEditTaskContent(access, task) ||
     canAssignTasks(access) ||
+    (task.assignedTo === access?.userId && (can(access, "tasks.update_progress") || can(access, "tasks.submit"))) ||
     allowedTaskStatuses(access, task).some((status) => status !== task.status)
   );
 }
@@ -127,18 +132,32 @@ export function evaluateTaskUpdate(
   access: AccessSubject | null | undefined,
   task: TaskSnapshot,
   patch: TaskPatch,
-  current: { title: string; description: string; priority: string; dueDate: string | null },
+  current: {
+    title: string;
+    description: string;
+    expectedOutput?: string;
+    requiredDeliverables?: string;
+    priority: string;
+    dueDate: string | null;
+  },
 ): PolicyResult {
   if (!access || !isActive(access)) return deny("PERMISSION_DENIED");
 
   const contentChanged =
     (patch.title !== undefined && patch.title !== current.title) ||
     (patch.description !== undefined && patch.description !== current.description) ||
+    (patch.expectedOutput !== undefined && patch.expectedOutput !== (current.expectedOutput ?? "")) ||
+    (patch.requiredDeliverables !== undefined && patch.requiredDeliverables !== (current.requiredDeliverables ?? "")) ||
     (patch.priority !== undefined && patch.priority !== current.priority) ||
     (patch.dueDate !== undefined && patch.dueDate !== current.dueDate);
 
   if (contentChanged && !canEditTaskContent(access, task)) return deny("TASK_EDIT_FORBIDDEN");
-
+  if (patch.progress !== undefined && (task.assignedTo !== access.userId || !can(access, "tasks.update_progress"))) {
+    return deny("TASK_EDIT_FORBIDDEN");
+  }
+  if (patch.workNotes !== undefined && (task.assignedTo !== access.userId || !can(access, "tasks.add_work_notes"))) {
+    return deny("TASK_EDIT_FORBIDDEN");
+  }
   if (patch.status !== undefined && patch.status !== task.status && !canChangeTaskStatus(access, task, patch.status)) {
     return deny("TASK_STATUS_FORBIDDEN");
   }

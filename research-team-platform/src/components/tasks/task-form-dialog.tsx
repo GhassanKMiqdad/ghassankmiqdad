@@ -81,6 +81,8 @@ export function TaskFormDialog({
     defaultValues: {
       title: task?.title ?? "",
       description: task?.description ?? "",
+      expectedOutput: task?.expectedOutput ?? "",
+      requiredDeliverables: task?.requiredDeliverables ?? "",
       status: task?.status ?? "todo",
       priority: task?.priority ?? "medium",
       assignedTo: task?.assignedToId ?? "",
@@ -134,6 +136,42 @@ export function TaskFormDialog({
                   <FormLabel>{t.tasks.fields.description}</FormLabel>
                   <FormControl>
                     <Textarea rows={4} placeholder={t.tasks.placeholders.description} disabled={!editable} {...field} />
+                  </FormControl>
+                  <FormMessage localize={message} />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="expectedOutput"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t.tasks.fields.expectedOutput}</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      rows={2}
+                      placeholder={t.tasks.placeholders.expectedOutput}
+                      disabled={!editable}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage localize={message} />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="requiredDeliverables"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t.tasks.fields.requiredDeliverables}</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      rows={3}
+                      placeholder={t.tasks.placeholders.requiredDeliverables}
+                      disabled={!editable}
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage localize={message} />
                 </FormItem>

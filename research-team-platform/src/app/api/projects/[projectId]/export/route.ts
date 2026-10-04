@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 
-import { mapDatabaseError } from "@/lib/errors";
+import { mapFirebaseError } from "@/lib/errors";
 import { getI18n } from "@/lib/i18n/server";
 import { can } from "@/lib/permissions/policy";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createFirebaseServerClient } from "@/lib/firebase/compat";
 import { getProjectAccess } from "@/server/access";
 import { getSessionUser } from "@/server/auth";
 
@@ -54,20 +54,20 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/proj
   }
 
   const { format } = parsedQuery.data;
-  const supabase = await createSupabaseServerClient();
+  const firebase = await createFirebaseServerClient();
 
   // Audit first: if the export cannot be recorded, it does not happen.
-  const audit = await supabase.rpc("record_project_export", {
+  const audit = await firebase.rpc("record_project_export", {
     p_project_id: projectId,
     p_format: format,
     p_scope: format === "csv" ? "tasks" : "project",
   });
   if (audit.error) {
-    const code = mapDatabaseError(audit.error);
+    const code = mapFirebaseError(audit.error);
     return NextResponse.json({ error: t.errors[code] }, { status: code === "PERMISSION_DENIED" ? 403 : 500 });
   }
 
-  const tasks = await supabase
+  const tasks = await firebase
     .from("tasks")
     .select(
       "id, title, description, status, priority, due_date, created_at, updated_at, completed_at, assignee:profiles!tasks_assigned_to_fkey(full_name, email), creator:profiles!tasks_created_by_fkey(full_name, email)",
@@ -125,23 +125,23 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/proj
   }
 
   const [project, documents, comments, members] = await Promise.all([
-    supabase
+    firebase
       .from("projects")
       .select("id, name, description, research_goal, status, start_date, deadline, created_at, updated_at")
       .eq("id", projectId)
       .maybeSingle(),
     can(access, "documents.view")
-      ? supabase
+      ? firebase
           .from("documents")
           .select("id, title, description, file_name, mime_type, size_bytes, created_at, uploaded_by")
           .eq("project_id", projectId)
       : Promise.resolve({ data: null, error: null }),
-    supabase
+    firebase
       .from("comments")
       .select("id, task_id, content, author_id, created_at, updated_at")
       .eq("project_id", projectId),
     can(access, "team.view")
-      ? supabase.rpc("get_project_team", { p_project_id: projectId })
+      ? firebase.rpc("get_project_team", { p_project_id: projectId })
       : Promise.resolve({ data: null, error: null }),
   ]);
 
@@ -153,7 +153,7 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/proj
     documents: documents.data ?? undefined,
     comments: comments.data,
     members:
-      members.data?.map((member) => ({
+      members.data?.map((member: Record<string, unknown>) => ({
         user_id: member.user_id,
         full_name: member.full_name,
         email: member.email,

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { can } from "@/lib/permissions/policy";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createFirebaseServerClient } from "@/lib/firebase/compat";
 import { unwrap, unwrapMaybe } from "@/server/action";
 import { getMyProjectsAccess } from "@/server/access";
 import { getDashboardStats } from "@/server/queries/dashboard";
@@ -12,19 +12,19 @@ export async function listMyProjects(): Promise<ProjectListItem[]> {
   const access = (await getMyProjectsAccess()).filter((item) => can(item, "project.view"));
   if (access.length === 0) return [];
 
-  const supabase = await createSupabaseServerClient();
+  const firebase = await createFirebaseServerClient();
   const ids = access.map((item) => item.projectId);
   // Member counts are only shown where the user may see the team.
   const teamVisible = access.filter((item) => can(item, "team.view")).map((item) => item.projectId);
 
   const [projects, memberRows, stats] = await Promise.all([
-    supabase
+    firebase
       .from("projects")
       .select("id, name, description, status, start_date, deadline, updated_at")
       .in("id", ids)
       .order("updated_at", { ascending: false }),
     teamVisible.length > 0
-      ? supabase.from("project_members").select("project_id").in("project_id", teamVisible).eq("status", "active")
+      ? firebase.from("project_members").select("project_id").in("project_id", teamVisible).eq("status", "active")
       : Promise.resolve({ data: [] as { project_id: string }[], error: null }),
     getDashboardStats(),
   ]);
@@ -52,9 +52,9 @@ export async function listMyProjects(): Promise<ProjectListItem[]> {
 }
 
 export async function getProjectDetails(projectId: string): Promise<ProjectDetails | null> {
-  const supabase = await createSupabaseServerClient();
+  const firebase = await createFirebaseServerClient();
   const project = unwrapMaybe(
-    await supabase
+    await firebase
       .from("projects")
       .select(
         `id, name, description, research_goal, status, start_date, deadline, created_at, updated_at,

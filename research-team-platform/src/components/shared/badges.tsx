@@ -11,6 +11,7 @@ const TASK_STATUS_VARIANT: Record<TaskStatus, "muted" | "info" | "warning" | "su
   todo: "muted",
   in_progress: "info",
   review: "warning",
+  revision_required: "warning",
   completed: "success",
   rejected: "destructive",
 };

@@ -3,7 +3,6 @@ import { FileText } from "lucide-react";
 
 import { DocumentTable } from "@/components/documents/document-table";
 import { UploadDocumentDialog } from "@/components/documents/upload-document-dialog";
-import { AccessDenied } from "@/components/shared/access-denied";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pagination } from "@/components/shared/pagination";
 import { getI18n } from "@/lib/i18n/server";
@@ -24,7 +23,6 @@ export default async function ProjectDocumentsPage(props: PageProps<"/projects/[
   if (!access || !can(access, "project.view")) return null;
 
   const { t } = await getI18n();
-  if (!can(access, "documents.view")) return <AccessDenied />;
 
   const { page } = parsePageParam(await props.searchParams);
   const documents = await listDocuments({ projectId, page });

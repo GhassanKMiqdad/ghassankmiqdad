@@ -1,8 +1,6 @@
-import type { Database } from "@/types/database.types";
-
 /**
- * Permission catalog — mirrors supabase/migrations/*_permission_catalog.sql.
- * A unit test parses the migration and fails if the two lists diverge.
+ * Permission catalog — shared by Firestore authorization, UI policy, and
+ * Firebase Security Rules. Emulator tests verify rule parity for core cases.
  */
 export const PERMISSION_KEYS = [
   "project.view",
@@ -16,6 +14,9 @@ export const PERMISSION_KEYS = [
   "tasks.assign",
   "tasks.review",
   "tasks.delete",
+  "tasks.update_progress",
+  "tasks.add_work_notes",
+  "tasks.submit",
   "documents.view",
   "documents.upload",
   "documents.edit",
@@ -48,6 +49,9 @@ export const PERMISSION_CATEGORY: Record<PermissionKey, PermissionCategory> = {
   "tasks.assign": "tasks",
   "tasks.review": "tasks",
   "tasks.delete": "tasks",
+  "tasks.update_progress": "tasks",
+  "tasks.add_work_notes": "tasks",
+  "tasks.submit": "tasks",
   "documents.view": "documents",
   "documents.upload": "documents",
   "documents.edit": "documents",
@@ -63,11 +67,11 @@ export const PERMISSION_CATEGORY: Record<PermissionKey, PermissionCategory> = {
   "data.export": "administration",
 };
 
-export type ProjectRole = Database["public"]["Enums"]["project_role"];
-export type MemberStatus = Database["public"]["Enums"]["member_status"];
-export type TaskStatus = Database["public"]["Enums"]["task_status"];
-export type TaskPriority = Database["public"]["Enums"]["task_priority"];
-export type ProjectStatus = Database["public"]["Enums"]["project_status"];
+export type ProjectRole = "owner" | "manager" | "member" | "reviewer";
+export type MemberStatus = "active" | "suspended";
+export type TaskStatus = "todo" | "in_progress" | "review" | "revision_required" | "completed" | "rejected";
+export type TaskPriority = "low" | "medium" | "high" | "critical";
+export type ProjectStatus = "planning" | "active" | "on_hold" | "completed" | "archived";
 
 export const PROJECT_ROLES = ["owner", "manager", "member", "reviewer"] as const satisfies readonly ProjectRole[];
 export const MEMBER_STATUSES = ["active", "suspended"] as const satisfies readonly MemberStatus[];
@@ -75,6 +79,7 @@ export const TASK_STATUSES = [
   "todo",
   "in_progress",
   "review",
+  "revision_required",
   "completed",
   "rejected",
 ] as const satisfies readonly TaskStatus[];
@@ -126,16 +131,13 @@ export const ROLE_TEMPLATES: Record<ProjectRole, readonly PermissionKey[]> = {
   ],
   member: [
     "project.view",
-    "tasks.view",
-    "tasks.create",
-    "tasks.edit_own",
-    "tasks.edit_assigned",
-    "documents.view",
+    "tasks.update_progress",
+    "tasks.add_work_notes",
+    "tasks.submit",
     "documents.upload",
     "comments.create",
-    "team.view",
   ],
-  reviewer: ["project.view", "tasks.view", "tasks.review", "documents.view", "comments.create", "team.view"],
+  reviewer: ["project.view", "tasks.review", "comments.create"],
 };
 
 export function isPermissionKey(value: unknown): value is PermissionKey {

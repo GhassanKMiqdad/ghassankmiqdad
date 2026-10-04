@@ -4,8 +4,10 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 import type { ActionResult } from "@/lib/action-result";
-import { AppError, mapDatabaseError } from "@/lib/errors";
+import { AppError, mapFirebaseError } from "@/lib/errors";
 import { getSiteUrl } from "@/lib/env.server";
+import { firebaseAdminFirestore, FieldValue } from "@/lib/firebase/admin";
+import { identityToolkitRequest } from "@/lib/firebase/auth-rest";
 import { isPermissionKey, type PermissionKey } from "@/lib/permissions/catalog";
 import {
   evaluateMemberAdd,
@@ -14,8 +16,8 @@ import {
   evaluatePermissionChange,
   evaluateRoleChange,
 } from "@/lib/permissions/policy";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createFirebaseAdminClient } from "@/lib/firebase/compat";
+import { createFirebaseServerClient } from "@/lib/firebase/compat";
 import { uuidField } from "@/lib/validation/common";
 import { addMemberSchema, permissionsSchema, updateMemberSchema } from "@/lib/validation/member";
 import { assertProjectAccess, assertProjectPermission } from "@/server/access";
@@ -28,9 +30,9 @@ function revalidateTeamPaths(projectId: string) {
 
 /** Membership row of the target, read with the caller's session. */
 async function loadTarget(projectId: string, userId: string) {
-  const supabase = await createSupabaseServerClient();
+  const firebase = await createFirebaseServerClient();
   const member = unwrapMaybe(
-    await supabase
+    await firebase
       .from("project_members")
       .select("user_id, role, status")
       .eq("project_id", projectId)
@@ -38,7 +40,7 @@ async function loadTarget(projectId: string, userId: string) {
       .maybeSingle(),
   );
   if (!member) throw new AppError("MEMBER_NOT_FOUND");
-  return { supabase, member };
+  return { firebase, member };
 }
 
 export async function addMemberAction(
@@ -52,8 +54,8 @@ export async function addMemberAction(
     const decision = evaluateMemberAdd(access, values.role);
     if (!decision.ok) throw new AppError(decision.code);
 
-    const supabase = await createSupabaseServerClient();
-    const attempt = await supabase.rpc("add_project_member", {
+    const firebase = await createFirebaseServerClient();
+    const attempt = await firebase.rpc("add_project_member", {
       p_project_id: id,
       p_email: values.email,
       p_role: values.role,
@@ -63,25 +65,64 @@ export async function addMemberAction(
       revalidateTeamPaths(id);
       return { status: "added" as const, email: values.email };
     }
-    if (mapDatabaseError(attempt.error) !== "USER_NOT_FOUND") throw attempt.error;
+    if (mapFirebaseError(attempt.error) !== "USER_NOT_FOUND") throw attempt.error;
 
-    // No account yet: invite by e-mail (service role), then add the new user
-    // with the caller's own session so the RPC re-authorizes and audits it.
-    const admin = createSupabaseAdminClient();
-    if (!admin) throw new AppError("INVITE_UNAVAILABLE");
-
+    // Firebase Admin creates the account; Identity Toolkit sends a one-time
+    // password-setup link. The membership RPC rechecks the caller's permission.
+    const admin = createFirebaseAdminClient();
     const headerStore = await headers();
     const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host");
     const origin = host ? `${headerStore.get("x-forwarded-proto") ?? "https"}://${host}` : null;
-    const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(values.email, {
-      redirectTo: `${getSiteUrl(origin)}/auth/callback?next=/reset-password`,
-    });
-    if (inviteError) {
-      console.error("[members] invitation failed", inviteError.message);
-      throw new AppError(inviteError.status === 429 ? "RATE_LIMITED" : "UNEXPECTED");
+    const normalizedEmail = values.email.trim().toLowerCase();
+    let createdUser = false;
+    let targetUser;
+    try {
+      targetUser = await admin.auth.getUserByEmail(normalizedEmail);
+    } catch (error) {
+      if (!(error instanceof Error) || !error.message.includes("user-not-found")) throw error;
+      targetUser = await admin.auth.createUser({ email: normalizedEmail, emailVerified: false });
+      createdUser = true;
     }
-
-    unwrap(await supabase.rpc("add_project_member", { p_project_id: id, p_email: values.email, p_role: values.role }));
+    await firebaseAdminFirestore()
+      .collection("profiles")
+      .doc(targetUser.uid)
+      .set(
+        {
+          id: targetUser.uid,
+          email: normalizedEmail,
+          email_lower: normalizedEmail,
+          full_name: targetUser.displayName ?? "",
+          email_verified: targetUser.emailVerified,
+          is_platform_admin: false,
+          can_create_projects: false,
+          created_at: FieldValue.serverTimestamp(),
+          last_sign_in_at: null,
+        },
+        { merge: true },
+      );
+    const invite = await identityToolkitRequest("accounts:sendOobCode", {
+      requestType: "PASSWORD_RESET",
+      email: normalizedEmail,
+      continueUrl: `${getSiteUrl(origin)}/auth/confirm?next=/reset-password`,
+      canHandleCodeInApp: true,
+    });
+    if (invite.error) {
+      if (createdUser) {
+        await admin.auth.deleteUser(targetUser.uid).catch(() => undefined);
+        await firebaseAdminFirestore()
+          .collection("profiles")
+          .doc(targetUser.uid)
+          .delete()
+          .catch(() => undefined);
+      }
+      if (["TOO_MANY_ATTEMPTS_TRY_LATER", "RESET_PASSWORD_EXCEED_LIMIT"].includes(invite.error.code))
+        throw new AppError("RATE_LIMITED");
+      console.error("[members] Firebase invitation email failed", invite.error.code);
+      throw new AppError("INVITE_UNAVAILABLE");
+    }
+    unwrap(
+      await firebase.rpc("add_project_member", { p_project_id: id, p_email: normalizedEmail, p_role: values.role }),
+    );
     revalidateTeamPaths(id);
     return { status: "invited" as const, email: values.email };
   });
@@ -97,7 +138,7 @@ export async function updateMemberAction(
     const targetId = parseInput(uuidField, userId);
     const values = parseInput(updateMemberSchema, input);
     const access = await assertProjectPermission(id, "members.manage");
-    const { supabase, member } = await loadTarget(id, targetId);
+    const { firebase, member } = await loadTarget(id, targetId);
 
     const target = { userId: member.user_id, role: member.role };
     const decision = values.role
@@ -106,7 +147,7 @@ export async function updateMemberAction(
     if (!decision.ok) throw new AppError(decision.code);
 
     unwrap(
-      await supabase.rpc("update_project_member", {
+      await firebase.rpc("update_project_member", {
         p_project_id: id,
         p_user_id: targetId,
         p_role: values.role,
@@ -124,12 +165,12 @@ export async function removeMemberAction(projectId: string, userId: string): Pro
     const id = parseInput(uuidField, projectId);
     const targetId = parseInput(uuidField, userId);
     const access = await assertProjectPermission(id, "members.remove");
-    const { supabase, member } = await loadTarget(id, targetId);
+    const { firebase, member } = await loadTarget(id, targetId);
 
     const decision = evaluateMemberRemove(access, { userId: member.user_id, role: member.role });
     if (!decision.ok) throw new AppError(decision.code);
 
-    unwrap(await supabase.rpc("remove_project_member", { p_project_id: id, p_user_id: targetId }));
+    unwrap(await firebase.rpc("remove_project_member", { p_project_id: id, p_user_id: targetId }));
     revalidateTeamPaths(id);
     return null;
   });
@@ -145,10 +186,10 @@ export async function setMemberPermissionsAction(
     const targetId = parseInput(uuidField, userId);
     const { permissions } = parseInput(permissionsSchema, input);
     const access = await assertProjectAccess(id);
-    const { supabase, member } = await loadTarget(id, targetId);
+    const { firebase, member } = await loadTarget(id, targetId);
 
     const currentRows = unwrap(
-      await supabase.from("user_permissions").select("permission_key").eq("project_id", id).eq("user_id", targetId),
+      await firebase.from("user_permissions").select("permission_key").eq("project_id", id).eq("user_id", targetId),
     );
     const current = new Set(currentRows.map((row) => row.permission_key).filter(isPermissionKey));
     const decision = evaluatePermissionChange(
@@ -160,7 +201,7 @@ export async function setMemberPermissionsAction(
     if (!decision.ok) throw new AppError(decision.code);
 
     const result = unwrap(
-      await supabase.rpc("set_member_permissions", {
+      await firebase.rpc("set_member_permissions", {
         p_project_id: id,
         p_user_id: targetId,
         p_permissions: permissions,

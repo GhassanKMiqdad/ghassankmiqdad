@@ -1,35 +1,65 @@
-import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { FieldValue, firebaseAdminAuth, firebaseAdminFirestore } from "@/lib/firebase/admin";
+import { identityToolkitRequest } from "@/lib/firebase/auth-rest";
+import { FIREBASE_SESSION_COOKIE, FIREBASE_SESSION_TTL_MS } from "@/lib/firebase/server";
 import { safeRedirectPath } from "@/lib/validation/auth";
 
-const SUPPORTED_TYPES: EmailOtpType[] = ["signup", "email", "invite", "recovery", "email_change", "magiclink"];
+type OobResult = {
+  idToken?: string;
+  localId?: string;
+  email?: string;
+  emailVerified?: boolean;
+};
 
-/**
- * Verifies e-mail links built from `token_hash` (see supabase/templates).
- * Works across devices, unlike the PKCE code flow.
- */
+/** Firebase email action handler. Configure the Auth email templates' action URL to this route. */
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
-  const tokenHash = url.searchParams.get("token_hash");
-  const type = url.searchParams.get("type") as EmailOtpType | null;
-
-  if (tokenHash && type && SUPPORTED_TYPES.includes(type)) {
-    const supabase = await createSupabaseServerClient();
-    const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
-    if (!error) {
-      const target =
-        type === "recovery"
-          ? "/reset-password"
-          : type === "invite"
-            ? "/reset-password?welcome=1"
-            : safeRedirectPath(url.searchParams.get("next"));
-      return NextResponse.redirect(new URL(target, url.origin));
-    }
-    console.warn("[auth/confirm] verification failed", error.code);
+  const mode = url.searchParams.get("mode");
+  const oobCode = url.searchParams.get("oobCode");
+  if (!oobCode || oobCode.length > 4096) {
+    return NextResponse.redirect(new URL("/login?error=link_invalid", url.origin));
   }
 
-  const failure = type === "recovery" ? "/forgot-password?error=link_invalid" : "/login?error=link_invalid";
-  return NextResponse.redirect(new URL(failure, url.origin));
+  if (mode === "resetPassword") {
+    const target = new URL("/reset-password", url.origin);
+    target.searchParams.set("oobCode", oobCode);
+    return NextResponse.redirect(target);
+  }
+
+  if (mode === "verifyEmail") {
+    const result = await identityToolkitRequest<OobResult>("accounts:update", { oobCode });
+    if (result.error || !result.data.idToken || !result.data.localId) {
+      console.warn("[auth/confirm] Firebase verification code rejected", result.error?.code);
+      return NextResponse.redirect(new URL("/login?error=link_invalid", url.origin));
+    }
+    const sessionCookie = await firebaseAdminAuth().createSessionCookie(result.data.idToken, {
+      expiresIn: FIREBASE_SESSION_TTL_MS,
+    });
+    await firebaseAdminFirestore()
+      .collection("profiles")
+      .doc(result.data.localId)
+      .set(
+        {
+          id: result.data.localId,
+          email: result.data.email ?? null,
+          email_lower: result.data.email?.toLowerCase() ?? null,
+          email_verified: true,
+          last_sign_in_at: FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+    const response = NextResponse.redirect(new URL(safeRedirectPath(url.searchParams.get("next")), url.origin));
+    response.cookies.set(FIREBASE_SESSION_COOKIE, sessionCookie, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: Math.floor(FIREBASE_SESSION_TTL_MS / 1000),
+    });
+    return response;
+  }
+
+  const fallback = mode === "resetPassword" ? "/forgot-password?error=link_invalid" : "/login?error=link_invalid";
+  return NextResponse.redirect(new URL(fallback, url.origin));
 }

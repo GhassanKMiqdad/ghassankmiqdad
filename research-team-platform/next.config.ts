@@ -1,22 +1,7 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
-// Only force HTTPS when the backend is served over HTTPS too; a production
-// build run against the local Supabase CLI (http://127.0.0.1:54321) must not
-// have its API calls upgraded.
-const enforceHttps = !isDev && (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").startsWith("https://");
-
-function supabaseOrigins(): string[] {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url) return [];
-  try {
-    const { origin, host, protocol } = new URL(url);
-    const wsProtocol = protocol === "https:" ? "wss:" : "ws:";
-    return [origin, `${wsProtocol}//${host}`];
-  } catch {
-    return [];
-  }
-}
+const enforceHttps = !isDev;
 
 // Server Components render on every request (no inline-script nonces), so the
 // policy allows inline scripts and styles but still blocks foreign origins,
@@ -27,7 +12,7 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' blob: data:",
   "font-src 'self' data:",
-  `connect-src 'self' ${supabaseOrigins().join(" ")}${isDev ? " ws: wss:" : ""}`.trim(),
+  `connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebasestorage.googleapis.com https://storage.googleapis.com${isDev ? " ws: wss:" : ""}`.trim(),
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

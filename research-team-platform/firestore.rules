@@ -1,0 +1,206 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function memberPath(projectId, userId) {
+      return /databases/$(database)/documents/project_members/$(projectId + '_' + userId);
+    }
+
+    function isActiveMember(projectId) {
+      let path = memberPath(projectId, request.auth.uid);
+      let membership = get(path).data;
+      return signedIn()
+        && exists(path)
+        && membership.status == 'active';
+    }
+
+    function hasPermission(projectId, key) {
+      let path = memberPath(projectId, request.auth.uid);
+      let membership = get(path).data;
+      return signedIn()
+        && exists(path)
+        && membership.status == 'active'
+        && (
+          membership.role == 'owner'
+          || (
+            membership.permissions is list
+            && 'project.view' in membership.permissions
+            && key in membership.permissions
+          )
+        );
+    }
+
+    function canSeeTask(data) {
+      return hasPermission(data.project_id, 'tasks.view')
+        || (hasPermission(data.project_id, 'tasks.review') && data.status == 'review')
+        || (
+          hasPermission(data.project_id, 'project.view')
+          && data.assigned_to == request.auth.uid
+        );
+    }
+
+    function validTaskCreate() {
+      let data = request.resource.data;
+      return signedIn()
+        && data.created_by == request.auth.uid
+        && data.project_id is string
+        && hasPermission(data.project_id, 'tasks.create')
+        && (data.assigned_to == null
+          || data.assigned_to == request.auth.uid
+          || hasPermission(data.project_id, 'tasks.assign'))
+        && data.status in ['todo', 'in_progress', 'review']
+        && data.title is string
+        && data.title.size() >= 2
+        && data.title.size() <= 200
+        && data.description is string
+        && data.description.size() <= 10000
+        && data.expected_output is string
+        && data.expected_output.size() <= 5000
+        && data.required_deliverables is string
+        && data.required_deliverables.size() <= 10000
+        && data.priority in ['low', 'medium', 'high', 'critical'];
+    }
+
+    function taskContentEditor(data) {
+      return hasPermission(data.project_id, 'tasks.edit')
+        || (data.created_by == request.auth.uid && hasPermission(data.project_id, 'tasks.edit_own'))
+        || (data.assigned_to == request.auth.uid && hasPermission(data.project_id, 'tasks.edit_assigned'));
+    }
+
+    function validTaskUpdate() {
+      let before = resource.data;
+      let after = request.resource.data;
+      let changed = after.diff(before).affectedKeys();
+      let contentChanged = changed.hasAny(['title', 'description', 'expected_output', 'required_deliverables', 'priority', 'due_date']);
+      let statusChanged = changed.hasAny(['status']);
+      let assigneeChanged = changed.hasAny(['assigned_to']);
+      let progressChanged = changed.hasAny(['progress']);
+      let notesChanged = changed.hasAny(['work_notes']);
+      let statusAllowed = !statusChanged
+        || hasPermission(before.project_id, 'tasks.edit')
+        || (hasPermission(before.project_id, 'tasks.review')
+          && before.status == 'review'
+          && after.status in ['completed', 'rejected', 'revision_required'])
+        || (before.assigned_to == request.auth.uid
+          && hasPermission(before.project_id, 'tasks.submit')
+          && after.status == 'review'
+          && before.status == 'in_progress')
+        || (before.assigned_to == request.auth.uid
+          && hasPermission(before.project_id, 'tasks.update_progress')
+          && after.status == 'in_progress'
+          && before.status in ['todo', 'in_progress', 'revision_required']);
+      return changed.hasOnly(['title', 'description', 'expected_output', 'required_deliverables', 'priority', 'due_date', 'status', 'assigned_to', 'progress', 'work_notes'])
+        && before.project_id == after.project_id
+        && before.created_by == after.created_by
+        && (!contentChanged || hasPermission(before.project_id, 'tasks.edit'))
+        && statusAllowed
+        && (!assigneeChanged || hasPermission(before.project_id, 'tasks.assign'))
+        && (!progressChanged || (before.assigned_to == request.auth.uid && hasPermission(before.project_id, 'tasks.update_progress') && after.progress is number && after.progress >= 0 && after.progress <= 100))
+        && (!notesChanged || (before.assigned_to == request.auth.uid && hasPermission(before.project_id, 'tasks.add_work_notes') && after.work_notes is string && after.work_notes.size() <= 10000))
+        && (!('title' in after) || (after.title is string && after.title.size() >= 2 && after.title.size() <= 200))
+        && (!('description' in after) || (after.description is string && after.description.size() <= 10000))
+        && (!('expected_output' in after) || (after.expected_output is string && after.expected_output.size() <= 5000))
+        && (!('required_deliverables' in after) || (after.required_deliverables is string && after.required_deliverables.size() <= 10000));
+    }
+
+    function canSeeDocument(data) {
+      return hasPermission(data.project_id, 'project.view')
+        && (
+          ('authorized_users' in data && data.authorized_users is list && request.auth.uid in data.authorized_users)
+          || (hasPermission(data.project_id, 'documents.view')
+            && (!('authorized_users' in data) || data.authorized_users == null
+              || data.authorized_users.size() == 0 || hasPermission(data.project_id, 'team.view')))
+        );
+    }
+
+    // Public profile fields are never globally enumerable from client SDKs.
+    // The server returns only the profiles needed by a user's authorized views.
+    match /profiles/{userId} {
+      allow get: if signedIn() && request.auth.uid == userId;
+      allow list, create, update, delete: if false;
+    }
+
+    match /projects/{projectId} {
+      allow get, list: if hasPermission(projectId, 'project.view');
+      allow create, delete: if false;
+      allow update: if hasPermission(projectId, 'project.edit')
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['name', 'description', 'research_goal', 'status', 'start_date', 'deadline', 'updated_at'])
+        && request.resource.data.created_by == resource.data.created_by;
+    }
+
+    match /project_members/{memberId} {
+      allow get, list: if signedIn()
+        && (
+          resource.data.user_id == request.auth.uid
+          || hasPermission(resource.data.project_id, 'team.view')
+          || hasPermission(resource.data.project_id, 'tasks.assign')
+        );
+      allow create, update, delete: if false;
+    }
+
+    match /user_permissions/{grantId} {
+      allow get, list: if signedIn()
+        && (
+          resource.data.user_id == request.auth.uid
+          || hasPermission(resource.data.project_id, 'team.view')
+        );
+      allow write: if false;
+    }
+
+    match /tasks/{taskId} {
+      allow get, list: if canSeeTask(resource.data);
+      allow create: if validTaskCreate();
+      allow update: if signedIn() && validTaskUpdate();
+      allow delete: if hasPermission(resource.data.project_id, 'tasks.delete');
+    }
+
+    match /documents/{documentId} {
+      allow get, list: if canSeeDocument(resource.data);
+      allow create, update, delete: if false;
+    }
+
+    match /comments/{commentId} {
+      allow get, list: if signedIn() && (resource.data.author_id == request.auth.uid
+        || (resource.data.task_id == null
+          ? hasPermission(resource.data.project_id, 'team.view')
+          : canSeeTask(get(/databases/$(database)/documents/tasks/$(resource.data.task_id)).data)));
+      allow create, update, delete: if false;
+    }
+
+    match /activity_logs/{activityId} {
+      allow get, list: if signedIn()
+        && (
+          resource.data.actor_id == request.auth.uid
+          || (resource.data.project_id != null && hasPermission(resource.data.project_id, 'activity.view'))
+        );
+      allow create, update, delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow get, list: if signedIn() && resource.data.user_id == request.auth.uid;
+      allow create, delete: if false;
+      allow update: if signedIn()
+        && resource.data.user_id == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read_at'])
+        && (request.resource.data.read_at == null || request.resource.data.read_at is string);
+    }
+
+    // Catalogs are static, non-sensitive, and seeded from source-controlled definitions.
+    match /permissions/{permissionId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+    match /role_permissions/{templateId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

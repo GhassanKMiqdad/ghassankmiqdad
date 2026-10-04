@@ -2,16 +2,18 @@ import { Brand } from "@/components/layout/brand";
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { NavLinks, type NavKey } from "@/components/layout/nav";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
 import { getI18n } from "@/lib/i18n/server";
 import { can } from "@/lib/permissions/policy";
 import { getMyProjectsAccess } from "@/server/access";
 import { requireCurrentProfile } from "@/server/auth";
+import { listNotifications } from "@/server/queries/notifications";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireCurrentProfile();
-  const [access, { t }] = await Promise.all([getMyProjectsAccess(), getI18n()]);
+  const [access, { t }, notifications] = await Promise.all([getMyProjectsAccess(), getI18n(), listNotifications()]);
 
   // Navigation only lists pages the user can actually use. The pages and the
   // database re-check permissions independently.
@@ -40,6 +42,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <MobileNav visible={visible} />
           <Brand name={t.app.name} className="lg:hidden" />
           <div className="flex-1" />
+          <NotificationBell initialItems={notifications} />
           <LocaleSwitcher />
           <ThemeToggle />
           <UserMenu

@@ -51,22 +51,20 @@ export function parseInput<Schema extends z.ZodType>(schema: Schema, input: unkn
   throw new AppError("VALIDATION_ERROR", { fieldErrors });
 }
 
-type SupabaseResult = { data: unknown; error: unknown };
+type AdapterResult = { data: unknown; error: unknown };
 type DataOf<R> = R extends { data: infer D } ? D : never;
 
 /**
- * Unwraps a Supabase response whose data is present on success (lists,
- * `.single()`, RPC results), converting database errors to AppErrors.
- * (The response type is captured as a whole: inferring `data` through a
- * generic parameter breaks on awaited PostgREST builders.)
+ * Unwraps a Firebase adapter response whose data is present on success,
+ * converting Firebase errors to AppErrors.
  */
-export function unwrap<R extends SupabaseResult>(response: R): NonNullable<DataOf<R>> {
+export function unwrap<R extends AdapterResult>(response: R): NonNullable<DataOf<R>> {
   if (response.error) throw toAppError(response.error);
   return response.data as NonNullable<DataOf<R>>;
 }
 
 /** Same as `unwrap` for `.maybeSingle()`: null means "not found / not visible". */
-export function unwrapMaybe<R extends SupabaseResult>(response: R): DataOf<R> | null {
+export function unwrapMaybe<R extends AdapterResult>(response: R): DataOf<R> | null {
   if (response.error) throw toAppError(response.error);
   return (response.data ?? null) as DataOf<R> | null;
 }

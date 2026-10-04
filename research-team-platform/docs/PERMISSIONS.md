@@ -1,162 +1,48 @@
-# D. Permission model
+# Permission model
 
-## Concepts
+## Membership and effective access
 
-| Concept                   | Meaning                                                                                                                                                                                                                          |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Membership**            | Access is always per project: a row in `project_members (project_id, user_id, role, status)`. A user can be a manager in one project and a reviewer in another.                                                                  |
-| **Role**                  | `owner`, `manager`, `member`, `reviewer`. A role is a _label_ and a _template_: when a member is added (or their role changes) the role's template pre-fills their permissions. It is **not** what the system checks afterwards. |
-| **Effective permissions** | The rows in `user_permissions` for that member and project. This is what every check uses, so two members with the same role can have different permissions.                                                                     |
-| **Owner**                 | Exactly one per project (created with it, transferable). The owner implicitly holds every permission; owner grants are never stored and cannot be edited.                                                                        |
-| **Access gate**           | `project.view`. Without it a member has no effective permission in the project at all, whatever else is stored.                                                                                                                  |
-| **Suspension**            | `status = 'suspended'` removes every permission immediately (including for open sessions) without deleting the member's grants, so reactivation restores them.                                                                   |
-| **Platform flags**        | `profiles.is_platform_admin` (system owner) and `profiles.can_create_projects`. Only platform admins change them; the first admin is bootstrapped from `PLATFORM_ADMIN_EMAILS` or `npm run admin:promote`.                       |
+Access is granted per project through `project_members/{projectId_uid}`. A membership contains a role, active/suspended status, and an effective permission array. Every non-owner access also requires the `project.view` gate. Suspended memberships grant no project access. The project owner is treated as having all supported permissions.
 
-The single function every rule goes through:
+Role templates and the permission catalog live in `src/lib/permissions/catalog.ts`. The shared pure policy functions are in `src/lib/permissions/policy.ts`; the server adapter applies the same checks before Admin SDK operations. A user cannot change their own role or permissions through the app.
 
-```text
-member_has_permission(project, user, key) =
-     membership exists AND status = 'active'
- AND ( role = 'owner'
-       OR ( 'project.view' ∈ grants AND key ∈ grants ) )
-```
+## Current task visibility and workflow
 
-## Permission catalog
+| Operation                        | Current rule                                                                                                       |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| View a project                   | Active membership with `project.view`                                                                              |
+| View all project tasks           | Requires `tasks.view`                                                                                              |
+| View a task without `tasks.view` | Only the task assigned to the caller; a reviewer with `tasks.review` can see tasks in `review`                     |
+| Create task                      | Requires `tasks.create`; assignment to another member also requires `tasks.assign`                                 |
+| Change definition                | Requires `tasks.edit`; includes title, instructions, expected output, required deliverables, priority and due date |
+| Update progress/work notes       | Assigned member only, with `tasks.update_progress` / `tasks.add_work_notes`                                        |
+| Start/resume work                | Assigned member only; allowed transitions are checked by the shared policy                                         |
+| Submit for review                | Assigned member only, from `in_progress`, with `tasks.submit`                                                      |
+| Review                           | `tasks.review` permits decisions on items in the review state; assigned researchers cannot approve their own task  |
+| Reassign                         | Requires `tasks.assign`; the new assignee must be an active project member                                         |
+| Delete                           | Requires `tasks.delete`                                                                                            |
 
-24 keys, defined once in `supabase/migrations/20261001000200_permission_catalog.sql`
-and mirrored in `src/lib/permissions/catalog.ts` (a unit test fails if they
-diverge). Columns O / M / Mb / R show the default templates for Owner,
-Manager, Member and Reviewer.
+Current statuses include `todo`, `in_progress`, `review`, `revision_required`, `completed`, and `rejected`. The revision-request cycle is represented as a status transition. Separate versioned submission records and per-review feedback records are not part of the current schema.
 
-| Key                   | Category       | Grants                                                              |  O  |  M  | Mb  |  R  |
-| --------------------- | -------------- | ------------------------------------------------------------------- | :-: | :-: | :-: | :-: |
-| `project.view`        | Project        | Open the project at all (gate)                                      |  ✓  |  ✓  |  ✓  |  ✓  |
-| `project.edit`        | Project        | Edit name, description, goal, status, dates                         |  ✓  |  ✓  |     |     |
-| `project.delete`      | Project        | Delete the project                                                  |  ✓  |     |     |     |
-| `tasks.view`          | Tasks          | See all tasks (without it: only own / assigned tasks)               |  ✓  |  ✓  |  ✓  |  ✓  |
-| `tasks.create`        | Tasks          | Create tasks                                                        |  ✓  |  ✓  |  ✓  |     |
-| `tasks.edit`          | Tasks          | Edit any task, any status transition                                |  ✓  |  ✓  |     |     |
-| `tasks.edit_own`      | Tasks          | Edit tasks **they created**                                         |  ✓  |  ✓  |  ✓  |     |
-| `tasks.edit_assigned` | Tasks          | Edit tasks **assigned to them**                                     |  ✓  |  ✓  |  ✓  |     |
-| `tasks.assign`        | Tasks          | Set / change the assignee                                           |  ✓  |  ✓  |     |     |
-| `tasks.review`        | Tasks          | Approve / reject tasks in review                                    |  ✓  |  ✓  |     |  ✓  |
-| `tasks.delete`        | Tasks          | Delete tasks                                                        |  ✓  |  ✓  |     |     |
-| `documents.view`      | Documents      | List and download files                                             |  ✓  |  ✓  |  ✓  |  ✓  |
-| `documents.upload`    | Documents      | Upload files                                                        |  ✓  |  ✓  |  ✓  |     |
-| `documents.edit`      | Documents      | Edit document title / description                                   |  ✓  |  ✓  |     |     |
-| `documents.delete`    | Documents      | Delete documents and their files                                    |  ✓  |  ✓  |     |     |
-| `comments.create`     | Comments       | Comment on the project and visible tasks; edit own comments         |  ✓  |  ✓  |  ✓  |  ✓  |
-| `comments.delete`     | Comments       | Delete other people's comments (own comments can always be deleted) |  ✓  |  ✓  |     |     |
-| `team.view`           | Team           | See members, roles and permissions                                  |  ✓  |  ✓  |  ✓  |  ✓  |
-| `members.add`         | Team           | Add existing users / invite by e-mail                               |  ✓  |  ✓  |     |     |
-| `members.remove`      | Team           | Remove members                                                      |  ✓  |  ✓  |     |     |
-| `members.manage`      | Team           | Change roles, suspend / reactivate                                  |  ✓  |  ✓  |     |     |
-| `permissions.manage`  | Team           | Edit the permission matrix of members                               |  ✓  |     |     |     |
-| `activity.view`       | Administration | Read the project's full activity log                                |  ✓  |     |     |     |
-| `data.export`         | Administration | Export project data (tasks as CSV, the project as JSON)             |  ✓  |  ✓  |     |     |
+## Documents and private files
 
-The role templates live in `role_permissions` and can be tuned without code
-changes; existing members keep their effective permissions.
+- Files are stored under a server-chosen `<projectId>/<documentId>/<sanitized-file-name>` path.
+- Upload requires `documents.upload`; the signed POST policy fixes the exact path and MIME type and caps the body at 50 MB.
+- A new file is private to its uploader by default. The `authorized_users` metadata controls explicit shares; managers with the appropriate project/document visibility permissions may access project-managed files.
+- Signed downloads are issued only after a current authorization check and expire quickly.
+- Editing metadata requires `documents.edit`. Changing explicit sharing is restricted to a user with `team.view`; deleting requires `documents.delete`.
 
-## Rules by area
+## Other resources
 
-### Projects
+- Project/task comments require `comments.create`; edits/deletes follow authorship and `comments.delete` rules.
+- Full activity history requires `activity.view`; a user can also view their own logged events.
+- Notifications are scoped to their recipient and can only be marked read by that recipient.
+- Project membership, permission catalog, and platform-admin flags are server-managed. Never add unrestricted client writes for these records.
 
-- Creating a project requires `can_create_projects` (or platform admin); the
-  creator becomes its owner. Projects are created only through the
-  `create_project` RPC (no direct `INSERT` grant).
-- `project.edit` → update the editable columns only (column-level grants).
-- `project.delete` → delete; cascades to members, grants, tasks, documents and
-  comments. The audit log keeps the history; the app removes the files.
-- Ownership transfer (`transfer_project_ownership`): owner only, to an active
-  member, who becomes owner; the former owner becomes a manager.
+## Enforcement layers
 
-### Tasks
+1. **Server Actions/queries:** authenticate the Firebase session, validate input, load current membership, filter private rows, enforce field-level rules, and write audit records.
+2. **Firebase Rules:** deny unauthenticated/unknown access and enforce direct-client resource boundaries. See `firestore.rules` and `storage.rules`.
+3. **UI:** hides unavailable controls but is not relied upon for privacy.
 
-Row access is decided by RLS, field changes by the `tasks_before_update`
-trigger:
-
-| Change                                                | Allowed when                                                                                                                                                                                                                    |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| See the task                                          | `tasks.view`, or the user created it / is assigned to it (with `project.view`)                                                                                                                                                  |
-| Create                                                | `tasks.create`; assigning it to someone else additionally needs `tasks.assign`; creating it directly as _completed/rejected_ needs `tasks.edit`                                                                                 |
-| Edit content (title, description, priority, due date) | `tasks.edit`, or `tasks.edit_own` **and** the user created it, or `tasks.edit_assigned` **and** it is assigned to the user                                                                                                      |
-| Change status                                         | `tasks.edit`: any transition · `tasks.review`: any transition of a task in _review/completed/rejected_ · content editors: only among _todo / in progress / review_ (they submit for review; they cannot approve their own work) |
-| Change assignee                                       | `tasks.assign` (the new assignee must be an active member)                                                                                                                                                                      |
-| Delete                                                | `tasks.delete`                                                                                                                                                                                                                  |
-| Change project / creator / id                         | Never (`IMMUTABLE_FIELD`, and no column grant)                                                                                                                                                                                  |
-
-Errors surface as «لا يمكنك تعديل هذه المهمة.» (`TASK_EDIT_FORBIDDEN`) or
-«ليس لديك صلاحية لتنفيذ هذه العملية.» for the other cases.
-
-### Documents and files
-
-- Files live at `<project_id>/<document_id>/<file>` in the private
-  `project-documents` bucket (50 MB, MIME allow-list, no overwrite).
-- Upload: `documents.upload` (storage `INSERT` policy on the project folder,
-  then a `documents` row whose existence check, size and MIME type come from
-  Storage, not from the client).
-- Download / signed URLs: `documents.view`.
-- Edit title/description: `documents.edit`. Delete row and file:
-  `documents.delete`.
-- The uploader may discard their own upload only while no document row
-  references it (a failed second upload step).
-
-### Comments
-
-- Add: `comments.create`; task comments only on tasks the user can see.
-- Edit: only the author (while holding `comments.create`).
-- Delete: the author, or anyone with `comments.delete`.
-- Edits and deletions are audited with the previous content.
-
-### Team, roles and permissions
-
-| Operation                        | Requires             | Additional rules                                                                                                                                                                                                                                  |
-| -------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Add member / invite              | `members.add`        | Role must rank **below** the actor's (owner: any non-owner role). The new member gets the role template **limited to permissions the actor holds**.                                                                                               |
-| Change role, suspend, reactivate | `members.manage`     | Not on the owner, not on oneself, target must rank below the actor, new role must rank below the actor.                                                                                                                                           |
-| Remove member                    | `members.remove`     | Same rank rules; their tasks are un-assigned automatically.                                                                                                                                                                                       |
-| Edit permissions                 | `permissions.manage` | Not on the owner (`CANNOT_MODIFY_OWNER`), not on oneself (`CANNOT_MODIFY_SELF`), target must rank below the actor (`INSUFFICIENT_RANK`), and a non-owner can only grant **or revoke** permissions they hold themselves (`PERMISSION_ESCALATION`). |
-
-Ranks: owner 100 > manager 50 > member = reviewer 10.
-
-These rules make privilege escalation impossible by construction: nobody can
-raise their own permissions, and nobody can hand out a permission they do not
-already have.
-
-### Activity log
-
-- Written only by the database (triggers / RPCs); no client can insert,
-  update or delete entries (no grants, plus a trigger that blocks
-  `UPDATE`/`DELETE`/`TRUNCATE` even for privileged roles).
-- Read: `activity.view` → the project's full log (the owner always has it).
-  Everyone can see their own actions. Platform admins also see platform-level
-  entries and the history of deleted projects.
-- Permission changes are logged with old and new values per key, e.g.
-  `{"tasks.delete": false} → {"tasks.delete": true}`.
-
-## Where each rule is enforced
-
-| Rule                     | Database (authoritative)                                                                                                                                     | Server (Next.js)                                                           | UI                                         |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------ |
-| Project isolation        | RLS on every table via `private.project_ids_with_permission` / `has_permission`; composite FKs                                                               | `getProjectAccess` in the project layout                                   | Only member projects are listed            |
-| Task field rules         | `tasks_before_insert` / `tasks_before_update`, column grants                                                                                                 | `evaluateTaskCreate` / `evaluateTaskUpdate` (same rules, precise messages) | Disabled fields, allowed statuses only     |
-| Membership & permissions | `add_project_member`, `update_project_member`, `remove_project_member`, `set_member_permissions` (SECURITY DEFINER, explicit checks); no direct write grants | `evaluateMemberManage`, `evaluatePermissionChange`                         | Locked checkboxes with an explanation      |
-| Files                    | Storage policies on `storage.objects`, `documents_before_insert`                                                                                             | Path built server-side; type/size validated                                | Upload button only with `documents.upload` |
-| Audit                    | Triggers + immutability trigger                                                                                                                              | —                                                                          | Activity pages                             |
-
-Tests: `supabase/tests/database/*.test.sql` (185 pgTAP assertions),
-`tests/integration/api-security.test.ts` (direct API attacks with real user
-sessions) and `tests/unit/permissions-policy.test.ts` (server/UI policy).
-
-## Adding a permission
-
-1. Add the key to `public.permissions` (new migration) and to the templates
-   that should include it.
-2. Add it to `PERMISSION_KEYS` / `ROLE_TEMPLATES` in
-   `src/lib/permissions/catalog.ts` and to both dictionaries
-   (`permissions.items`). The consistency unit test fails until both sides
-   match.
-3. Use it in the relevant RLS policy / trigger / RPC, then in
-   `src/lib/permissions/policy.ts` for the UI.
-4. Add pgTAP assertions for the new rule.
+The Admin SDK bypasses Firebase Rules, so any new server-side Admin code must repeat authorization checks. Emulator coverage is in `tests/firebase/rules.test.ts`; shared policy coverage is in `tests/unit/permissions-policy.test.ts`.

@@ -21,7 +21,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { MAX_UPLOAD_BYTES } from "@/lib/env";
 import { ACCEPT_ATTRIBUTE, resolveFileType } from "@/lib/files";
 import { useI18n } from "@/lib/i18n/provider";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { formatBytes } from "@/lib/utils";
 import {
   discardDocumentUploadAction,
@@ -86,11 +85,15 @@ export function UploadDocumentDialog({ projectId }: { projectId: string }) {
     }
 
     setPhase("uploading");
-    const { documentId, storagePath, token, mimeType } = prepared.data;
-    const { error: uploadError } = await getSupabaseBrowserClient()
-      .storage.from("project-documents")
-      .uploadToSignedUrl(storagePath, token, file, { contentType: mimeType });
-    if (uploadError) {
+    const { documentId, storagePath, signedUrl, signedFields } = prepared.data;
+    const form = new FormData();
+    for (const [key, value] of Object.entries(signedFields)) form.append(key, value);
+    form.append("file", file);
+    const uploadResponse = await fetch(signedUrl, {
+      method: "POST",
+      body: form,
+    }).catch(() => null);
+    if (!uploadResponse?.ok) {
       setError(t.errors.UPLOAD_FAILED);
       setPhase("idle");
       return;

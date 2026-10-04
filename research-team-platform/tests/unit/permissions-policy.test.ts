@@ -53,7 +53,14 @@ describe("tasks: admin / owner", () => {
   it("admin can edit everything", () => {
     const foreign = task(OTHER, OTHER, "completed");
     expect(canEditTaskContent(owner, foreign)).toBe(true);
-    expect(allowedTaskStatuses(owner, foreign)).toEqual(["todo", "in_progress", "review", "completed", "rejected"]);
+    expect(allowedTaskStatuses(owner, foreign)).toEqual([
+      "todo",
+      "in_progress",
+      "review",
+      "revision_required",
+      "completed",
+      "rejected",
+    ]);
     expect(canDeleteTasks(owner)).toBe(true);
     expect(
       evaluateTaskUpdate(
@@ -73,10 +80,18 @@ describe("tasks: research member", () => {
     expect(canDeleteTasks(member)).toBe(false);
   });
 
-  it("member can edit an assigned task", () => {
-    const assigned = task(OWNER, MEMBER);
-    expect(canEditTaskContent(member, assigned)).toBe(true);
-    expect(evaluateTaskUpdate(member, assigned, { title: "Updated", status: "review" }, current)).toEqual({ ok: true });
+  it("member can update progress and submit assigned work, but cannot edit task instructions", () => {
+    const assigned = task(OWNER, MEMBER, "in_progress");
+    expect(canEditTaskContent(member, assigned)).toBe(false);
+    expect(canUpdateTask(member, assigned)).toBe(true);
+    expect(evaluateTaskUpdate(member, assigned, { progress: 55, workNotes: "Screened abstracts" }, current)).toEqual({
+      ok: true,
+    });
+    expect(evaluateTaskUpdate(member, assigned, { status: "review" }, current)).toEqual({ ok: true });
+    expect(evaluateTaskUpdate(member, assigned, { title: "Updated" }, current)).toEqual({
+      ok: false,
+      code: "TASK_EDIT_FORBIDDEN",
+    });
   });
 
   it("member cannot edit another user's task", () => {
@@ -91,7 +106,7 @@ describe("tasks: research member", () => {
 
   it("member cannot approve (complete) their own work", () => {
     const assigned = task(OWNER, MEMBER, "review");
-    expect(allowedTaskStatuses(member, assigned)).toEqual(["todo", "in_progress", "review"]);
+    expect(allowedTaskStatuses(member, assigned)).toEqual(["review"]);
     expect(evaluateTaskUpdate(member, assigned, { status: "completed" }, current)).toEqual({
       ok: false,
       code: "TASK_STATUS_FORBIDDEN",
@@ -105,27 +120,30 @@ describe("tasks: research member", () => {
     });
   });
 
-  it("tasks.edit_own only covers tasks the member created", () => {
+  it("legacy tasks.edit_own grants do not allow task-definition edits", () => {
     const ownOnly = accessFor("member", { permissions: ["project.view", "tasks.view", "tasks.edit_own"] });
-    expect(canEditTaskContent(ownOnly, task(MEMBER, null))).toBe(true);
+    expect(canEditTaskContent(ownOnly, task(MEMBER, null))).toBe(false);
     expect(canEditTaskContent(ownOnly, task(OWNER, MEMBER))).toBe(false);
   });
 
-  it("tasks.edit_assigned only covers tasks assigned to the member", () => {
+  it("legacy tasks.edit_assigned grants do not allow task-definition edits", () => {
     const assignedOnly = accessFor("member", { permissions: ["project.view", "tasks.view", "tasks.edit_assigned"] });
-    expect(canEditTaskContent(assignedOnly, task(OWNER, MEMBER))).toBe(true);
+    expect(canEditTaskContent(assignedOnly, task(OWNER, MEMBER))).toBe(false);
     expect(canEditTaskContent(assignedOnly, task(MEMBER, null))).toBe(false);
   });
 
-  it("member may create tasks for themselves but not for others", () => {
-    expect(evaluateTaskCreate(member, { assignedTo: MEMBER, status: "todo" })).toEqual({ ok: true });
+  it("member cannot create tasks; task definition remains manager-owned", () => {
+    expect(evaluateTaskCreate(member, { assignedTo: MEMBER, status: "todo" })).toEqual({
+      ok: false,
+      code: "PERMISSION_DENIED",
+    });
     expect(evaluateTaskCreate(member, { assignedTo: OTHER, status: "todo" })).toEqual({
       ok: false,
-      code: "TASK_ASSIGN_FORBIDDEN",
+      code: "PERMISSION_DENIED",
     });
     expect(evaluateTaskCreate(member, { assignedTo: null, status: "completed" })).toEqual({
       ok: false,
-      code: "TASK_STATUS_FORBIDDEN",
+      code: "PERMISSION_DENIED",
     });
   });
 });

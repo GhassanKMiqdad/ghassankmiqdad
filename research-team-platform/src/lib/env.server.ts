@@ -2,11 +2,6 @@ import "server-only";
 
 /** Server-only configuration. Never import this module from Client Components. */
 
-export function getServiceRoleKey(): string | null {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  return key ? key : null;
-}
-
 export function getPlatformAdminEmails(): string[] {
   return (process.env.PLATFORM_ADMIN_EMAILS ?? "")
     .split(",")
@@ -30,7 +25,7 @@ export function getAppTimeZone(): string {
   return timeZoneCache;
 }
 
-/** Base URL used in e-mail links (falls back to the request origin). */
+/** Base URL used for Firebase Auth action links. */
 export function getSiteUrl(requestOrigin?: string | null): string {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();

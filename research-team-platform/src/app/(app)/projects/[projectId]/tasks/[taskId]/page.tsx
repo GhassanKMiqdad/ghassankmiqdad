@@ -12,6 +12,7 @@ import { DateText } from "@/components/shared/date-text";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { DeleteTaskButton } from "@/components/tasks/delete-task-button";
 import { TaskFormDialog } from "@/components/tasks/task-form-dialog";
+import { TaskProgressEditor } from "@/components/tasks/task-progress-editor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getI18n } from "@/lib/i18n/server";
@@ -112,6 +113,16 @@ export default async function TaskPage(props: PageProps<"/projects/[projectId]/t
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
+          {task.assignedToId === access.userId &&
+          (can(access, "tasks.update_progress") || can(access, "tasks.add_work_notes")) ? (
+            <TaskProgressEditor
+              taskId={task.id}
+              progress={task.progress}
+              workNotes={task.workNotes}
+              canUpdateProgress={can(access, "tasks.update_progress")}
+              canAddWorkNotes={can(access, "tasks.add_work_notes")}
+            />
+          ) : null}
           <Card>
             <CardHeader>
               <CardTitle>{t.tasks.fields.description}</CardTitle>
@@ -122,6 +133,42 @@ export default async function TaskPage(props: PageProps<"/projects/[projectId]/t
               </p>
             </CardContent>
           </Card>
+          {task.expectedOutput ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t.tasks.fields.expectedOutput}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p dir="auto" className="text-start text-sm leading-relaxed whitespace-pre-wrap">
+                  {task.expectedOutput}
+                </p>
+              </CardContent>
+            </Card>
+          ) : null}
+          {task.requiredDeliverables ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t.tasks.fields.requiredDeliverables}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p dir="auto" className="text-start text-sm leading-relaxed whitespace-pre-wrap">
+                  {task.requiredDeliverables}
+                </p>
+              </CardContent>
+            </Card>
+          ) : null}
+          {task.workNotes && task.assignedToId !== access.userId && can(access, "tasks.view") ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t.tasks.fields.workNotes}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p dir="auto" className="text-start text-sm leading-relaxed whitespace-pre-wrap">
+                  {task.workNotes}
+                </p>
+              </CardContent>
+            </Card>
+          ) : null}
           <Card>
             <CardHeader>
               <CardTitle>{t.comments.title}</CardTitle>

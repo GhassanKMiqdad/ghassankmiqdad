@@ -1,0 +1,79 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function memberPath(projectId, userId) {
+      return /databases/(default)/documents/project_members/$(projectId + '_' + userId);
+    }
+
+    function hasPermission(projectId, key) {
+      let path = memberPath(projectId, request.auth.uid);
+      return signedIn()
+        && firestore.exists(path)
+        && firestore.get(path).data.status == 'active'
+        && (
+          firestore.get(path).data.role == 'owner'
+          || (
+            'project.view' in firestore.get(path).data.permissions
+            && key in firestore.get(path).data.permissions
+          )
+        );
+    }
+
+    function allowedMimeType() {
+      return request.resource.contentType in [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'application/rtf',
+        'text/plain',
+        'text/csv',
+        'text/markdown',
+        'application/json',
+        'application/zip',
+        'image/png',
+        'image/jpeg',
+        'image/gif',
+        'image/webp'
+      ];
+    }
+
+    match /{projectId}/{documentId}/{fileName} {
+      allow read: if hasPermission(projectId, 'project.view')
+        && firestore.exists(/databases/(default)/documents/documents/$(documentId))
+        && firestore.get(/databases/(default)/documents/documents/$(documentId)).data.project_id == projectId
+        && (
+          (('authorized_users' in firestore.get(/databases/(default)/documents/documents/$(documentId)).data)
+            && request.auth.uid in firestore.get(/databases/(default)/documents/documents/$(documentId)).data.authorized_users)
+          || (hasPermission(projectId, 'documents.view')
+            && (!('authorized_users' in firestore.get(/databases/(default)/documents/documents/$(documentId)).data)
+              || firestore.get(/databases/(default)/documents/documents/$(documentId)).data.authorized_users == null
+              || firestore.get(/databases/(default)/documents/documents/$(documentId)).data.authorized_users.size() == 0
+              || hasPermission(projectId, 'team.view')))
+        );
+
+      allow create: if hasPermission(projectId, 'documents.upload')
+        && resource == null
+        && request.resource.size > 0
+        && request.resource.size <= 50 * 1024 * 1024
+        && allowedMimeType()
+        && fileName.matches('^[A-Za-z0-9._-]{1,120}$');
+
+      allow update: if false;
+      allow delete: if hasPermission(projectId, 'documents.delete')
+        && firestore.exists(/databases/(default)/documents/documents/$(documentId))
+        && firestore.get(/databases/(default)/documents/documents/$(documentId)).data.project_id == projectId;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

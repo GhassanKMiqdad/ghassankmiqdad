@@ -4,14 +4,13 @@ import { revalidatePath } from "next/cache";
 
 import type { ActionResult } from "@/lib/action-result";
 import { AppError } from "@/lib/errors";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { firebaseAdminStorage } from "@/lib/firebase/admin";
+import { createFirebaseServerClient } from "@/lib/firebase/compat";
 import { uuidField } from "@/lib/validation/common";
 import { deleteProjectSchema, projectFormSchema, transferOwnershipSchema } from "@/lib/validation/project";
 import { getCurrentProfile } from "@/server/auth";
 import { assertProjectAccess, assertProjectPermission } from "@/server/access";
 import { parseInput, runAction, unwrap } from "@/server/action";
-import { DOCUMENT_BUCKET } from "@/server/storage";
 
 export async function createProjectAction(input: unknown): Promise<ActionResult<{ projectId: string }>> {
   return runAction(async () => {
@@ -19,9 +18,9 @@ export async function createProjectAction(input: unknown): Promise<ActionResult<
     const profile = await getCurrentProfile();
     if (!profile?.canCreateProjects) throw new AppError("PROJECT_CREATE_FORBIDDEN");
 
-    const supabase = await createSupabaseServerClient();
+    const firebase = await createFirebaseServerClient();
     const projectId = unwrap(
-      await supabase.rpc("create_project", {
+      await firebase.rpc("create_project", {
         p_name: values.name,
         p_description: values.description,
         p_research_goal: values.researchGoal,
@@ -42,9 +41,9 @@ export async function updateProjectAction(projectId: string, input: unknown): Pr
     const values = parseInput(projectFormSchema, input);
     await assertProjectPermission(id, "project.edit");
 
-    const supabase = await createSupabaseServerClient();
+    const firebase = await createFirebaseServerClient();
     const updated = unwrap(
-      await supabase
+      await firebase
         .from("projects")
         .update({
           name: values.name,
@@ -71,8 +70,8 @@ export async function deleteProjectAction(projectId: string, input: unknown): Pr
     const access = await assertProjectPermission(id, "project.delete");
     if (confirmation.trim() !== access.projectName.trim()) throw new AppError("CONFIRMATION_MISMATCH");
 
-    const supabase = await createSupabaseServerClient();
-    const deleted = unwrap(await supabase.from("projects").delete().eq("id", id).select("id"));
+    const firebase = await createFirebaseServerClient();
+    const deleted = unwrap(await firebase.from("projects").delete().eq("id", id).select("id"));
     if (deleted.length === 0) throw new AppError("PERMISSION_DENIED");
 
     // The rows are gone (and audited); remove the stored files as well.
@@ -84,29 +83,14 @@ export async function deleteProjectAction(projectId: string, input: unknown): Pr
 }
 
 /**
- * Deletes every object under "<projectId>/". Runs with the service role only
- * after the caller deleted the project with their own (RLS-checked) session.
+ * Deletes every object under "<projectId>/" after the caller's project.delete
+ * permission has been independently checked by the server action and adapter.
  */
 async function removeProjectFiles(projectId: string) {
-  const admin = createSupabaseAdminClient();
-  if (!admin) {
-    console.warn(`[projects] SUPABASE_SERVICE_ROLE_KEY missing: files of project ${projectId} were not removed.`);
-    return;
-  }
-  const bucket = admin.storage.from(DOCUMENT_BUCKET);
-  const { data: folders, error } = await bucket.list(projectId, { limit: 1000 });
-  if (error) {
-    console.error("[projects] could not list project files", error.message);
-    return;
-  }
-  const paths: string[] = [];
-  for (const folder of folders ?? []) {
-    const { data: files } = await bucket.list(`${projectId}/${folder.name}`, { limit: 100 });
-    for (const file of files ?? []) paths.push(`${projectId}/${folder.name}/${file.name}`);
-  }
-  for (let index = 0; index < paths.length; index += 100) {
-    const { error: removeError } = await bucket.remove(paths.slice(index, index + 100));
-    if (removeError) console.error("[projects] could not remove project files", removeError.message);
+  const bucket = firebaseAdminStorage();
+  const [files] = await bucket.getFiles({ prefix: `${projectId}/` });
+  for (let index = 0; index < files.length; index += 100) {
+    await Promise.all(files.slice(index, index + 100).map((file) => file.delete({ ignoreNotFound: true })));
   }
 }
 
@@ -117,8 +101,8 @@ export async function transferOwnershipAction(projectId: string, input: unknown)
     const access = await assertProjectAccess(id);
     if (!access.isOwner) throw new AppError("PERMISSION_DENIED");
 
-    const supabase = await createSupabaseServerClient();
-    unwrap(await supabase.rpc("transfer_project_ownership", { p_project_id: id, p_new_owner_id: newOwnerId }));
+    const firebase = await createFirebaseServerClient();
+    unwrap(await firebase.rpc("transfer_project_ownership", { p_project_id: id, p_new_owner_id: newOwnerId }));
 
     revalidatePath("/", "layout");
     return null;

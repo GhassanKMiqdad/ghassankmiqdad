@@ -68,6 +68,8 @@ describe("domain validation", () => {
     const parsed = taskFormSchema.parse({
       title: "Literature review",
       description: "",
+      expectedOutput: "",
+      requiredDeliverables: "",
       status: "todo",
       priority: "medium",
       assignedTo: "",

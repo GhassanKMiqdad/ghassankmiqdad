@@ -63,8 +63,12 @@ export type TaskListItem = {
 
 export type TaskDetails = TaskListItem & {
   description: string;
+  expectedOutput: string;
+  requiredDeliverables: string;
   completedAt: string | null;
   createdBy: UserRef | null;
+  progress: number;
+  workNotes: string;
 };
 
 export type MemberOption = {
@@ -161,4 +165,16 @@ export type PlatformUser = {
   canCreateProjects: boolean;
   createdAt: string;
   lastSignInAt: string | null;
+};
+
+export type NotificationType = "task_assigned" | "task_submitted" | "revision_requested" | "submission_approved";
+
+export type NotificationItem = {
+  id: string;
+  type: NotificationType;
+  taskId: string;
+  taskTitle: string;
+  href: string;
+  createdAt: string;
+  readAt: string | null;
 };

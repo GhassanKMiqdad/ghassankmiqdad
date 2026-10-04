@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { NewPasswordForm } from "@/components/auth/new-password-form";
 import { getI18n } from "@/lib/i18n/server";
-import { updatePasswordAction } from "@/server/actions/auth";
+import { finishPasswordResetAction, updatePasswordAction } from "@/server/actions/auth";
 import { requireSessionUser } from "@/server/auth";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -11,11 +11,14 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ResetPasswordPage(props: PageProps<"/reset-password">) {
-  // The recovery / invitation link established a session in /auth/confirm.
-  await requireSessionUser();
   const { t } = await getI18n();
   const searchParams = await props.searchParams;
+  const rawCode = searchParams.oobCode;
+  const oobCode = typeof rawCode === "string" ? rawCode : null;
   const welcome = searchParams.welcome === "1";
+
+  if (!oobCode) await requireSessionUser();
+  const action = oobCode ? finishPasswordResetAction.bind(null, oobCode) : updatePasswordAction;
 
   return (
     <div className="space-y-6">
@@ -25,7 +28,7 @@ export default async function ResetPasswordPage(props: PageProps<"/reset-passwor
         </h1>
         <p className="text-sm text-muted-foreground">{t.auth.reset.subtitle}</p>
       </div>
-      <NewPasswordForm action={updatePasswordAction} submitLabel={t.auth.reset.submit} />
+      <NewPasswordForm action={action} submitLabel={t.auth.reset.submit} />
     </div>
   );
 }
