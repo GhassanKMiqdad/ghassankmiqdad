@@ -20,7 +20,22 @@ service firebase.storage {
             'project.view' in firestore.get(path).data.permissions
             && key in firestore.get(path).data.permissions
           )
-        );
+      );
+    }
+
+    function teamScopeAllowed(projectId, documentId) {
+      let documentPath = /databases/(default)/documents/documents/$(documentId);
+      let data = firestore.get(documentPath).data;
+      let teamId = data.get('team_id', '') == null ? '' : data.get('team_id', '');
+      let memberPath = /databases/(default)/documents/team_members/$(teamId + '_' + request.auth.uid);
+      return !('team_id' in data) || teamId == null
+        || hasPermission(projectId, 'project.edit')
+        || (teamId is string
+          && firestore.exists(memberPath)
+          && firestore.get(memberPath).data.projectId == projectId
+          && firestore.get(memberPath).data.teamId == teamId
+          && firestore.get(memberPath).data.userId == request.auth.uid
+          && firestore.get(memberPath).data.status == 'active');
     }
 
     function allowedMimeType() {
@@ -49,6 +64,7 @@ service firebase.storage {
       allow read: if hasPermission(projectId, 'project.view')
         && firestore.exists(/databases/(default)/documents/documents/$(documentId))
         && firestore.get(/databases/(default)/documents/documents/$(documentId)).data.project_id == projectId
+        && teamScopeAllowed(projectId, documentId)
         && (
           (('authorized_users' in firestore.get(/databases/(default)/documents/documents/$(documentId)).data)
             && request.auth.uid in firestore.get(/databases/(default)/documents/documents/$(documentId)).data.authorized_users)
@@ -56,7 +72,7 @@ service firebase.storage {
             && (!('authorized_users' in firestore.get(/databases/(default)/documents/documents/$(documentId)).data)
               || firestore.get(/databases/(default)/documents/documents/$(documentId)).data.authorized_users == null
               || firestore.get(/databases/(default)/documents/documents/$(documentId)).data.authorized_users.size() == 0
-              || hasPermission(projectId, 'team.view')))
+              || hasPermission(projectId, 'project.edit')))
         );
 
       allow create: if hasPermission(projectId, 'documents.upload')
@@ -64,12 +80,22 @@ service firebase.storage {
         && request.resource.size > 0
         && request.resource.size <= 50 * 1024 * 1024
         && allowedMimeType()
-        && fileName.matches('^[A-Za-z0-9._-]{1,120}$');
+        && fileName.matches('^[A-Za-z0-9._-]{1,120}$')
+        && firestore.exists(/databases/(default)/documents/upload_reservations/$(documentId))
+        && firestore.get(/databases/(default)/documents/upload_reservations/$(documentId)).data.project_id == projectId
+        && firestore.get(/databases/(default)/documents/upload_reservations/$(documentId)).data.document_id == documentId
+        && firestore.get(/databases/(default)/documents/upload_reservations/$(documentId)).data.storage_path == projectId + '/' + documentId + '/' + fileName
+        && firestore.get(/databases/(default)/documents/upload_reservations/$(documentId)).data.uploader_uid == request.auth.uid
+        && firestore.get(/databases/(default)/documents/upload_reservations/$(documentId)).data.status == 'pending'
+        && firestore.get(/databases/(default)/documents/upload_reservations/$(documentId)).data.expires_at > request.time
+        && request.resource.metadata.uploader_uid == request.auth.uid
+        && request.resource.metadata.upload_token == firestore.get(/databases/(default)/documents/upload_reservations/$(documentId)).data.token;
 
       allow update: if false;
       allow delete: if hasPermission(projectId, 'documents.delete')
         && firestore.exists(/databases/(default)/documents/documents/$(documentId))
-        && firestore.get(/databases/(default)/documents/documents/$(documentId)).data.project_id == projectId;
+        && firestore.get(/databases/(default)/documents/documents/$(documentId)).data.project_id == projectId
+        && teamScopeAllowed(projectId, documentId);
     }
 
     match /{allPaths=**} {

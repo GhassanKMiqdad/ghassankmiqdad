@@ -23,7 +23,8 @@ export default async function ProjectLayout(props: LayoutProps<"/projects/[proje
 
   const tabs: ProjectTabKey[] = ["overview", "tasks"];
   if (can(access, "documents.view") || can(access, "documents.upload")) tabs.push("documents");
-  if (can(access, "team.view")) tabs.push("team");
+  if (can(access, "team.view")) tabs.push("team", "teams", "milestones");
+  else tabs.push("milestones");
   if (can(access, "activity.view")) tabs.push("activity");
   if (can(access, "project.edit") || can(access, "project.delete") || access.isOwner) tabs.push("settings");
 

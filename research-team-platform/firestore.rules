@@ -9,14 +9,6 @@ service cloud.firestore {
       return /databases/$(database)/documents/project_members/$(projectId + '_' + userId);
     }
 
-    function isActiveMember(projectId) {
-      let path = memberPath(projectId, request.auth.uid);
-      let membership = get(path).data;
-      return signedIn()
-        && exists(path)
-        && membership.status == 'active';
-    }
-
     function hasPermission(projectId, key) {
       let path = memberPath(projectId, request.auth.uid);
       let membership = get(path).data;
@@ -30,90 +22,96 @@ service cloud.firestore {
             && 'project.view' in membership.permissions
             && key in membership.permissions
           )
-        );
+      );
+    }
+
+    function teamMemberPath(teamId, userId) {
+      return /databases/$(database)/documents/team_members/$(teamId + '_' + userId);
+    }
+
+    function isTeamMember(projectId, teamId, userId) {
+      let membershipPath = teamMemberPath(teamId, userId);
+      let membership = get(membershipPath).data;
+      return signedIn()
+        && exists(membershipPath)
+        && membership.projectId == projectId
+        && membership.teamId == teamId
+        && membership.userId == userId
+        && membership.status == 'active';
+    }
+
+    function activeTeam(projectId, teamId) {
+      let path = /databases/$(database)/documents/teams/$(teamId);
+      let team = get(path).data;
+      return exists(path)
+        && team.projectId == projectId
+        && team.status == 'active';
+    }
+
+    function taskTeamVisible(data) {
+      return !('team_id' in data) || data.team_id == null
+        || hasPermission(data.project_id, 'project.edit')
+        || isTeamMember(data.project_id, data.team_id, request.auth.uid);
     }
 
     function canSeeTask(data) {
-      return hasPermission(data.project_id, 'tasks.view')
-        || (hasPermission(data.project_id, 'tasks.review') && data.status == 'review')
-        || (
-          hasPermission(data.project_id, 'project.view')
-          && data.assigned_to == request.auth.uid
-        );
-    }
-
-    function validTaskCreate() {
-      let data = request.resource.data;
-      return signedIn()
-        && data.created_by == request.auth.uid
-        && data.project_id is string
-        && hasPermission(data.project_id, 'tasks.create')
-        && (data.assigned_to == null
-          || data.assigned_to == request.auth.uid
-          || hasPermission(data.project_id, 'tasks.assign'))
-        && data.status in ['todo', 'in_progress', 'review']
-        && data.title is string
-        && data.title.size() >= 2
-        && data.title.size() <= 200
-        && data.description is string
-        && data.description.size() <= 10000
-        && data.expected_output is string
-        && data.expected_output.size() <= 5000
-        && data.required_deliverables is string
-        && data.required_deliverables.size() <= 10000
-        && data.priority in ['low', 'medium', 'high', 'critical'];
-    }
-
-    function taskContentEditor(data) {
-      return hasPermission(data.project_id, 'tasks.edit')
-        || (data.created_by == request.auth.uid && hasPermission(data.project_id, 'tasks.edit_own'))
-        || (data.assigned_to == request.auth.uid && hasPermission(data.project_id, 'tasks.edit_assigned'));
-    }
-
-    function validTaskUpdate() {
-      let before = resource.data;
-      let after = request.resource.data;
-      let changed = after.diff(before).affectedKeys();
-      let contentChanged = changed.hasAny(['title', 'description', 'expected_output', 'required_deliverables', 'priority', 'due_date']);
-      let statusChanged = changed.hasAny(['status']);
-      let assigneeChanged = changed.hasAny(['assigned_to']);
-      let progressChanged = changed.hasAny(['progress']);
-      let notesChanged = changed.hasAny(['work_notes']);
-      let statusAllowed = !statusChanged
-        || hasPermission(before.project_id, 'tasks.edit')
-        || (hasPermission(before.project_id, 'tasks.review')
-          && before.status == 'review'
-          && after.status in ['completed', 'rejected', 'revision_required'])
-        || (before.assigned_to == request.auth.uid
-          && hasPermission(before.project_id, 'tasks.submit')
-          && after.status == 'review'
-          && before.status == 'in_progress')
-        || (before.assigned_to == request.auth.uid
-          && hasPermission(before.project_id, 'tasks.update_progress')
-          && after.status == 'in_progress'
-          && before.status in ['todo', 'in_progress', 'revision_required']);
-      return changed.hasOnly(['title', 'description', 'expected_output', 'required_deliverables', 'priority', 'due_date', 'status', 'assigned_to', 'progress', 'work_notes'])
-        && before.project_id == after.project_id
-        && before.created_by == after.created_by
-        && (!contentChanged || hasPermission(before.project_id, 'tasks.edit'))
-        && statusAllowed
-        && (!assigneeChanged || hasPermission(before.project_id, 'tasks.assign'))
-        && (!progressChanged || (before.assigned_to == request.auth.uid && hasPermission(before.project_id, 'tasks.update_progress') && after.progress is number && after.progress >= 0 && after.progress <= 100))
-        && (!notesChanged || (before.assigned_to == request.auth.uid && hasPermission(before.project_id, 'tasks.add_work_notes') && after.work_notes is string && after.work_notes.size() <= 10000))
-        && (!('title' in after) || (after.title is string && after.title.size() >= 2 && after.title.size() <= 200))
-        && (!('description' in after) || (after.description is string && after.description.size() <= 10000))
-        && (!('expected_output' in after) || (after.expected_output is string && after.expected_output.size() <= 5000))
-        && (!('required_deliverables' in after) || (after.required_deliverables is string && after.required_deliverables.size() <= 10000));
+      return taskTeamVisible(data)
+        && (hasPermission(data.project_id, 'tasks.view')
+          || (hasPermission(data.project_id, 'tasks.review') && data.status in ['review', 'submitted', 'under_review'])
+          || (hasPermission(data.project_id, 'project.view') && data.assigned_to == request.auth.uid));
     }
 
     function canSeeDocument(data) {
       return hasPermission(data.project_id, 'project.view')
+        && (!('team_id' in data) || data.team_id == null
+          || hasPermission(data.project_id, 'project.edit')
+          || isTeamMember(data.project_id, data.team_id, request.auth.uid))
         && (
           ('authorized_users' in data && data.authorized_users is list && request.auth.uid in data.authorized_users)
           || (hasPermission(data.project_id, 'documents.view')
             && (!('authorized_users' in data) || data.authorized_users == null
-              || data.authorized_users.size() == 0 || hasPermission(data.project_id, 'team.view')))
+              || data.authorized_users.size() == 0 || hasPermission(data.project_id, 'project.edit')))
         );
+    }
+
+    function canReadWorkflowTask(projectId, taskId, researcherId) {
+      let taskPath = /databases/$(database)/documents/tasks/$(taskId);
+      return signedIn()
+        && hasPermission(projectId, 'project.view')
+        && exists(taskPath)
+        && get(taskPath).data.project_id == projectId
+        && taskTeamVisible(get(taskPath).data)
+        && (researcherId == request.auth.uid
+          || hasPermission(projectId, 'tasks.view')
+          || hasPermission(projectId, 'tasks.review'));
+    }
+
+    function canReadTaskForWorkflow(projectId, taskId) {
+      let taskPath = /databases/$(database)/documents/tasks/$(taskId);
+      return signedIn()
+        && hasPermission(projectId, 'project.view')
+        && exists(taskPath)
+        && get(taskPath).data.project_id == projectId
+        && taskTeamVisible(get(taskPath).data)
+        && (get(taskPath).data.assigned_to == request.auth.uid
+          || hasPermission(projectId, 'tasks.view')
+          || hasPermission(projectId, 'tasks.review'));
+    }
+
+    function canReadSubmission(data) {
+      return canReadWorkflowTask(data.project_id, data.task_id, data.researcher_id);
+    }
+
+    function canReadReview(data) {
+      let submissionPath = /databases/$(database)/documents/submissions/$(data.submission_id);
+      return exists(submissionPath)
+        && get(submissionPath).data.project_id == data.project_id
+        && get(submissionPath).data.task_id == data.task_id
+        && canReadSubmission(get(submissionPath).data);
+    }
+
+    function canReadDeliverable(data) {
+      return canReadTaskForWorkflow(data.project_id, data.task_id);
     }
 
     // Public profile fields are never globally enumerable from client SDKs.
@@ -136,8 +134,7 @@ service cloud.firestore {
       allow get, list: if signedIn()
         && (
           resource.data.user_id == request.auth.uid
-          || hasPermission(resource.data.project_id, 'team.view')
-          || hasPermission(resource.data.project_id, 'tasks.assign')
+          || hasPermission(resource.data.project_id, 'project.edit')
         );
       allow create, update, delete: if false;
     }
@@ -146,20 +143,59 @@ service cloud.firestore {
       allow get, list: if signedIn()
         && (
           resource.data.user_id == request.auth.uid
-          || hasPermission(resource.data.project_id, 'team.view')
+          || hasPermission(resource.data.project_id, 'project.edit')
         );
       allow write: if false;
     }
 
+    match /teams/{teamId} {
+      allow get, list: if hasPermission(resource.data.projectId, 'project.view')
+        && (hasPermission(resource.data.projectId, 'project.edit')
+          || (hasPermission(resource.data.projectId, 'team.view')
+            && resource.data.memberIds is list
+            && request.auth.uid in resource.data.memberIds));
+      allow create, update, delete: if false;
+    }
+
+    match /team_members/{membershipId} {
+      allow get, list: if signedIn()
+        && (resource.data.userId == request.auth.uid
+          || hasPermission(resource.data.projectId, 'project.edit'));
+      allow create, update, delete: if false;
+    }
+
+    match /milestones/{milestoneId} {
+      allow get, list: if hasPermission(resource.data.projectId, 'project.view')
+        && (hasPermission(resource.data.projectId, 'project.edit')
+          || (resource.data.researcherIds is list && request.auth.uid in resource.data.researcherIds)
+          || (resource.data.teamId is string && isTeamMember(resource.data.projectId, resource.data.teamId, request.auth.uid)));
+      allow create, update, delete: if false;
+    }
+
     match /tasks/{taskId} {
       allow get, list: if canSeeTask(resource.data);
-      allow create: if validTaskCreate();
-      allow update: if signedIn() && validTaskUpdate();
-      allow delete: if hasPermission(resource.data.project_id, 'tasks.delete');
+      // All task mutations go through authenticated Server Actions, which run
+      // field-level policy checks and append server-side audit/activity records.
+      allow create, update, delete: if false;
     }
 
     match /documents/{documentId} {
       allow get, list: if canSeeDocument(resource.data);
+      allow create, update, delete: if false;
+    }
+
+    match /submissions/{submissionId} {
+      allow get, list: if canReadSubmission(resource.data);
+      allow create, update, delete: if false;
+    }
+
+    match /reviews/{reviewId} {
+      allow get, list: if canReadReview(resource.data);
+      allow create, update, delete: if false;
+    }
+
+    match /deliverables/{deliverableId} {
+      allow get, list: if canReadDeliverable(resource.data);
       allow create, update, delete: if false;
     }
 

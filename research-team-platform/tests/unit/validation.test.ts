@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { loginSchema, newPasswordSchema, safeRedirectPath, signupSchema } from "@/lib/validation/auth";
+import {
+  loginSchema,
+  newPasswordSchema,
+  passwordChangeSchema,
+  safeRedirectPath,
+  signupSchema,
+} from "@/lib/validation/auth";
 import { permissionsSchema } from "@/lib/validation/member";
 import { projectFormSchema } from "@/lib/validation/project";
 import { taskFormSchema, taskPatchSchema } from "@/lib/validation/task";
@@ -33,6 +39,11 @@ describe("auth validation", () => {
     );
   });
 
+  it("requires the current password before a password change", () => {
+    const values = { password: "Research2026", confirmPassword: "Research2026" };
+    expect(passwordChangeSchema.safeParse(values).success).toBe(false);
+    expect(passwordChangeSchema.safeParse({ ...values, currentPassword: "old-password" }).success).toBe(true);
+  });
   it("normalises e-mails and reports dictionary keys", () => {
     const result = loginSchema.safeParse({ email: "  nope ", password: "" });
     expect(result.success).toBe(false);
@@ -68,9 +79,10 @@ describe("domain validation", () => {
     const parsed = taskFormSchema.parse({
       title: "Literature review",
       description: "",
+      originalInstructions: "",
       expectedOutput: "",
       requiredDeliverables: "",
-      status: "todo",
+      status: "assigned",
       priority: "medium",
       assignedTo: "",
       dueDate: "",

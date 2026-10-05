@@ -8,12 +8,15 @@ import type { MemberStatus, ProjectRole, ProjectStatus, TaskPriority, TaskStatus
 import { cn } from "@/lib/utils";
 
 const TASK_STATUS_VARIANT: Record<TaskStatus, "muted" | "info" | "warning" | "success" | "destructive"> = {
-  todo: "muted",
+  assigned: "muted",
+  accepted: "info",
   in_progress: "info",
-  review: "warning",
+  submitted: "warning",
+  under_review: "warning",
   revision_required: "warning",
+  approved: "success",
   completed: "success",
-  rejected: "destructive",
+  cancelled: "muted",
 };
 
 export function TaskStatusBadge({ status, className }: { status: TaskStatus; className?: string }) {
@@ -33,6 +36,7 @@ const PRIORITY_STYLE: Record<
   low: { variant: "muted", icon: ArrowDown },
   medium: { variant: "info", icon: Equal },
   high: { variant: "warning", icon: ArrowUp },
+  urgent: { variant: "destructive", icon: Flame },
   critical: { variant: "destructive", icon: Flame },
 };
 

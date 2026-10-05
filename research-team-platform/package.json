@@ -17,7 +17,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "npm run test:firebase",
-    "test:firebase": "firebase emulators:exec --project demo-research-platform --only firestore,storage \"vitest run --config vitest.firebase.config.mts\""
+    "test:firebase": "firebase emulators:exec --project demo-research-platform --only firestore,storage \"vitest run --config vitest.firebase.config.mts\"",
+    "test:migration": "vitest run --config tests/migration/vitest.config.mts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

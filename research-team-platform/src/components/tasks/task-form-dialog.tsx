@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Info, Loader2 } from "lucide-react";
 
@@ -23,7 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/i18n/provider";
 import { fromAccessDTO, type ProjectAccessDTO } from "@/lib/permissions/access";
-import { TASK_PRIORITIES, TASK_STATUSES, type TaskStatus } from "@/lib/permissions/catalog";
+import { TASK_PRIORITIES, type TaskStatus } from "@/lib/permissions/catalog";
 import {
   allowedTaskStatuses,
   can,
@@ -34,6 +34,7 @@ import {
 import { taskFormSchema, type TaskFormInput, type TaskFormValues } from "@/lib/validation/task";
 import { createTaskAction, updateTaskAction } from "@/server/actions/tasks";
 import type { MemberOption, TaskDetails } from "@/types/app";
+import type { ProjectTeam } from "@/types/research";
 
 const UNASSIGNED = "__unassigned__";
 
@@ -46,6 +47,7 @@ export function TaskFormDialog({
   projectId,
   access,
   members,
+  teams = [],
   task,
   trigger,
   defaultOpen = false,
@@ -53,6 +55,7 @@ export function TaskFormDialog({
   projectId: string;
   access: ProjectAccessDTO;
   members: MemberOption[];
+  teams?: ProjectTeam[];
   task?: TaskDetails;
   trigger: ReactNode;
   defaultOpen?: boolean;
@@ -65,30 +68,36 @@ export function TaskFormDialog({
 
   const snapshot: TaskSnapshot = task
     ? { createdBy: task.createdById, assignedTo: task.assignedToId, status: task.status }
-    : { createdBy: subject.userId, assignedTo: null, status: "todo" };
+    : { createdBy: subject.userId, assignedTo: null, status: "assigned" };
   const editable = task ? canEditTaskContent(subject, snapshot) : can(subject, "tasks.create");
   const assignable = canAssignTasks(subject);
-  const statusOptions: TaskStatus[] = task
-    ? allowedTaskStatuses(subject, snapshot)
-    : TASK_STATUSES.filter((status) => can(subject, "tasks.edit") || (status !== "completed" && status !== "rejected"));
-
-  const assigneeOptions = assignable
-    ? members
-    : members.filter((member) => member.id === subject.userId || member.id === task?.assignedToId);
+  const canChooseTeam = can(subject, "project.edit");
+  const statusOptions: TaskStatus[] = task ? allowedTaskStatuses(subject, snapshot) : ["assigned"];
 
   const form = useForm<TaskFormInput, unknown, TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
     defaultValues: {
       title: task?.title ?? "",
       description: task?.description ?? "",
+      originalInstructions: task?.originalInstructions ?? "",
       expectedOutput: task?.expectedOutput ?? "",
       requiredDeliverables: task?.requiredDeliverables ?? "",
-      status: task?.status ?? "todo",
-      priority: task?.priority ?? "medium",
+      status: task?.status ?? "assigned",
+      priority: task?.priority === "critical" ? "urgent" : (task?.priority ?? "medium"),
+      teamId: task?.teamId ?? null,
       assignedTo: task?.assignedToId ?? "",
+      startDate: task?.startDate ?? "",
       dueDate: task?.dueDate ?? "",
     },
   });
+  const selectedTeamId = useWatch({ control: form.control, name: "teamId" });
+  const selectedTeam = teams.find((team) => team.id === selectedTeamId);
+  const eligibleMembers = selectedTeam
+    ? members.filter((member) => selectedTeam.memberIds.includes(member.id))
+    : members;
+  const assigneeOptions = assignable
+    ? eligibleMembers
+    : eligibleMembers.filter((member) => member.id === subject.userId || member.id === task?.assignedToId);
 
   const onSubmit = form.handleSubmit(async (values) => {
     if (task) {
@@ -143,6 +152,24 @@ export function TaskFormDialog({
             />
             <FormField
               control={form.control}
+              name="originalInstructions"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t.tasks.fields.originalInstructions}</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      rows={4}
+                      placeholder={t.tasks.placeholders.originalInstructions}
+                      disabled={!editable}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage localize={message} />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="expectedOutput"
               render={({ field }) => (
                 <FormItem>
@@ -178,6 +205,46 @@ export function TaskFormDialog({
               )}
             />
             <div className="grid gap-4 sm:grid-cols-2">
+              {canChooseTeam && teams.length > 0 ? (
+                <FormField
+                  control={form.control}
+                  name="teamId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t.projects.tabs.teams}</FormLabel>
+                      <Select
+                        value={field.value ?? UNASSIGNED}
+                        onValueChange={(value) => {
+                          const nextTeamId = value === UNASSIGNED ? null : value;
+                          field.onChange(nextTeamId);
+                          const nextTeam = teams.find((team) => team.id === nextTeamId);
+                          const currentAssignee = form.getValues("assignedTo");
+                          if (currentAssignee && nextTeam && !nextTeam.memberIds.includes(currentAssignee)) {
+                            form.setValue("assignedTo", "", { shouldValidate: true });
+                          }
+                        }}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value={UNASSIGNED}>{t.common.none}</SelectItem>
+                          {teams
+                            .filter((team) => team.status === "active")
+                            .map((team) => (
+                              <SelectItem key={team.id} value={team.id}>
+                                {team.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage localize={message} />
+                    </FormItem>
+                  )}
+                />
+              ) : null}
               <FormField
                 control={form.control}
                 name="status"
@@ -254,6 +321,19 @@ export function TaskFormDialog({
                         ) : null}
                       </SelectContent>
                     </Select>
+                    <FormMessage localize={message} />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="startDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.tasks.fields.startDate}</FormLabel>
+                    <FormControl>
+                      <Input type="date" disabled={!editable} {...field} value={field.value ?? ""} />
+                    </FormControl>
                     <FormMessage localize={message} />
                   </FormItem>
                 )}

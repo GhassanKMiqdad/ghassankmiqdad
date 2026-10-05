@@ -67,6 +67,28 @@ export const getProjectAccess = cache(async (projectId: string): Promise<Project
   return makeAccess(projectId, projectSnapshot.data()!, memberSnapshot.data()!, user.id);
 });
 
+/** Validates the normalized team relationship as well as project membership. */
+export async function hasTeamAccess(access: ProjectAccess, teamId: string | null | undefined): Promise<boolean> {
+  if (!can(access, "project.view")) return false;
+  if (!teamId || can(access, "project.edit")) return true;
+  const db = getFirebaseFirestore();
+  const [membership, team] = await Promise.all([
+    db.collection("team_members").doc(`${teamId}_${access.userId}`).get(),
+    db.collection("teams").doc(teamId).get(),
+  ]);
+  return (
+    membership.exists &&
+    team.exists &&
+    membership.get("projectId") === access.projectId &&
+    membership.get("teamId") === teamId &&
+    membership.get("userId") === access.userId &&
+    membership.get("status") === "active" &&
+    team.get("projectId") === access.projectId &&
+    Array.isArray(team.get("memberIds")) &&
+    team.get("memberIds").includes(access.userId)
+  );
+}
+
 /** Projects in which the current user holds a permission. */
 export async function projectsWithPermission(permission: PermissionKey): Promise<ProjectAccess[]> {
   return (await getMyProjectsAccess()).filter((access) => can(access, permission));

@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 
-export type ProjectTabKey = "overview" | "tasks" | "documents" | "team" | "activity" | "settings";
+export type ProjectTabKey =
+  "overview" | "tasks" | "documents" | "team" | "teams" | "milestones" | "activity" | "settings";
 
 export function ProjectTabs({ projectId, tabs }: { projectId: string; tabs: ProjectTabKey[] }) {
   const { t } = useI18n();

@@ -9,6 +9,7 @@ export function PasswordSettings() {
   return (
     <NewPasswordForm
       action={changePasswordAction}
+      currentPasswordRequired
       submitLabel={t.settings.password.submit}
       successMessage={t.settings.password.changed}
     />

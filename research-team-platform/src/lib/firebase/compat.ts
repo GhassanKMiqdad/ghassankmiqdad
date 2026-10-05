@@ -1,7 +1,7 @@
 import "server-only";
 
 import { headers } from "next/headers";
-import type { QueryDocumentSnapshot } from "firebase-admin/firestore";
+import type { Query, QueryDocumentSnapshot } from "firebase-admin/firestore";
 
 import { firebaseAdminAuth, firebaseAdminFirestore, firebaseAdminStorage } from "@/lib/firebase/admin";
 import { AppError } from "@/lib/errors";
@@ -9,7 +9,9 @@ import { can, canDeleteComment, canEditComment } from "@/lib/permissions/policy"
 import {
   PERMISSION_KEYS,
   ROLE_TEMPLATES,
+  TASK_PRIORITIES,
   isPermissionKey,
+  normalizeTaskStatus,
   type PermissionKey,
   type ProjectRole,
 } from "@/lib/permissions/catalog";
@@ -46,8 +48,13 @@ function nowIso() {
   return new Date().toISOString();
 }
 function rowFromSnapshot(snapshot: QueryDocumentSnapshot): Row {
-  const row = normalize(snapshot.data()) as Row;
+  const row = normalizeTaskRow(normalize(snapshot.data()) as Row);
   return { ...row, id: typeof row.id === "string" ? row.id : snapshot.id };
+}
+function normalizeTaskRow(row: Row): Row {
+  if (typeof row.status !== "string") return row;
+  const status = normalizeTaskStatus(row.status);
+  return status ? { ...row, status } : row;
 }
 function normalize(value: unknown): unknown {
   if (value && typeof value === "object" && "toDate" in value && typeof value.toDate === "function")
@@ -60,7 +67,9 @@ function normalize(value: unknown): unknown {
 }
 function normalizeRow(value: unknown): Row {
   const normalized = normalize(value);
-  return normalized && typeof normalized === "object" && !Array.isArray(normalized) ? (normalized as Row) : {};
+  return normalized && typeof normalized === "object" && !Array.isArray(normalized)
+    ? normalizeTaskRow(normalized as Row)
+    : {};
 }
 function failure(code: string, message = code): CompatError {
   return { code, message };
@@ -223,30 +232,98 @@ async function listAccess(userId: string): Promise<ProjectAccess[]> {
 function active(access: ProjectAccess | null) {
   return access?.status === "active" && can(access, "project.view");
 }
-function taskVisible(task: Row, access: ProjectAccess | null, uid: string) {
+async function visibleTeamKeys(uid: string): Promise<Set<string>> {
+  const memberships = await firebaseAdminFirestore()
+    .collection("team_members")
+    .where("userId", "==", uid)
+    .where("status", "==", "active")
+    .get();
+  return new Set(
+    memberships.docs
+      .filter((doc) => typeof doc.get("projectId") === "string" && typeof doc.get("teamId") === "string")
+      .map((doc) => `${doc.get("projectId")}:${doc.get("teamId")}`),
+  );
+}
+async function isActiveTeamMember(projectId: string, teamId: string, userId: string): Promise<boolean> {
+  const db = firebaseAdminFirestore();
+  const [membership, team, projectMember] = await Promise.all([
+    db.collection("team_members").doc(`${teamId}_${userId}`).get(),
+    db.collection("teams").doc(teamId).get(),
+    db.collection("project_members").doc(`${projectId}_${userId}`).get(),
+  ]);
+  return (
+    membership.exists &&
+    membership.get("projectId") === projectId &&
+    membership.get("teamId") === teamId &&
+    membership.get("userId") === userId &&
+    membership.get("status") === "active" &&
+    team.exists &&
+    team.get("projectId") === projectId &&
+    Array.isArray(team.get("memberIds")) &&
+    team.get("memberIds").includes(userId) &&
+    projectMember.exists &&
+    projectMember.get("status") === "active"
+  );
+}
+function taskVisible(task: Row, access: ProjectAccess | null, uid: string, teamKeys: ReadonlySet<string>) {
+  const teamId = typeof task.team_id === "string" ? task.team_id : null;
+  const authorizedTeam = !teamId || can(access, "project.edit") || teamKeys.has(`${task.project_id}:${teamId}`);
   return (
     active(access) &&
+    authorizedTeam &&
     (can(access!, "tasks.view") ||
-      (can(access!, "tasks.review") && task.status === "review") ||
+      (can(access!, "tasks.review") && ["submitted", "under_review"].includes(String(task.status))) ||
       task.assigned_to === uid)
   );
 }
-function documentVisible(doc: Row, access: ProjectAccess | null, uid: string) {
+function documentVisible(doc: Row, access: ProjectAccess | null, uid: string, teamKeys: ReadonlySet<string>) {
   if (!active(access)) return false;
+  const teamId = typeof doc.team_id === "string" ? doc.team_id : null;
+  if (teamId && !can(access, "project.edit") && !teamKeys.has(`${doc.project_id}:${teamId}`)) return false;
   const allowed = doc.authorized_users;
   if (Array.isArray(allowed) && allowed.includes(uid)) return true;
   return (
-    canIn(access, "documents.view") && (!Array.isArray(allowed) || allowed.length === 0 || can(access!, "team.view"))
+    canIn(access, "documents.view") && (!Array.isArray(allowed) || allowed.length === 0 || can(access!, "project.edit"))
   );
 }
 
+async function queryAll(query: Query): Promise<Row[]> {
+  const rows: Row[] = [];
+  let cursor: QueryDocumentSnapshot | null = null;
+  while (true) {
+    const page = await (cursor ? query.startAfter(cursor) : query).limit(500).get();
+    rows.push(...page.docs.map(rowFromSnapshot));
+    if (page.docs.length < 500) return rows;
+    cursor = page.docs[page.docs.length - 1] ?? null;
+  }
+}
+
 async function queryForProject(collection: string, projectId: string): Promise<Row[]> {
-  const snapshot = await firebaseAdminFirestore()
-    .collection(collection)
-    .where("project_id", "==", projectId)
-    .limit(2000)
-    .get();
-  return snapshot.docs.map(rowFromSnapshot);
+  return queryAll(firebaseAdminFirestore().collection(collection).where("project_id", "==", projectId));
+}
+
+async function queryTasksForAccess(access: ProjectAccess, uid: string, teamKeys: ReadonlySet<string>): Promise<Row[]> {
+  const projectTasks = firebaseAdminFirestore().collection("tasks").where("project_id", "==", access.projectId);
+  if (can(access, "tasks.view")) return queryAll(projectTasks);
+
+  const queries: Query[] = [];
+  queries.push(projectTasks.where("assigned_to", "==", uid));
+  if (can(access, "tasks.review")) {
+    const teamIds = [...teamKeys]
+      .filter((key) => key.startsWith(`${access.projectId}:`))
+      .map((key) => key.slice(access.projectId.length + 1));
+    for (const status of ["review", "submitted", "under_review"]) {
+      for (let index = 0; index < teamIds.length; index += 30) {
+        const group = teamIds.slice(index, index + 30);
+        if (group.length) queries.push(projectTasks.where("status", "==", status).where("team_id", "in", group));
+      }
+      queries.push(projectTasks.where("status", "==", status).where("team_id", "==", null));
+    }
+  }
+  const results = await Promise.all(queries.map(queryAll));
+  return [...new Map(results.flat().map((row) => [row.id, row])).values()].filter((row) =>
+    taskVisible(row, access, uid, teamKeys),
+  );
 }
 
 async function loadVisibleRows(table: string, uid: string, filters: Condition[]): Promise<Row[]> {
@@ -256,6 +333,7 @@ async function loadVisibleRows(table: string, uid: string, filters: Condition[])
   const access = await listAccess(uid);
   const byProject = new Map(access.map((item) => [item.projectId, item]));
   const permittedAccess = (permission: PermissionKey) => access.filter((item) => canIn(item, permission));
+  const teamKeys = ["tasks", "documents", "comments"].includes(table) ? await visibleTeamKeys(uid) : new Set<string>();
 
   if (table === "permissions")
     return PERMISSION_KEYS.map((key) => ({ id: key, permission_key: key, category: key.split(".")[0] }));
@@ -281,7 +359,7 @@ async function loadVisibleRows(table: string, uid: string, filters: Condition[])
 
   if (table === "profiles") {
     const visibleIds = new Set([uid]);
-    for (const memberAccess of [...permittedAccess("team.view"), ...permittedAccess("tasks.assign")]) {
+    for (const memberAccess of [...permittedAccess("project.edit"), ...permittedAccess("tasks.assign")]) {
       const members = await db
         .collection("project_members")
         .where("project_id", "==", memberAccess.projectId)
@@ -289,6 +367,18 @@ async function loadVisibleRows(table: string, uid: string, filters: Condition[])
         .limit(300)
         .get();
       members.docs.forEach((member) => visibleIds.add(String(member.get("user_id"))));
+    }
+    for (const memberAccess of permittedAccess("team.view").filter((item) => !can(item, "project.edit"))) {
+      const teams = await db
+        .collection("teams")
+        .where("projectId", "==", memberAccess.projectId)
+        .where("memberIds", "array-contains", uid)
+        .get();
+      teams.docs.forEach((team) => {
+        if (team.get("status") === "active" && Array.isArray(team.get("memberIds"))) {
+          (team.get("memberIds") as string[]).forEach((userId) => visibleIds.add(userId));
+        }
+      });
     }
     if (explicitId && typeof explicitId === "string") {
       if (!visibleIds.has(explicitId)) return [];
@@ -314,7 +404,7 @@ async function loadVisibleRows(table: string, uid: string, filters: Condition[])
       targetProjects = targetProjects.filter((item) => item.projectId === explicitProject);
     const rows: Row[] = [];
     for (const project of targetProjects) {
-      const selfOnly = !canIn(project, "team.view") && !canIn(project, "tasks.assign");
+      const selfOnly = !canIn(project, "project.edit") && !canIn(project, "tasks.assign");
       if (selfOnly && table === "project_members") {
         const self = await db.collection(table).doc(`${project.projectId}_${uid}`).get();
         if (self.exists) rows.push({ ...normalizeRow(self.data()), id: self.id });
@@ -350,13 +440,13 @@ async function loadVisibleRows(table: string, uid: string, filters: Condition[])
     const row: Row = { ...(normalize(snapshot.data()) as Row), id: snapshot.id };
     const projectId = String(row.project_id ?? "");
     const projectAccess = byProject.get(projectId) ?? null;
-    if (table === "tasks") return taskVisible(row, projectAccess, uid) ? [row] : [];
-    if (table === "documents") return documentVisible(row, projectAccess, uid) ? [row] : [];
+    if (table === "tasks") return taskVisible(row, projectAccess, uid, teamKeys) ? [row] : [];
+    if (table === "documents") return documentVisible(row, projectAccess, uid, teamKeys) ? [row] : [];
     if (table === "comments") {
       if (!active(projectAccess)) return [];
       if (row.task_id) {
         const task = await db.collection("tasks").doc(String(row.task_id)).get();
-        return task.exists && taskVisible(normalizeRow(task.data()), projectAccess, uid) ? [row] : [];
+        return task.exists && taskVisible(normalizeRow(task.data()), projectAccess, uid, teamKeys) ? [row] : [];
       }
       return canIn(projectAccess, "team.view") || row.author_id === uid ? [row] : [];
     }
@@ -377,7 +467,11 @@ async function loadVisibleRows(table: string, uid: string, filters: Condition[])
   }
   const rows: Row[] = [];
   for (const scope of scopes) {
-    rows.push(...(await queryForProject(table, scope.projectId)));
+    rows.push(
+      ...(table === "tasks"
+        ? await queryTasksForAccess(scope, uid, teamKeys)
+        : await queryForProject(table, scope.projectId)),
+    );
   }
   if (table === "activity_logs") {
     const ownLogs = await db.collection("activity_logs").where("actor_id", "==", uid).limit(1000).get();
@@ -385,9 +479,9 @@ async function loadVisibleRows(table: string, uid: string, filters: Condition[])
     rows.push(...ownLogs.docs.map(rowFromSnapshot).filter((row) => !seen.has(row.id)));
   }
   if (table === "tasks")
-    return rows.filter((row) => taskVisible(row, byProject.get(String(row.project_id)) ?? null, uid));
+    return rows.filter((row) => taskVisible(row, byProject.get(String(row.project_id)) ?? null, uid, teamKeys));
   if (table === "documents")
-    return rows.filter((row) => documentVisible(row, byProject.get(String(row.project_id)) ?? null, uid));
+    return rows.filter((row) => documentVisible(row, byProject.get(String(row.project_id)) ?? null, uid, teamKeys));
   if (table === "comments") {
     const taskIds = [
       ...new Set(
@@ -404,7 +498,12 @@ async function loadVisibleRows(table: string, uid: string, filters: Condition[])
     return rows.filter((row) =>
       !row.task_id
         ? canIn(byProject.get(String(row.project_id)) ?? null, "team.view")
-        : taskVisible(tasks.get(String(row.task_id)) ?? {}, byProject.get(String(row.project_id)) ?? null, uid),
+        : taskVisible(
+            tasks.get(String(row.task_id)) ?? {},
+            byProject.get(String(row.project_id)) ?? null,
+            uid,
+            teamKeys,
+          ),
     );
   }
   if (table === "activity_logs")
@@ -517,29 +616,32 @@ async function notifyUser(userId: string, projectId: string, task: Row, type: st
   });
 }
 
-async function notifyTaskReviewers(projectId: string, task: Row) {
-  const members = await firebaseAdminFirestore()
-    .collection("project_members")
-    .where("project_id", "==", projectId)
-    .where("status", "==", "active")
-    .limit(300)
-    .get();
-  const reviewers = members.docs.filter(
-    (member) =>
-      member.get("role") === "owner" ||
-      (Array.isArray(member.get("permissions")) && member.get("permissions").includes("tasks.review")),
-  );
-  await Promise.all(
-    reviewers.map((member) => notifyUser(String(member.get("user_id")), projectId, task, "task_submitted")),
-  );
-}
-
 async function assertTaskMutation(uid: string, row: Row, values: Row) {
   const access = await getProjectAccess(uid, String(row.project_id));
   if (!active(access)) throw new AppError("PROJECT_ACCESS_DENIED");
-  const contentKeys = ["title", "description", "expected_output", "required_deliverables", "priority", "due_date"];
+  const contentKeys = [
+    "title",
+    "description",
+    "original_instructions",
+    "team_id",
+    "expected_output",
+    "required_deliverables",
+    "priority",
+    "start_date",
+    "due_date",
+  ];
   const changesContent = contentKeys.some((key) => values[key] !== undefined && values[key] !== row[key]);
   const canEdit = can(access!, "tasks.edit");
+  if (values.team_id !== undefined && values.team_id !== row.team_id && !can(access, "project.edit")) {
+    throw new AppError("PERMISSION_DENIED");
+  }
+  if (
+    typeof row.team_id === "string" &&
+    !can(access, "project.edit") &&
+    !(await isActiveTeamMember(row.project_id, row.team_id, uid))
+  ) {
+    throw new AppError("TASK_EDIT_FORBIDDEN");
+  }
   if (changesContent && !canEdit) throw new AppError("TASK_EDIT_FORBIDDEN");
   if (
     values.progress !== undefined &&
@@ -559,30 +661,39 @@ async function assertTaskMutation(uid: string, row: Row, values: Row) {
   )
     throw new AppError("TASK_EDIT_FORBIDDEN");
   if (values.assigned_to !== undefined && !can(access!, "tasks.assign")) throw new AppError("TASK_ASSIGN_FORBIDDEN");
-  if (values.status !== undefined && values.status !== row.status) {
-    const reviewerDecision =
-      can(access!, "tasks.review") &&
-      row.status === "review" &&
-      ["completed", "rejected", "revision_required"].includes(String(values.status));
-    const submission =
-      values.status === "review" &&
-      row.status === "in_progress" &&
+  const currentStatus = normalizeTaskStatus(row.status);
+  if (!currentStatus) throw new AppError("TASK_STATUS_FORBIDDEN");
+  if (values.status !== undefined && values.status !== currentStatus) {
+    const cancellation =
+      values.status === "cancelled" &&
+      canEdit &&
+      ["assigned", "accepted", "in_progress", "submitted", "under_review", "revision_required"].includes(currentStatus);
+    const completion = values.status === "completed" && currentStatus === "approved" && canEdit;
+    const acceptance =
+      values.status === "accepted" &&
+      currentStatus === "assigned" &&
       row.assigned_to === uid &&
-      can(access!, "tasks.submit");
+      can(access!, "tasks.accept");
     const progress =
       values.status === "in_progress" &&
       row.assigned_to === uid &&
       can(access!, "tasks.update_progress") &&
-      ["todo", "in_progress", "revision_required"].includes(String(row.status));
-    if (!canEdit && !reviewerDecision && !submission && !progress) throw new AppError("TASK_STATUS_FORBIDDEN");
+      ["accepted", "revision_required"].includes(currentStatus);
+    if (!cancellation && !completion && !acceptance && !progress) throw new AppError("TASK_STATUS_FORBIDDEN");
   }
   if (values.assigned_to) {
-    const assignee = await getProjectAccess(uid, String(row.project_id));
     const member = await firebaseAdminFirestore()
       .collection("project_members")
       .doc(`${row.project_id}_${values.assigned_to}`)
       .get();
-    if (!member.exists || member.get("status") !== "active" || !assignee) throw new AppError("ASSIGNEE_NOT_MEMBER");
+    if (!member.exists || member.get("status") !== "active") throw new AppError("ASSIGNEE_NOT_MEMBER");
+    const teamId = typeof values.team_id === "string" ? values.team_id : row.team_id;
+    if (
+      typeof teamId === "string" &&
+      !(await isActiveTeamMember(String(row.project_id), teamId, String(values.assigned_to)))
+    ) {
+      throw new AppError("ASSIGNEE_NOT_MEMBER");
+    }
   }
 }
 
@@ -595,26 +706,81 @@ async function mutateInsert(uid: string, table: string, item: Row): Promise<Row>
   let row: Row = { ...item, id, created_at: item.created_at ?? now, updated_at: item.updated_at ?? now };
 
   if (table === "tasks") {
+    const allowed = new Set([
+      "project_id",
+      "title",
+      "description",
+      "original_instructions",
+      "expected_output",
+      "required_deliverables",
+      "team_id",
+      "status",
+      "priority",
+      "assigned_to",
+      "start_date",
+      "due_date",
+    ]);
+    if (Object.keys(item).some((key) => !allowed.has(key))) throw new AppError("INVALID_INPUT");
     const access = await getProjectAccess(uid, String(item.project_id));
     if (!canIn(access, "tasks.create")) throw new AppError("PERMISSION_DENIED");
-    if (item.created_by && item.created_by !== uid) throw new AppError("PERMISSION_DENIED");
-    row = { ...row, created_by: uid, completed_at: null };
-    if (["completed", "rejected"].includes(String(row.status)) && !can(access!, "tasks.review"))
-      throw new AppError("TASK_STATUS_FORBIDDEN");
+    if (item.status !== "assigned") throw new AppError("TASK_STATUS_FORBIDDEN");
+    if (
+      typeof item.title !== "string" ||
+      item.title.trim().length < 2 ||
+      typeof item.description !== "string" ||
+      typeof item.original_instructions !== "string" ||
+      typeof item.expected_output !== "string" ||
+      typeof item.required_deliverables !== "string" ||
+      !TASK_PRIORITIES.includes(item.priority)
+    )
+      throw new AppError("INVALID_INPUT");
+    row = { ...row, created_by: uid, completed_at: null, progress: 0, work_notes: "" };
     if (row.assigned_to && row.assigned_to !== uid && !can(access!, "tasks.assign"))
       throw new AppError("TASK_ASSIGN_FORBIDDEN");
+    if (typeof row.team_id === "string" && !can(access, "project.edit")) throw new AppError("PERMISSION_DENIED");
     if (row.assigned_to) {
       const member = await db.collection("project_members").doc(`${row.project_id}_${row.assigned_to}`).get();
       if (!member.exists || member.get("status") !== "active") throw new AppError("ASSIGNEE_NOT_MEMBER");
+    }
+    if (typeof row.team_id === "string") {
+      const team = await db.collection("teams").doc(row.team_id).get();
+      if (!team.exists || team.get("projectId") !== row.project_id || team.get("status") !== "active") {
+        throw new AppError("INVALID_INPUT");
+      }
+      if (
+        row.assigned_to &&
+        !(await isActiveTeamMember(String(row.project_id), String(row.team_id), String(row.assigned_to)))
+      ) {
+        throw new AppError("ASSIGNEE_NOT_MEMBER");
+      }
     }
   } else if (table === "documents") {
     const access = await getProjectAccess(uid, String(item.project_id));
     if (!canIn(access, "documents.upload")) throw new AppError("PERMISSION_DENIED");
     if (typeof item.storage_path !== "string") throw new AppError("INVALID_INPUT");
+    const segments = String(item.storage_path).split("/");
+    if (segments.length !== 3 || segments[0] !== item.project_id || segments[1] !== id)
+      throw new AppError("INVALID_INPUT");
+    const reservationRef = db.collection("upload_reservations").doc(id);
+    const reservation = await reservationRef.get();
+    if (
+      !reservation.exists ||
+      reservation.get("status") !== "pending" ||
+      reservation.get("uploader_uid") !== uid ||
+      reservation.get("project_id") !== item.project_id ||
+      reservation.get("storage_path") !== item.storage_path ||
+      (reservation.get("expires_at") instanceof Date
+        ? reservation.get("expires_at").getTime()
+        : (reservation.get("expires_at")?.toDate?.().getTime?.() ?? 0)) <= Date.now()
+    )
+      throw new AppError("PERMISSION_DENIED");
     const file = firebaseAdminStorage().file(item.storage_path);
     const [exists] = await file.exists();
     if (!exists) throw new AppError("DOCUMENT_FILE_MISSING");
     const [metadata] = await file.getMetadata();
+    const custom = metadata.metadata ?? {};
+    if (custom.uploader_uid !== uid || custom.upload_token !== reservation.get("token"))
+      throw new AppError("PERMISSION_DENIED");
     row = {
       ...row,
       uploaded_by: uid,
@@ -627,10 +793,11 @@ async function mutateInsert(uid: string, table: string, item: Row): Promise<Row>
     if (!canIn(access, "comments.create")) throw new AppError("PERMISSION_DENIED");
     if (item.task_id) {
       const taskSnapshot = await db.collection("tasks").doc(String(item.task_id)).get();
+      const teamKeys = await visibleTeamKeys(uid);
       if (
         !taskSnapshot.exists ||
         taskSnapshot.get("project_id") !== item.project_id ||
-        !taskVisible(normalizeRow(taskSnapshot.data()), access, uid)
+        !taskVisible(normalizeRow(taskSnapshot.data()), access, uid, teamKeys)
       )
         throw new AppError("NOT_FOUND");
     }
@@ -640,6 +807,7 @@ async function mutateInsert(uid: string, table: string, item: Row): Promise<Row>
   }
 
   await ref.create(row);
+  if (table === "documents") await db.collection("upload_reservations").doc(id).delete();
   await writeActivity(
     uid,
     String(row.project_id),
@@ -662,6 +830,22 @@ async function mutateUpdate(uid: string, table: string, row: Row, values: Row): 
   const patch: Row = { ...values, updated_at: nowIso() };
   const projectId = String(row.project_id ?? "");
   if (table === "tasks") {
+    const allowed = new Set([
+      "title",
+      "description",
+      "original_instructions",
+      "team_id",
+      "expected_output",
+      "required_deliverables",
+      "priority",
+      "start_date",
+      "due_date",
+      "status",
+      "assigned_to",
+      "progress",
+      "work_notes",
+    ]);
+    if (Object.keys(values).some((key) => !allowed.has(key))) throw new AppError("INVALID_INPUT");
     await assertTaskMutation(uid, row, values);
     if (values.status === "completed") patch.completed_at = nowIso();
     if (values.status && values.status !== "completed") patch.completed_at = null;
@@ -671,7 +855,6 @@ async function mutateUpdate(uid: string, table: string, row: Row, values: Row): 
       ...patch,
     });
     const changedTask = { ...row, ...patch };
-    if (values.status === "review" && row.status !== "review") await notifyTaskReviewers(projectId, changedTask);
     if (values.status === "revision_required" && row.assigned_to)
       await notifyUser(String(row.assigned_to), projectId, changedTask, "revision_requested");
     if (values.status === "completed" && row.assigned_to)
@@ -1204,7 +1387,7 @@ async function rpcCall(uid: string, name: string, args: Row): Promise<unknown> {
             joined_at: member.joined_at,
             last_sign_in_at: profile?.last_sign_in_at ?? null,
             permissions,
-            assigned_open_tasks: taskRows.filter((task) => !["completed", "rejected"].includes(String(task.status)))
+            assigned_open_tasks: taskRows.filter((task) => !["completed", "cancelled"].includes(String(task.status)))
               .length,
             assigned_total_tasks: taskRows.length,
             last_activity_at:
@@ -1225,12 +1408,22 @@ async function rpcCall(uid: string, name: string, args: Row): Promise<unknown> {
         status: item.projectStatus,
       }));
       const visibleTasks: Row[] = [];
+      const teamKeys = await visibleTeamKeys(uid);
       for (const access of accesses) {
-        const items = await queryForProject("tasks", access.projectId);
-        visibleTasks.push(...items.filter((task) => taskVisible(task, access, uid)));
+        visibleTasks.push(...(await queryTasksForAccess(access, uid, teamKeys)));
       }
       const statusCounts: Row = Object.fromEntries(
-        ["todo", "in_progress", "review", "completed", "rejected"].map((status) => [status, 0]),
+        [
+          "assigned",
+          "accepted",
+          "in_progress",
+          "submitted",
+          "under_review",
+          "revision_required",
+          "approved",
+          "completed",
+          "cancelled",
+        ].map((status) => [status, 0]),
       );
       const byProject = new Map<string, Row>();
       const byMember = new Map<string, Row>();
@@ -1254,7 +1447,7 @@ async function rpcCall(uid: string, name: string, args: Row): Promise<unknown> {
         const member = byMember.get(memberId) ?? { user_id: memberId, name: "", total: 0, open: 0, completed: 0 };
         member.total++;
         if (status === "completed") member.completed++;
-        else if (!["rejected"].includes(status)) member.open++;
+        else if (status !== "cancelled") member.open++;
         byMember.set(memberId, member);
       }
       for (const [memberId, row] of byMember) {
@@ -1277,7 +1470,7 @@ async function rpcCall(uid: string, name: string, args: Row): Promise<unknown> {
         teamMembers = ids.size;
       }
       const today = String(args.p_today ?? nowIso().slice(0, 10));
-      const activeTasks = visibleTasks.filter((task) => !["completed", "rejected"].includes(String(task.status)));
+      const activeTasks = visibleTasks.filter((task) => !["completed", "cancelled"].includes(String(task.status)));
       return {
         total_projects: projects.length,
         active_projects: projects.filter((item) => item.status === "active").length,
@@ -1366,19 +1559,42 @@ class FirebaseCompatClient {
             const segments = path.split("/");
             const access = segments[0] ? await getProjectAccess(this.user.id, segments[0]) : null;
             if (!canIn(access, "documents.upload")) throw new AppError("PERMISSION_DENIED");
-            const file = actualBucket.file(path);
-            const [policy] = await file.generateSignedPostPolicyV4({
-              expires: Date.now() + 5 * 60 * 1000,
-              fields: {
-                "Content-Type": options?.contentType ?? "application/octet-stream",
-                success_action_status: "201",
-              },
-              conditions: [
-                ["content-length-range", 1, options?.maxBytes ?? 50 * 1024 * 1024],
-                ["eq", "$Content-Type", options?.contentType ?? "application/octet-stream"],
-              ],
+            const [, documentId, fileName] = segments;
+            if (!documentId || !fileName || segments.length !== 3) throw new AppError("INVALID_INPUT");
+            const token = crypto.randomUUID();
+            const reservationRef = firebaseAdminFirestore().collection("upload_reservations").doc(documentId);
+            const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+            await reservationRef.create({
+              project_id: segments[0],
+              document_id: documentId,
+              storage_path: path,
+              uploader_uid: this.user.id,
+              token,
+              status: "pending",
+              expires_at: expiresAt,
             });
-            return { data: { signedUrl: policy.url, signedFields: policy.fields, path }, error: null };
+            try {
+              const file = actualBucket.file(path);
+              const [policy] = await file.generateSignedPostPolicyV4({
+                expires: expiresAt.getTime(),
+                fields: {
+                  "Content-Type": options?.contentType ?? "application/octet-stream",
+                  "x-goog-meta-uploader_uid": this.user.id,
+                  "x-goog-meta-upload_token": token,
+                  success_action_status: "201",
+                },
+                conditions: [
+                  ["content-length-range", 1, options?.maxBytes ?? 50 * 1024 * 1024],
+                  ["eq", "$Content-Type", options?.contentType ?? "application/octet-stream"],
+                  ["eq", "$x-goog-meta-uploader_uid", this.user.id],
+                  ["eq", "$x-goog-meta-upload_token", token],
+                ],
+              });
+              return { data: { signedUrl: policy.url, signedFields: policy.fields, path }, error: null };
+            } catch (error) {
+              await reservationRef.delete().catch(() => undefined);
+              throw error;
+            }
           } catch (error) {
             return responseError(error);
           }
@@ -1391,9 +1607,10 @@ class FirebaseCompatClient {
             const document = documentId
               ? await firebaseAdminFirestore().collection("documents").doc(documentId).get()
               : null;
+            const teamKeys = await visibleTeamKeys(this.user.id);
             if (
               !document?.exists ||
-              !documentVisible(normalizeRow(document.data()), access, this.user.id) ||
+              !documentVisible(normalizeRow(document.data()), access, this.user.id, teamKeys) ||
               document.get("storage_path") !== path
             ) {
               throw new AppError("NOT_FOUND");
@@ -1422,11 +1639,20 @@ class FirebaseCompatClient {
               const [projectId, documentId] = path.split("/");
               const access = projectId ? await getProjectAccess(this.user.id, projectId) : null;
               if (path.split("/").length !== 3 || !projectId || !documentId) throw new AppError("INVALID_INPUT");
-              const doc = await firebaseAdminFirestore().collection("documents").doc(documentId).get();
+              const db = firebaseAdminFirestore();
+              const doc = await db.collection("documents").doc(documentId).get();
+              const reservationRef = db.collection("upload_reservations").doc(documentId);
+              const reservation = await reservationRef.get();
               const mayDelete = canIn(access, "documents.delete") && (!doc.exists || doc.get("storage_path") === path);
-              const mayDiscardOwnUpload = canIn(access, "documents.upload") && !doc.exists;
+              const mayDiscardOwnUpload =
+                !doc.exists &&
+                reservation.exists &&
+                reservation.get("uploader_uid") === this.user.id &&
+                reservation.get("project_id") === projectId &&
+                reservation.get("storage_path") === path;
               if (!mayDelete && !mayDiscardOwnUpload) throw new AppError("PERMISSION_DENIED");
               await actualBucket.file(path).delete({ ignoreNotFound: true });
+              if (mayDiscardOwnUpload) await reservationRef.delete();
             }
             return { data: null, error: null };
           } catch (error) {

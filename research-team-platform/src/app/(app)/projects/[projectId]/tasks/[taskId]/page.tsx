@@ -22,6 +22,7 @@ import { getProjectAccess } from "@/server/access";
 import { listActivity } from "@/server/queries/activity";
 import { listComments } from "@/server/queries/comments";
 import { getTask, listAssignableMembers } from "@/server/queries/tasks";
+import { getProjectTeams } from "@/server/queries/research";
 
 export async function generateMetadata(props: PageProps<"/projects/[projectId]/tasks/[taskId]">): Promise<Metadata> {
   const { taskId } = await props.params;
@@ -45,16 +46,19 @@ export default async function TaskPage(props: PageProps<"/projects/[projectId]/t
     return <AccessDenied message={t.errors.NOT_FOUND} />;
   }
 
-  const [comments, members, history] = await Promise.all([
+  const [comments, members, history, teams] = await Promise.all([
     listComments(projectId, taskId),
     can(access, "team.view") || canAssignTasks(access) ? listAssignableMembers(projectId) : Promise.resolve([]),
     // The task history is part of the audit log: only shown with activity.view.
     can(access, "activity.view") ? listActivity({ entityId: taskId, pageSize: 20 }) : Promise.resolve(null),
+    can(access, "project.edit") ? getProjectTeams(projectId) : Promise.resolve([]),
   ]);
 
   const dto = toAccessDTO(access);
   const snapshot = { createdBy: task.createdById, assignedTo: task.assignedToId, status: task.status };
   const editable = canUpdateTask(access, snapshot);
+  const canSeeSubmissions =
+    task.assignedToId === access.userId || can(access, "tasks.review") || can(access, "tasks.view");
   const memberOptions =
     members.length > 0
       ? members
@@ -80,11 +84,17 @@ export default async function TaskPage(props: PageProps<"/projects/[projectId]/t
           </div>
         </div>
         <div className="flex gap-2">
+          {canSeeSubmissions ? (
+            <Button variant="outline" asChild>
+              <Link href={`/projects/${projectId}/tasks/${task.id}/submissions`}>Submissions</Link>
+            </Button>
+          ) : null}
           {editable ? (
             <TaskFormDialog
               projectId={projectId}
               access={dto}
               members={memberOptions}
+              teams={teams}
               task={task}
               trigger={
                 <Button variant="outline">

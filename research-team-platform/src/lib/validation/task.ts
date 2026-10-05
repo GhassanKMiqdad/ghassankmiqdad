@@ -1,16 +1,19 @@
 import { z } from "zod";
 
 import { TASK_PRIORITIES, TASK_STATUSES } from "@/lib/permissions/catalog";
-import { optionalDateField, optionalUuidField } from "@/lib/validation/common";
+import { optionalDateField, optionalUuidField, uuidField } from "@/lib/validation/common";
 
 export const taskFormSchema = z.object({
   title: z.string().trim().min(2, "validation.tooShort").max(200, "validation.tooLong"),
   description: z.string().trim().max(10000, "validation.tooLong"),
+  originalInstructions: z.string().trim().max(10000, "validation.tooLong"),
   expectedOutput: z.string().trim().max(5000, "validation.tooLong"),
   requiredDeliverables: z.string().trim().max(10000, "validation.tooLong"),
   status: z.enum(TASK_STATUSES, "validation.invalid"),
   priority: z.enum(TASK_PRIORITIES, "validation.invalid"),
+  teamId: uuidField.nullable().optional(),
   assignedTo: optionalUuidField,
+  startDate: optionalDateField,
   dueDate: optionalDateField,
 });
 
@@ -19,11 +22,14 @@ export const taskPatchSchema = z
   .object({
     title: z.string().trim().min(2, "validation.tooShort").max(200, "validation.tooLong"),
     description: z.string().trim().max(10000, "validation.tooLong"),
+    originalInstructions: z.string().trim().max(10000, "validation.tooLong"),
     expectedOutput: z.string().trim().max(5000, "validation.tooLong"),
     requiredDeliverables: z.string().trim().max(10000, "validation.tooLong"),
     status: z.enum(TASK_STATUSES, "validation.invalid"),
     priority: z.enum(TASK_PRIORITIES, "validation.invalid"),
+    teamId: uuidField.nullable(),
     assignedTo: optionalUuidField,
+    startDate: optionalDateField,
     dueDate: optionalDateField,
     progress: z.number().int().min(0).max(100),
     workNotes: z.string().trim().max(10000, "validation.tooLong"),

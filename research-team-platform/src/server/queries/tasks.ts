@@ -1,8 +1,9 @@
 import "server-only";
 
-import type { TaskPriority, TaskStatus } from "@/lib/permissions/catalog";
+import { normalizeTaskStatus, type TaskPriority, type TaskStatus } from "@/lib/permissions/catalog";
 import { createFirebaseServerClient } from "@/lib/firebase/compat";
 import { unwrap, unwrapMaybe } from "@/server/action";
+import { getProjectAccess, hasTeamAccess } from "@/server/access";
 import { appToday, isOverdue, pageRange, PROFILE_FIELDS, sanitizeSearch, toUserRef } from "@/server/queries/shared";
 import type { MemberOption, Paginated, TaskDetails, TaskListItem } from "@/types/app";
 
@@ -18,16 +19,18 @@ export type TaskFilters = {
   pageSize?: number;
 };
 
-const TASK_LIST_SELECT = `id, project_id, title, status, priority, due_date, created_at, updated_at, created_by, assigned_to,
+const TASK_LIST_SELECT = `id, project_id, team_id, title, status, priority, start_date, due_date, created_at, updated_at, created_by, assigned_to,
   project:projects(id, name),
   assignee:profiles!tasks_assigned_to_fkey(${PROFILE_FIELDS})`;
 
 type TaskListRow = {
   id: string;
   project_id: string;
+  team_id: string | null;
   title: string;
   status: TaskStatus;
   priority: TaskPriority;
+  start_date: string | null;
   due_date: string | null;
   created_at: string;
   updated_at: string;
@@ -38,20 +41,24 @@ type TaskListRow = {
 };
 
 function toTaskListItem(row: TaskListRow, today: string): TaskListItem {
+  const status = normalizeTaskStatus(row.status);
+  if (!status) throw new Error(`Unsupported task status for task ${row.id}`);
   return {
     id: row.id,
     projectId: row.project_id,
+    teamId: row.team_id ?? null,
     projectName: row.project?.name ?? "",
     title: row.title,
-    status: row.status,
-    priority: row.priority,
+    status,
+    priority: row.priority === "critical" ? "urgent" : row.priority,
+    startDate: row.start_date ?? null,
     dueDate: row.due_date,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     createdById: row.created_by,
     assignedToId: row.assigned_to,
     assignee: toUserRef(row.assignee),
-    isOverdue: isOverdue(row.due_date, row.status, today),
+    isOverdue: isOverdue(row.due_date, status, today),
   };
 }
 
@@ -75,7 +82,7 @@ export async function listTasks(userId: string, filters: TaskFilters): Promise<P
   else if (filters.assignee) query = query.eq("assigned_to", filters.assignee);
   const search = sanitizeSearch(filters.q);
   if (search) query = query.ilike("title", `%${search}%`);
-  if (filters.overdue) query = query.lt("due_date", today).not("status", "in", "(completed,rejected)");
+  if (filters.overdue) query = query.lt("due_date", today).not("status", "in", "(completed,cancelled,rejected)");
 
   const { data, count, error } = await query
     .order("due_date", { ascending: true, nullsFirst: false })
@@ -97,17 +104,20 @@ export async function getTask(taskId: string): Promise<TaskDetails | null> {
     await firebase
       .from("tasks")
       .select(
-        `${TASK_LIST_SELECT}, description, expected_output, required_deliverables, completed_at, progress, work_notes,
+        `${TASK_LIST_SELECT}, description, original_instructions, expected_output, required_deliverables, completed_at, progress, work_notes,
          creator:profiles!tasks_created_by_fkey(${PROFILE_FIELDS})`,
       )
       .eq("id", taskId)
       .maybeSingle(),
   );
   if (!row) return null;
+  const access = await getProjectAccess(row.project_id);
+  if (!access || !(await hasTeamAccess(access, row.team_id))) return null;
 
   return {
     ...toTaskListItem(row as unknown as TaskListRow, appToday()),
     description: row.description,
+    originalInstructions: String(row.original_instructions ?? ""),
     expectedOutput: String(row.expected_output ?? ""),
     requiredDeliverables: String(row.required_deliverables ?? ""),
     completedAt: row.completed_at,
@@ -126,7 +136,16 @@ export async function listMyOpenTasks(userId: string, limit = 6): Promise<TaskLi
       .from("tasks")
       .select(TASK_LIST_SELECT)
       .eq("assigned_to", userId)
-      .in("status", ["todo", "in_progress", "review", "revision_required"])
+      .in("status", [
+        "assigned",
+        "accepted",
+        "in_progress",
+        "submitted",
+        "under_review",
+        "revision_required",
+        "todo",
+        "review",
+      ])
       .order("due_date", { ascending: true, nullsFirst: false })
       .limit(limit),
   );

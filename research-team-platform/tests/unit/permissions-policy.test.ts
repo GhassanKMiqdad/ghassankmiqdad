@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PERMISSION_KEYS, type TaskStatus } from "@/lib/permissions/catalog";
+import { PERMISSION_KEYS, isPermissionKey, type TaskStatus } from "@/lib/permissions/catalog";
 import {
   allowedTaskStatuses,
   assignableRoles,
@@ -50,26 +50,14 @@ describe("project access", () => {
 describe("tasks: admin / owner", () => {
   const owner = accessFor("owner");
 
-  it("admin can edit everything", () => {
+  it("director can edit definitions but cannot reopen terminal tasks", () => {
     const foreign = task(OTHER, OTHER, "completed");
     expect(canEditTaskContent(owner, foreign)).toBe(true);
-    expect(allowedTaskStatuses(owner, foreign)).toEqual([
-      "todo",
-      "in_progress",
-      "review",
-      "revision_required",
-      "completed",
-      "rejected",
-    ]);
+    expect(allowedTaskStatuses(owner, foreign)).toEqual(["completed"]);
     expect(canDeleteTasks(owner)).toBe(true);
-    expect(
-      evaluateTaskUpdate(
-        owner,
-        foreign,
-        { title: "New", status: "rejected", assignedTo: MEMBER, priority: "low" },
-        current,
-      ),
-    ).toEqual({ ok: true });
+    expect(evaluateTaskUpdate(owner, foreign, { title: "New", assignedTo: MEMBER, priority: "low" }, current)).toEqual({
+      ok: true,
+    });
   });
 });
 
@@ -87,10 +75,25 @@ describe("tasks: research member", () => {
     expect(evaluateTaskUpdate(member, assigned, { progress: 55, workNotes: "Screened abstracts" }, current)).toEqual({
       ok: true,
     });
-    expect(evaluateTaskUpdate(member, assigned, { status: "review" }, current)).toEqual({ ok: true });
+    expect(evaluateTaskUpdate(member, assigned, { status: "under_review" }, current)).toEqual({
+      ok: false,
+      code: "TASK_STATUS_FORBIDDEN",
+    });
     expect(evaluateTaskUpdate(member, assigned, { title: "Updated" }, current)).toEqual({
       ok: false,
       code: "TASK_EDIT_FORBIDDEN",
+    });
+  });
+
+  it("assigned researcher must accept before starting work", () => {
+    const assigned = task(OWNER, MEMBER, "assigned");
+    expect(evaluateTaskUpdate(member, assigned, { status: "accepted" }, current)).toEqual({ ok: true });
+    expect(evaluateTaskUpdate(member, assigned, { status: "in_progress" }, current)).toEqual({
+      ok: false,
+      code: "TASK_STATUS_FORBIDDEN",
+    });
+    expect(evaluateTaskUpdate(member, task(OWNER, MEMBER, "accepted"), { status: "in_progress" }, current)).toEqual({
+      ok: true,
     });
   });
 
@@ -105,8 +108,8 @@ describe("tasks: research member", () => {
   });
 
   it("member cannot approve (complete) their own work", () => {
-    const assigned = task(OWNER, MEMBER, "review");
-    expect(allowedTaskStatuses(member, assigned)).toEqual(["review"]);
+    const assigned = task(OWNER, MEMBER, "under_review");
+    expect(allowedTaskStatuses(member, assigned)).toEqual(["under_review"]);
     expect(evaluateTaskUpdate(member, assigned, { status: "completed" }, current)).toEqual({
       ok: false,
       code: "TASK_STATUS_FORBIDDEN",
@@ -120,24 +123,17 @@ describe("tasks: research member", () => {
     });
   });
 
-  it("legacy tasks.edit_own grants do not allow task-definition edits", () => {
-    const ownOnly = accessFor("member", { permissions: ["project.view", "tasks.view", "tasks.edit_own"] });
-    expect(canEditTaskContent(ownOnly, task(MEMBER, null))).toBe(false);
-    expect(canEditTaskContent(ownOnly, task(OWNER, MEMBER))).toBe(false);
-  });
-
-  it("legacy tasks.edit_assigned grants do not allow task-definition edits", () => {
-    const assignedOnly = accessFor("member", { permissions: ["project.view", "tasks.view", "tasks.edit_assigned"] });
-    expect(canEditTaskContent(assignedOnly, task(OWNER, MEMBER))).toBe(false);
-    expect(canEditTaskContent(assignedOnly, task(MEMBER, null))).toBe(false);
+  it("rejects removed legacy task-definition edit grants", () => {
+    expect(isPermissionKey("tasks.edit_own")).toBe(false);
+    expect(isPermissionKey("tasks.edit_assigned")).toBe(false);
   });
 
   it("member cannot create tasks; task definition remains manager-owned", () => {
-    expect(evaluateTaskCreate(member, { assignedTo: MEMBER, status: "todo" })).toEqual({
+    expect(evaluateTaskCreate(member, { assignedTo: MEMBER, status: "assigned" })).toEqual({
       ok: false,
       code: "PERMISSION_DENIED",
     });
-    expect(evaluateTaskCreate(member, { assignedTo: OTHER, status: "todo" })).toEqual({
+    expect(evaluateTaskCreate(member, { assignedTo: OTHER, status: "assigned" })).toEqual({
       ok: false,
       code: "PERMISSION_DENIED",
     });
@@ -151,19 +147,21 @@ describe("tasks: research member", () => {
 describe("tasks: reviewer", () => {
   const reviewer = accessFor("reviewer");
 
-  it("reviewer can approve or reject a task in review", () => {
-    const inReview = task(OWNER, MEMBER, "review");
-    expect(allowedTaskStatuses(reviewer, inReview)).toContain("completed");
-    expect(allowedTaskStatuses(reviewer, inReview)).toContain("rejected");
-    expect(evaluateTaskUpdate(reviewer, inReview, { status: "completed" }, current)).toEqual({ ok: true });
+  it("formal reviewer decisions do not mutate task state through the generic task update policy", () => {
+    const inReview = task(OWNER, MEMBER, "under_review");
+    expect(allowedTaskStatuses(reviewer, inReview)).toEqual(["under_review"]);
+    expect(evaluateTaskUpdate(reviewer, inReview, { status: "completed" }, current)).toEqual({
+      ok: false,
+      code: "TASK_STATUS_FORBIDDEN",
+    });
   });
 
   it("reviewer cannot edit content or move tasks that are not under review", () => {
-    expect(evaluateTaskUpdate(reviewer, task(OWNER, MEMBER, "review"), { title: "Rewrite" }, current)).toEqual({
+    expect(evaluateTaskUpdate(reviewer, task(OWNER, MEMBER, "under_review"), { title: "Rewrite" }, current)).toEqual({
       ok: false,
       code: "TASK_EDIT_FORBIDDEN",
     });
-    expect(allowedTaskStatuses(reviewer, task(OWNER, MEMBER, "todo"))).toEqual(["todo"]);
+    expect(allowedTaskStatuses(reviewer, task(OWNER, MEMBER, "assigned"))).toEqual(["assigned"]);
   });
 });
 

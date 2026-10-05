@@ -14,6 +14,7 @@ import { parseTaskSearchParams } from "@/lib/search-params";
 import { getProjectAccess } from "@/server/access";
 import { requireSessionUser } from "@/server/auth";
 import { listAssignableMembers, listTasks } from "@/server/queries/tasks";
+import { getProjectTeams } from "@/server/queries/research";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n();
@@ -27,10 +28,11 @@ export default async function ProjectTasksPage(props: PageProps<"/projects/[proj
   if (!access || !can(access, "project.view")) return null; // denial rendered by the layout
 
   const filters = parseTaskSearchParams(await props.searchParams);
-  const [{ t }, tasks, members] = await Promise.all([
+  const [{ t }, tasks, members, teams] = await Promise.all([
     getI18n(),
     listTasks(user.id, { ...filters, projectId }),
     can(access, "team.view") || canAssignTasks(access) ? listAssignableMembers(projectId) : Promise.resolve([]),
+    can(access, "project.edit") ? getProjectTeams(projectId) : Promise.resolve([]),
   ]);
   const dto = toAccessDTO(access);
   const canCreate = can(access, "tasks.create");
@@ -44,6 +46,7 @@ export default async function ProjectTasksPage(props: PageProps<"/projects/[proj
             projectId={projectId}
             access={dto}
             members={members}
+            teams={teams}
             defaultOpen={filters.openNew}
             trigger={
               <Button>

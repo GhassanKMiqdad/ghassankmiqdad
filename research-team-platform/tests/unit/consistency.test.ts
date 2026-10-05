@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { ar } from "@/lib/i18n/dictionaries/ar";
 import { en } from "@/lib/i18n/dictionaries/en";
-import { PERMISSION_KEYS, ROLE_TEMPLATES } from "@/lib/permissions/catalog";
+import { normalizeTaskStatus, PERMISSION_KEYS, ROLE_TEMPLATES } from "@/lib/permissions/catalog";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const firestoreRules = readFileSync(path.join(root, "firestore.rules"), "utf8");
@@ -36,13 +36,15 @@ describe("Firebase ↔ application consistency", () => {
     expect(ROLE_TEMPLATES.member).toContain("tasks.update_progress");
     expect(ROLE_TEMPLATES.member).toContain("tasks.add_work_notes");
     expect(ROLE_TEMPLATES.member).toContain("tasks.submit");
+    expect(ROLE_TEMPLATES.member).toContain("tasks.accept");
   });
 
-  it("Firestore Rules restrict assigned tasks and protect definitions and review outcomes", () => {
-    expect(firestoreRules).toContain("data.assigned_to == request.auth.uid");
-    expect(firestoreRules).toContain("hasPermission(before.project_id, 'tasks.edit')");
-    expect(firestoreRules).toContain("'revision_required'");
-    expect(firestoreRules).toContain("before.status == 'in_progress'");
+  it("Firestore Rules delegate task mutations to audited Server Actions", () => {
+    expect(firestoreRules).toContain("match /tasks/{taskId}");
+    expect(firestoreRules).toContain("allow create, update, delete: if false;");
+    expect(sharedPolicy).toContain('next === "accepted"');
+    expect(sharedPolicy).toContain('next === "in_progress"');
+    expect(serverAuthorization).toContain("assertTaskMutation");
   });
 
   it("Storage Rules require an authenticated, explicitly authorized project member", () => {
@@ -56,9 +58,26 @@ describe("Firebase ↔ application consistency", () => {
   });
 
   it("every task status has a label in both languages", () => {
-    for (const status of ["todo", "in_progress", "review", "revision_required", "completed", "rejected"] as const) {
+    for (const status of [
+      "assigned",
+      "accepted",
+      "in_progress",
+      "submitted",
+      "under_review",
+      "revision_required",
+      "approved",
+      "completed",
+      "cancelled",
+    ] as const) {
       expect(en.taskStatus).toHaveProperty(status);
       expect(ar.taskStatus).toHaveProperty(status);
     }
+  });
+
+  it("normalizes retired task states without exposing them as current UI states", () => {
+    expect(normalizeTaskStatus("todo")).toBe("assigned");
+    expect(normalizeTaskStatus("review")).toBe("under_review");
+    expect(normalizeTaskStatus("rejected")).toBe("cancelled");
+    expect(normalizeTaskStatus("unknown")).toBeNull();
   });
 });

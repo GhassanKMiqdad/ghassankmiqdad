@@ -18,7 +18,6 @@ export const signupSchema = z
     path: ["confirmPassword"],
     message: "validation.passwordsDontMatch",
   });
-
 export const forgotPasswordSchema = z.object({
   email: emailField,
 });
@@ -32,6 +31,11 @@ export const newPasswordSchema = z
     path: ["confirmPassword"],
     message: "validation.passwordsDontMatch",
   });
+
+export const passwordChangeSchema = newPasswordSchema.extend({
+  currentPassword: z.string().min(1, "validation.required").max(72, "validation.tooLong"),
+});
+export type PasswordChangeInput = z.input<typeof passwordChangeSchema>;
 
 /** Only same-origin relative paths are accepted as post-login redirects. */
 export function safeRedirectPath(value: unknown, fallback = "/dashboard"): string {

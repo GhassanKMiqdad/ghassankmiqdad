@@ -9,14 +9,13 @@ export const PERMISSION_KEYS = [
   "tasks.view",
   "tasks.create",
   "tasks.edit",
-  "tasks.edit_own",
-  "tasks.edit_assigned",
   "tasks.assign",
   "tasks.review",
   "tasks.delete",
   "tasks.update_progress",
   "tasks.add_work_notes",
   "tasks.submit",
+  "tasks.accept",
   "documents.view",
   "documents.upload",
   "documents.edit",
@@ -44,14 +43,13 @@ export const PERMISSION_CATEGORY: Record<PermissionKey, PermissionCategory> = {
   "tasks.view": "tasks",
   "tasks.create": "tasks",
   "tasks.edit": "tasks",
-  "tasks.edit_own": "tasks",
-  "tasks.edit_assigned": "tasks",
   "tasks.assign": "tasks",
   "tasks.review": "tasks",
   "tasks.delete": "tasks",
   "tasks.update_progress": "tasks",
   "tasks.add_work_notes": "tasks",
   "tasks.submit": "tasks",
+  "tasks.accept": "tasks",
   "documents.view": "documents",
   "documents.upload": "documents",
   "documents.edit": "documents",
@@ -69,21 +67,43 @@ export const PERMISSION_CATEGORY: Record<PermissionKey, PermissionCategory> = {
 
 export type ProjectRole = "owner" | "manager" | "member" | "reviewer";
 export type MemberStatus = "active" | "suspended";
-export type TaskStatus = "todo" | "in_progress" | "review" | "revision_required" | "completed" | "rejected";
-export type TaskPriority = "low" | "medium" | "high" | "critical";
+export type TaskStatus =
+  | "assigned"
+  | "accepted"
+  | "in_progress"
+  | "submitted"
+  | "under_review"
+  | "revision_required"
+  | "approved"
+  | "completed"
+  | "cancelled";
+export type LegacyTaskStatus = "todo" | "review" | "rejected";
+export type TaskPriority = "low" | "medium" | "high" | "urgent" | "critical";
 export type ProjectStatus = "planning" | "active" | "on_hold" | "completed" | "archived";
 
 export const PROJECT_ROLES = ["owner", "manager", "member", "reviewer"] as const satisfies readonly ProjectRole[];
 export const MEMBER_STATUSES = ["active", "suspended"] as const satisfies readonly MemberStatus[];
 export const TASK_STATUSES = [
-  "todo",
+  "assigned",
+  "accepted",
   "in_progress",
-  "review",
+  "submitted",
+  "under_review",
   "revision_required",
+  "approved",
   "completed",
-  "rejected",
+  "cancelled",
 ] as const satisfies readonly TaskStatus[];
-export const TASK_PRIORITIES = ["low", "medium", "high", "critical"] as const satisfies readonly TaskPriority[];
+
+/** Normalize the previous Firebase/Supabase vocabulary at read/import boundaries. */
+export function normalizeTaskStatus(value: unknown): TaskStatus | null {
+  if (TASK_STATUSES.includes(value as TaskStatus)) return value as TaskStatus;
+  if (value === "todo") return "assigned";
+  if (value === "review") return "under_review";
+  if (value === "rejected") return "cancelled";
+  return null;
+}
+export const TASK_PRIORITIES = ["low", "medium", "high", "urgent"] as const satisfies readonly TaskPriority[];
 export const PROJECT_STATUSES = [
   "planning",
   "active",
@@ -93,7 +113,7 @@ export const PROJECT_STATUSES = [
 ] as const satisfies readonly ProjectStatus[];
 
 /** Final workflow states: entering or leaving them requires review rights. */
-export const FINAL_TASK_STATUSES: readonly TaskStatus[] = ["completed", "rejected"];
+export const FINAL_TASK_STATUSES: readonly TaskStatus[] = ["approved", "completed", "cancelled"];
 
 /** Higher rank can manage lower rank. Mirrors private.role_rank(). */
 export const ROLE_RANK: Record<ProjectRole, number> = {
@@ -112,8 +132,6 @@ export const ROLE_TEMPLATES: Record<ProjectRole, readonly PermissionKey[]> = {
     "tasks.view",
     "tasks.create",
     "tasks.edit",
-    "tasks.edit_own",
-    "tasks.edit_assigned",
     "tasks.assign",
     "tasks.review",
     "tasks.delete",
@@ -131,9 +149,11 @@ export const ROLE_TEMPLATES: Record<ProjectRole, readonly PermissionKey[]> = {
   ],
   member: [
     "project.view",
+    "team.view",
     "tasks.update_progress",
     "tasks.add_work_notes",
     "tasks.submit",
+    "tasks.accept",
     "documents.upload",
     "comments.create",
   ],

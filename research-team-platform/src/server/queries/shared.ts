@@ -26,7 +26,7 @@ export function appToday(): string {
 }
 
 export function isOverdue(dueDate: string | null, status: string, today = appToday()): boolean {
-  return !!dueDate && dueDate < today && status !== "completed" && status !== "rejected";
+  return !!dueDate && dueDate < today && status !== "completed" && status !== "cancelled" && status !== "rejected";
 }
 
 /** Removes query-syntax and wildcard characters from free-text search. */

@@ -1,0 +1,89 @@
+{
+  "profiles": [
+    {
+      "id": "user-owner",
+      "email": "OWNER@example.test ",
+      "full_name": "Example Owner",
+      "is_platform_admin": true,
+      "encrypted_password": "never-copy-this"
+    },
+    {
+      "id": "user-researcher",
+      "email": "researcher@example.test",
+      "full_name": "Example Researcher"
+    }
+  ],
+  "projects": [
+    {
+      "id": "project-alpha",
+      "name": "Example Study",
+      "status": "active",
+      "created_by": "user-owner",
+      "created_at": "2026-01-02T03:04:05+00:00"
+    }
+  ],
+  "project_members": [
+    {
+      "id": "old-membership-owner",
+      "project_id": "project-alpha",
+      "user_id": "user-owner",
+      "role": "owner",
+      "status": "active"
+    },
+    {
+      "id": "old-membership-researcher",
+      "project_id": "project-alpha",
+      "user_id": "user-researcher",
+      "role": "member",
+      "status": "active"
+    }
+  ],
+  "permissions": [
+    { "key": "project.view", "category": "project", "sort_order": 10 },
+    { "key": "tasks.view", "category": "tasks", "sort_order": 110 }
+  ],
+  "role_permissions": [
+    { "role": "owner", "permission_key": "project.view" },
+    { "role": "member", "permission_key": "project.view" }
+  ],
+  "user_permissions": [{ "project_id": "project-alpha", "user_id": "user-researcher", "permission_key": "tasks.view" }],
+  "tasks": [
+    {
+      "id": "task-1",
+      "project_id": "project-alpha",
+      "title": "Review data",
+      "status": "todo",
+      "priority": "high",
+      "assigned_to": "user-researcher"
+    }
+  ],
+  "documents": [
+    {
+      "id": "document-1",
+      "project_id": "project-alpha",
+      "title": "Protocol",
+      "file_name": "protocol.pdf",
+      "storage_path": "project-alpha/document-1/protocol.pdf",
+      "size_bytes": "42"
+    }
+  ],
+  "comments": [
+    {
+      "id": "comment-1",
+      "project_id": "project-alpha",
+      "task_id": "task-1",
+      "author_id": "user-researcher",
+      "content": "Ready for review"
+    }
+  ],
+  "activity_logs": [
+    {
+      "id": "audit-1",
+      "project_id": "project-alpha",
+      "actor_id": "user-owner",
+      "action": "project.created",
+      "entity_type": "project",
+      "metadata": { "z": 1, "a": 2 }
+    }
+  ]
+}

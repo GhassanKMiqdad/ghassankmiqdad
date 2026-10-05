@@ -65,10 +65,13 @@ export type TaskSnapshot = {
 export type TaskPatch = Partial<{
   title: string;
   description: string;
+  originalInstructions: string;
   expectedOutput: string;
   requiredDeliverables: string;
   priority: string;
   dueDate: string | null;
+  startDate: string | null;
+  teamId: string | null;
   status: TaskStatus;
   assignedTo: string | null;
   progress: number;
@@ -88,24 +91,32 @@ export function canChangeTaskStatus(
 ): boolean {
   if (!access) return false;
   if (next === task.status) return true;
-  if (can(access, "tasks.edit")) return true;
-  if (
-    can(access, "tasks.review") &&
-    task.status === "review" &&
-    ["completed", "rejected", "revision_required"].includes(next)
-  )
-    return true;
+  if (can(access, "tasks.edit")) {
+    if (next === "cancelled" && !["approved", "completed", "cancelled"].includes(task.status)) return true;
+    if (next === "completed" && task.status === "approved") return true;
+    return false;
+  }
   if (task.assignedTo !== access.userId) return false;
-  if (next === "review") return can(access, "tasks.submit") && task.status === "in_progress";
+  if (next === "accepted") return can(access, "tasks.accept") && task.status === "assigned";
   return (
     next === "in_progress" &&
     can(access, "tasks.update_progress") &&
-    ["todo", "in_progress", "revision_required"].includes(task.status)
+    ["accepted", "revision_required"].includes(task.status)
   );
 }
 
 export function allowedTaskStatuses(access: AccessSubject | null | undefined, task: TaskSnapshot): TaskStatus[] {
-  const all: TaskStatus[] = ["todo", "in_progress", "review", "revision_required", "completed", "rejected"];
+  const all: TaskStatus[] = [
+    "assigned",
+    "accepted",
+    "in_progress",
+    "submitted",
+    "under_review",
+    "revision_required",
+    "approved",
+    "completed",
+    "cancelled",
+  ];
   return all.filter((status) => canChangeTaskStatus(access, task, status));
 }
 
@@ -122,7 +133,8 @@ export function canUpdateTask(access: AccessSubject | null | undefined, task: Ta
   return (
     canEditTaskContent(access, task) ||
     canAssignTasks(access) ||
-    (task.assignedTo === access?.userId && (can(access, "tasks.update_progress") || can(access, "tasks.submit"))) ||
+    (task.assignedTo === access?.userId &&
+      (can(access, "tasks.accept") || can(access, "tasks.update_progress") || can(access, "tasks.submit"))) ||
     allowedTaskStatuses(access, task).some((status) => status !== task.status)
   );
 }
@@ -135,10 +147,13 @@ export function evaluateTaskUpdate(
   current: {
     title: string;
     description: string;
+    originalInstructions?: string;
     expectedOutput?: string;
     requiredDeliverables?: string;
     priority: string;
     dueDate: string | null;
+    startDate?: string | null;
+    teamId?: string | null;
   },
 ): PolicyResult {
   if (!access || !isActive(access)) return deny("PERMISSION_DENIED");
@@ -146,12 +161,15 @@ export function evaluateTaskUpdate(
   const contentChanged =
     (patch.title !== undefined && patch.title !== current.title) ||
     (patch.description !== undefined && patch.description !== current.description) ||
+    (patch.originalInstructions !== undefined && patch.originalInstructions !== (current.originalInstructions ?? "")) ||
     (patch.expectedOutput !== undefined && patch.expectedOutput !== (current.expectedOutput ?? "")) ||
     (patch.requiredDeliverables !== undefined && patch.requiredDeliverables !== (current.requiredDeliverables ?? "")) ||
     (patch.priority !== undefined && patch.priority !== current.priority) ||
-    (patch.dueDate !== undefined && patch.dueDate !== current.dueDate);
+    (patch.dueDate !== undefined && patch.dueDate !== current.dueDate) ||
+    (patch.startDate !== undefined && patch.startDate !== (current.startDate ?? null));
+  const teamChanged = patch.teamId !== undefined && patch.teamId !== current.teamId;
 
-  if (contentChanged && !canEditTaskContent(access, task)) return deny("TASK_EDIT_FORBIDDEN");
+  if ((contentChanged || teamChanged) && !canEditTaskContent(access, task)) return deny("TASK_EDIT_FORBIDDEN");
   if (patch.progress !== undefined && (task.assignedTo !== access.userId || !can(access, "tasks.update_progress"))) {
     return deny("TASK_EDIT_FORBIDDEN");
   }

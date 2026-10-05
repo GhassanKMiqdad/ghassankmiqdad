@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import type { ActionResult } from "@/lib/action-result";
 import { useI18n } from "@/lib/i18n/provider";
-import { newPasswordSchema, type NewPasswordInput } from "@/lib/validation/auth";
+import { newPasswordSchema, passwordChangeSchema, type PasswordChangeInput } from "@/lib/validation/auth";
 
 /**
  * Shared by the reset-password page (redirects on success) and the settings
@@ -23,23 +23,31 @@ export function NewPasswordForm({
   action,
   submitLabel,
   successMessage,
+  currentPasswordRequired = false,
 }: {
-  action: (values: NewPasswordInput) => Promise<ActionResult<null> | ActionResult<never>>;
+  action: (values: unknown) => Promise<ActionResult<null> | ActionResult<never>>;
   submitLabel: string;
   successMessage?: string;
+  currentPasswordRequired?: boolean;
 }) {
   const { t, message } = useI18n();
   const { pending, run } = useServerAction();
   const [formError, setFormError] = useState<string | null>(null);
 
-  const form = useForm<NewPasswordInput>({
-    resolver: zodResolver(newPasswordSchema),
-    defaultValues: { password: "", confirmPassword: "" },
+  type FormValues = PasswordChangeInput & { currentPassword: string };
+  const form = useForm<FormValues>({
+    resolver: zodResolver(
+      currentPasswordRequired ? passwordChangeSchema : newPasswordSchema,
+    ) as unknown as Resolver<FormValues>,
+    defaultValues: { currentPassword: "", password: "", confirmPassword: "" },
   });
 
   const onSubmit = form.handleSubmit(async (values) => {
     setFormError(null);
-    const result = await run(() => action(values) as Promise<ActionResult<null>>, { silent: true });
+    const payload = currentPasswordRequired
+      ? values
+      : { password: values.password, confirmPassword: values.confirmPassword };
+    const result = await run(() => action(payload) as Promise<ActionResult<null>>, { silent: true });
     if (!result) return;
     if (result.ok) {
       form.reset();
@@ -54,6 +62,21 @@ export function NewPasswordForm({
     <Form {...form}>
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <FormAlert message={formError} />
+        {currentPasswordRequired ? (
+          <FormField
+            control={form.control}
+            name="currentPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t.settings.password.currentPassword}</FormLabel>
+                <FormControl>
+                  <PasswordInput autoComplete="current-password" {...field} />
+                </FormControl>
+                <FormMessage localize={message} />
+              </FormItem>
+            )}
+          />
+        ) : null}
         <FormField
           control={form.control}
           name="password"

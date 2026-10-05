@@ -48,10 +48,12 @@ export type ProjectDetails = {
 export type TaskListItem = {
   id: string;
   projectId: string;
+  teamId: string | null;
   projectName: string;
   title: string;
   status: TaskStatus;
   priority: TaskPriority;
+  startDate: string | null;
   dueDate: string | null;
   createdAt: string;
   updatedAt: string;
@@ -62,7 +64,9 @@ export type TaskListItem = {
 };
 
 export type TaskDetails = TaskListItem & {
+  teamName?: string | null;
   description: string;
+  originalInstructions: string;
   expectedOutput: string;
   requiredDeliverables: string;
   completedAt: string | null;
@@ -167,7 +171,13 @@ export type PlatformUser = {
   lastSignInAt: string | null;
 };
 
-export type NotificationType = "task_assigned" | "task_submitted" | "revision_requested" | "submission_approved";
+export type NotificationType =
+  | "task_assigned"
+  | "task_submitted"
+  | "revision_requested"
+  | "submission_approved"
+  | "deadline_approaching"
+  | "task_overdue";
 
 export type NotificationItem = {
   id: string;

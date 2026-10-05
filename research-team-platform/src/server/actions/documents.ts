@@ -101,14 +101,13 @@ export async function finalizeDocumentUploadAction(input: unknown): Promise<Acti
 export async function discardDocumentUploadAction(projectId: string, storagePath: string): Promise<ActionResult<null>> {
   return runAction(async () => {
     const id = parseInput(uuidField, projectId);
-    await assertProjectPermission(id, "documents.upload");
     const segments = storagePath.split("/");
     if (segments.length !== 3 || segments[0] !== id || !isDocumentPathFor(id, segments[1] ?? "", storagePath)) {
       throw new AppError("INVALID_INPUT");
     }
 
-    // The user's own session: the storage DELETE policy only lets the
-    // uploader remove their object while no document row references it.
+    // The adapter permits cleanup only for this session's exact, unclaimed
+    // server reservation; project access may have changed since upload began.
     const firebase = await createFirebaseServerClient();
     const { error } = await firebase.storage.from(DOCUMENT_BUCKET).remove([storagePath]);
     if (error) console.warn("[documents] could not discard pending upload", error.message);
