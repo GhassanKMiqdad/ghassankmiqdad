@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { NewPasswordForm } from "@/components/auth/new-password-form";
 import { getI18n } from "@/lib/i18n/server";
-import { finishPasswordResetAction, updatePasswordAction } from "@/server/actions/auth";
+import { finishPasswordResetAction } from "@/server/actions/auth";
 import { requireSessionUser } from "@/server/auth";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -17,8 +18,11 @@ export default async function ResetPasswordPage(props: PageProps<"/reset-passwor
   const oobCode = typeof rawCode === "string" ? rawCode : null;
   const welcome = searchParams.welcome === "1";
 
-  if (!oobCode) await requireSessionUser();
-  const action = oobCode ? finishPasswordResetAction.bind(null, oobCode) : updatePasswordAction;
+  if (!oobCode) {
+    await requireSessionUser();
+    redirect("/settings");
+  }
+  const action = finishPasswordResetAction.bind(null, oobCode);
 
   return (
     <div className="space-y-6">

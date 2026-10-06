@@ -11,6 +11,7 @@ export const taskFormSchema = z.object({
   status: z.enum(TASK_STATUSES, "validation.invalid"),
   priority: z.enum(TASK_PRIORITIES, "validation.invalid"),
   assignedTo: optionalUuidField,
+  teamId: optionalUuidField,
   dueDate: optionalDateField,
 });
 
@@ -24,6 +25,7 @@ export const taskPatchSchema = z
     status: z.enum(TASK_STATUSES, "validation.invalid"),
     priority: z.enum(TASK_PRIORITIES, "validation.invalid"),
     assignedTo: optionalUuidField,
+    teamId: optionalUuidField,
     dueDate: optionalDateField,
     progress: z.number().int().min(0).max(100),
     workNotes: z.string().trim().max(10000, "validation.tooLong"),

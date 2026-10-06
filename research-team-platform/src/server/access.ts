@@ -5,6 +5,7 @@ import { cache } from "react";
 import { AppError } from "@/lib/errors";
 import type { ProjectAccess } from "@/lib/permissions/access";
 import {
+  PERMISSION_KEYS,
   isPermissionKey,
   type MemberStatus,
   type PermissionKey,
@@ -37,11 +38,20 @@ function makeAccess(
   };
 }
 
+function makeDirectorAccess(projectId: string, project: FirebaseFirestore.DocumentData, userId: string): ProjectAccess {
+  return makeAccess(projectId, project, { role: "owner", status: "active", permissions: [...PERMISSION_KEYS] }, userId);
+}
+
 /** Effective project access is loaded from server-only Firestore membership documents. */
 export const getMyProjectsAccess = cache(async (): Promise<ProjectAccess[]> => {
   const user = await getSessionUser();
   if (!user) return [];
   const db = getFirebaseFirestore();
+  const profile = await db.collection("profiles").doc(user.id).get();
+  if (profile.get("is_platform_admin") === true) {
+    const projects = await db.collection("projects").limit(2000).get();
+    return projects.docs.map((project) => makeDirectorAccess(project.id, project.data(), user.id));
+  }
   const memberships = await db.collection("project_members").where("user_id", "==", user.id).limit(200).get();
   const records = await Promise.all(
     memberships.docs.map(async (memberDoc) => {
@@ -60,10 +70,16 @@ export const getProjectAccess = cache(async (projectId: string): Promise<Project
   const user = await getSessionUser();
   if (!user) return null;
   const db = getFirebaseFirestore();
-  const memberSnapshot = await db.collection("project_members").doc(`${projectId}_${user.id}`).get();
-  if (!memberSnapshot.exists) return null;
-  const projectSnapshot = await db.collection("projects").doc(projectId).get();
+  const [memberSnapshot, projectSnapshot, profileSnapshot] = await Promise.all([
+    db.collection("project_members").doc(`${projectId}_${user.id}`).get(),
+    db.collection("projects").doc(projectId).get(),
+    db.collection("profiles").doc(user.id).get(),
+  ]);
   if (!projectSnapshot.exists) return null;
+  if (profileSnapshot.get("is_platform_admin") === true) {
+    return makeDirectorAccess(projectId, projectSnapshot.data()!, user.id);
+  }
+  if (!memberSnapshot.exists) return null;
   return makeAccess(projectId, projectSnapshot.data()!, memberSnapshot.data()!, user.id);
 });
 

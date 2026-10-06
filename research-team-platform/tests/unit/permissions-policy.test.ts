@@ -53,23 +53,14 @@ describe("tasks: admin / owner", () => {
   it("admin can edit everything", () => {
     const foreign = task(OTHER, OTHER, "completed");
     expect(canEditTaskContent(owner, foreign)).toBe(true);
-    expect(allowedTaskStatuses(owner, foreign)).toEqual([
-      "todo",
-      "in_progress",
-      "review",
-      "revision_required",
-      "completed",
-      "rejected",
-    ]);
+    expect(allowedTaskStatuses(owner, foreign)).toContain("todo");
+    expect(allowedTaskStatuses(owner, foreign)).toContain("completed");
+    expect(allowedTaskStatuses(owner, foreign)).not.toContain("review");
+    expect(allowedTaskStatuses(owner, foreign)).not.toContain("rejected");
     expect(canDeleteTasks(owner)).toBe(true);
-    expect(
-      evaluateTaskUpdate(
-        owner,
-        foreign,
-        { title: "New", status: "rejected", assignedTo: MEMBER, priority: "low" },
-        current,
-      ),
-    ).toEqual({ ok: true });
+    expect(evaluateTaskUpdate(owner, foreign, { title: "New", assignedTo: MEMBER, priority: "low" }, current)).toEqual({
+      ok: true,
+    });
   });
 });
 
@@ -87,7 +78,10 @@ describe("tasks: research member", () => {
     expect(evaluateTaskUpdate(member, assigned, { progress: 55, workNotes: "Screened abstracts" }, current)).toEqual({
       ok: true,
     });
-    expect(evaluateTaskUpdate(member, assigned, { status: "review" }, current)).toEqual({ ok: true });
+    expect(evaluateTaskUpdate(member, assigned, { status: "review" }, current)).toEqual({
+      ok: false,
+      code: "TASK_STATUS_FORBIDDEN",
+    });
     expect(evaluateTaskUpdate(member, assigned, { title: "Updated" }, current)).toEqual({
       ok: false,
       code: "TASK_EDIT_FORBIDDEN",
@@ -115,6 +109,10 @@ describe("tasks: research member", () => {
 
   it("member cannot re-assign a task", () => {
     expect(evaluateTaskUpdate(member, task(OWNER, MEMBER), { assignedTo: OTHER }, current)).toEqual({
+      ok: false,
+      code: "TASK_ASSIGN_FORBIDDEN",
+    });
+    expect(evaluateTaskUpdate(member, { ...task(OWNER, MEMBER), teamId: null }, { teamId: OTHER }, current)).toEqual({
       ok: false,
       code: "TASK_ASSIGN_FORBIDDEN",
     });
@@ -151,11 +149,41 @@ describe("tasks: research member", () => {
 describe("tasks: reviewer", () => {
   const reviewer = accessFor("reviewer");
 
-  it("reviewer can approve or reject a task in review", () => {
+  it("review decisions must use the dedicated immutable review action", () => {
     const inReview = task(OWNER, MEMBER, "review");
-    expect(allowedTaskStatuses(reviewer, inReview)).toContain("completed");
-    expect(allowedTaskStatuses(reviewer, inReview)).toContain("rejected");
-    expect(evaluateTaskUpdate(reviewer, inReview, { status: "completed" }, current)).toEqual({ ok: true });
+    expect(allowedTaskStatuses(reviewer, inReview)).toEqual(["review"]);
+    expect(evaluateTaskUpdate(reviewer, inReview, { status: "completed" }, current)).toEqual({
+      ok: false,
+      code: "TASK_STATUS_FORBIDDEN",
+    });
+  });
+
+  it("blocks a reviewer or manager from deciding their own assigned task", () => {
+    const reviewerOwn = task(OWNER, REVIEWER, "review");
+    expect(allowedTaskStatuses(reviewer, reviewerOwn)).toEqual(["review"]);
+    expect(evaluateTaskUpdate(reviewer, reviewerOwn, { status: "completed" }, current)).toEqual({
+      ok: false,
+      code: "TASK_STATUS_FORBIDDEN",
+    });
+
+    const manager = accessFor("manager");
+    const managerOwn = task(OWNER, MANAGER, "review");
+    expect(evaluateTaskUpdate(manager, managerOwn, { status: "revision_required" }, current)).toEqual({
+      ok: false,
+      code: "TASK_STATUS_FORBIDDEN",
+    });
+  });
+
+  it("does not create tasks already in review or a final state", () => {
+    const manager = accessFor("manager");
+    expect(evaluateTaskCreate(manager, { assignedTo: MEMBER, status: "review" })).toEqual({
+      ok: false,
+      code: "TASK_STATUS_FORBIDDEN",
+    });
+    expect(evaluateTaskCreate(manager, { assignedTo: MEMBER, status: "completed" })).toEqual({
+      ok: false,
+      code: "TASK_STATUS_FORBIDDEN",
+    });
   });
 
   it("reviewer cannot edit content or move tasks that are not under review", () => {

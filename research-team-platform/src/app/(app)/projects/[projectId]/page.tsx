@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CalendarClock, CalendarDays, Target } from "lucide-react";
 
 import { CommentThread } from "@/components/comments/comment-thread";
+import { PriorityBadge } from "@/components/shared/badges";
 import { DateText } from "@/components/shared/date-text";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
@@ -107,6 +108,12 @@ export default async function ProjectOverviewPage(props: PageProps<"/projects/[p
           </CardHeader>
           <CardContent>
             <dl className="space-y-3 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <dt className="text-muted-foreground">{t.projects.fields.priority}</dt>
+                <dd>
+                  <PriorityBadge priority={project.priority} />
+                </dd>
+              </div>
               <div className="flex items-center justify-between gap-2">
                 <dt className="flex items-center gap-2 text-muted-foreground">
                   <CalendarDays className="size-4" aria-hidden />

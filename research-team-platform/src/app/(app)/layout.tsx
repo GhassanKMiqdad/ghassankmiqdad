@@ -19,7 +19,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // database re-check permissions independently.
   const anywhere = (permission: Parameters<typeof can>[1]) => access.some((item) => can(item, permission));
   const visible: NavKey[] = ["dashboard", "projects"];
-  if (anywhere("project.view")) visible.push("tasks");
+  if (anywhere("project.view")) visible.push("tasks", "calendar");
+  if (profile.isPlatformAdmin || anywhere("team.view") || anywhere("data.export")) visible.push("reports");
+  if (profile.isPlatformAdmin) visible.push("researchers");
   if (anywhere("documents.view")) visible.push("documents");
   if (anywhere("team.view")) visible.push("team");
   if (anywhere("activity.view") || profile.isPlatformAdmin) visible.push("activity");

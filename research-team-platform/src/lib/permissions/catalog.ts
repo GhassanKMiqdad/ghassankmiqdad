@@ -69,31 +69,46 @@ export const PERMISSION_CATEGORY: Record<PermissionKey, PermissionCategory> = {
 
 export type ProjectRole = "owner" | "manager" | "member" | "reviewer";
 export type MemberStatus = "active" | "suspended";
-export type TaskStatus = "todo" | "in_progress" | "review" | "revision_required" | "completed" | "rejected";
+export type TaskStatus =
+  | "todo"
+  | "accepted"
+  | "in_progress"
+  | "submitted"
+  | "review"
+  | "revision_required"
+  | "approved"
+  | "completed"
+  | "rejected"
+  | "cancelled";
 export type TaskPriority = "low" | "medium" | "high" | "critical";
-export type ProjectStatus = "planning" | "active" | "on_hold" | "completed" | "archived";
+export type ProjectStatus = "planning" | "active" | "on_hold" | "under_review" | "completed" | "archived";
 
 export const PROJECT_ROLES = ["owner", "manager", "member", "reviewer"] as const satisfies readonly ProjectRole[];
 export const MEMBER_STATUSES = ["active", "suspended"] as const satisfies readonly MemberStatus[];
 export const TASK_STATUSES = [
   "todo",
+  "accepted",
   "in_progress",
+  "submitted",
   "review",
   "revision_required",
+  "approved",
   "completed",
   "rejected",
+  "cancelled",
 ] as const satisfies readonly TaskStatus[];
 export const TASK_PRIORITIES = ["low", "medium", "high", "critical"] as const satisfies readonly TaskPriority[];
 export const PROJECT_STATUSES = [
   "planning",
   "active",
   "on_hold",
+  "under_review",
   "completed",
   "archived",
 ] as const satisfies readonly ProjectStatus[];
 
 /** Final workflow states: entering or leaving them requires review rights. */
-export const FINAL_TASK_STATUSES: readonly TaskStatus[] = ["completed", "rejected"];
+export const FINAL_TASK_STATUSES: readonly TaskStatus[] = ["completed", "rejected", "cancelled"];
 
 /** Higher rank can manage lower rank. Mirrors private.role_rank(). */
 export const ROLE_RANK: Record<ProjectRole, number> = {

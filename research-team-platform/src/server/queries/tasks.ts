@@ -14,11 +14,13 @@ export type TaskFilters = {
   assignee?: string;
   q?: string;
   overdue?: boolean;
+  dueFrom?: string;
+  dueTo?: string;
   page?: number;
   pageSize?: number;
 };
 
-const TASK_LIST_SELECT = `id, project_id, title, status, priority, due_date, created_at, updated_at, created_by, assigned_to,
+const TASK_LIST_SELECT = `id, project_id, title, status, priority, due_date, created_at, updated_at, created_by, assigned_to, team_id,
   project:projects(id, name),
   assignee:profiles!tasks_assigned_to_fkey(${PROFILE_FIELDS})`;
 
@@ -33,6 +35,7 @@ type TaskListRow = {
   updated_at: string;
   created_by: string | null;
   assigned_to: string | null;
+  team_id: string | null;
   project: { id: string; name: string } | null;
   assignee: { id: string; full_name: string; email: string | null } | null;
 };
@@ -50,14 +53,15 @@ function toTaskListItem(row: TaskListRow, today: string): TaskListItem {
     updatedAt: row.updated_at,
     createdById: row.created_by,
     assignedToId: row.assigned_to,
+    teamId: row.team_id ?? null,
     assignee: toUserRef(row.assignee),
     isOverdue: isOverdue(row.due_date, row.status, today),
   };
 }
 
 /**
- * Lists the tasks the current user can see. Visibility is decided by RLS:
- * every task with tasks.view, plus own / assigned tasks.
+ * Lists only tasks permitted by the Firebase adapter's server-side
+ * project/team/task visibility checks.
  */
 export async function listTasks(userId: string, filters: TaskFilters): Promise<Paginated<TaskListItem>> {
   const pageSize = filters.pageSize ?? 25;
@@ -76,6 +80,8 @@ export async function listTasks(userId: string, filters: TaskFilters): Promise<P
   const search = sanitizeSearch(filters.q);
   if (search) query = query.ilike("title", `%${search}%`);
   if (filters.overdue) query = query.lt("due_date", today).not("status", "in", "(completed,rejected)");
+  if (filters.dueFrom) query = query.gte("due_date", filters.dueFrom);
+  if (filters.dueTo) query = query.lte("due_date", filters.dueTo);
 
   const { data, count, error } = await query
     .order("due_date", { ascending: true, nullsFirst: false })
@@ -97,7 +103,7 @@ export async function getTask(taskId: string): Promise<TaskDetails | null> {
     await firebase
       .from("tasks")
       .select(
-        `${TASK_LIST_SELECT}, description, expected_output, required_deliverables, completed_at, progress, work_notes,
+        `${TASK_LIST_SELECT}, description, expected_output, required_deliverables, completed_at, progress, work_notes, submission_version, latest_submission_id,
          creator:profiles!tasks_created_by_fkey(${PROFILE_FIELDS})`,
       )
       .eq("id", taskId)
@@ -113,6 +119,8 @@ export async function getTask(taskId: string): Promise<TaskDetails | null> {
     completedAt: row.completed_at,
     progress: Number(row.progress ?? 0),
     workNotes: String(row.work_notes ?? ""),
+    submissionVersion: Number(row.submission_version ?? 0),
+    latestSubmissionId: typeof row.latest_submission_id === "string" ? row.latest_submission_id : null,
     createdBy: toUserRef(row.creator),
   };
 }
@@ -126,7 +134,7 @@ export async function listMyOpenTasks(userId: string, limit = 6): Promise<TaskLi
       .from("tasks")
       .select(TASK_LIST_SELECT)
       .eq("assigned_to", userId)
-      .in("status", ["todo", "in_progress", "review", "revision_required"])
+      .in("status", ["todo", "accepted", "in_progress", "submitted", "review", "revision_required"])
       .order("due_date", { ascending: true, nullsFirst: false })
       .limit(limit),
   );

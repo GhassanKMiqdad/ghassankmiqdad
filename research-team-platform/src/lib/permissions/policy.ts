@@ -59,6 +59,7 @@ export function canAny(access: AccessSubject | null | undefined, permissions: re
 export type TaskSnapshot = {
   createdBy: string | null;
   assignedTo: string | null;
+  teamId?: string | null;
   status: TaskStatus;
 };
 
@@ -71,6 +72,7 @@ export type TaskPatch = Partial<{
   dueDate: string | null;
   status: TaskStatus;
   assignedTo: string | null;
+  teamId: string | null;
   progress: number;
   workNotes: string;
 }>;
@@ -88,24 +90,35 @@ export function canChangeTaskStatus(
 ): boolean {
   if (!access) return false;
   if (next === task.status) return true;
-  if (can(access, "tasks.edit")) return true;
-  if (
-    can(access, "tasks.review") &&
-    task.status === "review" &&
-    ["completed", "rejected", "revision_required"].includes(next)
-  )
-    return true;
-  if (task.assignedTo !== access.userId) return false;
-  if (next === "review") return can(access, "tasks.submit") && task.status === "in_progress";
-  return (
-    next === "in_progress" &&
-    can(access, "tasks.update_progress") &&
-    ["todo", "in_progress", "revision_required"].includes(task.status)
-  );
+  const assigned = task.assignedTo === access.userId;
+  if (next === "accepted") return assigned && can(access, "tasks.submit") && task.status === "todo";
+  if (next === "in_progress") {
+    return (
+      assigned &&
+      can(access, "tasks.update_progress") &&
+      ["todo", "accepted", "revision_required"].includes(task.status)
+    );
+  }
+  // Submissions, review start, and reviewer decisions must pass through their
+  // dedicated actions so immutable version/review records are always created.
+  if (["submitted", "review", "revision_required", "approved", "completed", "rejected"].includes(next)) return false;
+  if (next === "cancelled") return can(access, "tasks.edit") && task.status !== "completed";
+  return can(access, "tasks.edit") && ["todo", "in_progress", "accepted"].includes(next);
 }
 
 export function allowedTaskStatuses(access: AccessSubject | null | undefined, task: TaskSnapshot): TaskStatus[] {
-  const all: TaskStatus[] = ["todo", "in_progress", "review", "revision_required", "completed", "rejected"];
+  const all: TaskStatus[] = [
+    "todo",
+    "accepted",
+    "in_progress",
+    "submitted",
+    "review",
+    "revision_required",
+    "approved",
+    "completed",
+    "rejected",
+    "cancelled",
+  ];
   return all.filter((status) => canChangeTaskStatus(access, task, status));
 }
 
@@ -165,6 +178,9 @@ export function evaluateTaskUpdate(
   if (patch.assignedTo !== undefined && patch.assignedTo !== task.assignedTo && !canAssignTasks(access)) {
     return deny("TASK_ASSIGN_FORBIDDEN");
   }
+  if (patch.teamId !== undefined && patch.teamId !== (task.teamId ?? null) && !canAssignTasks(access)) {
+    return deny("TASK_ASSIGN_FORBIDDEN");
+  }
 
   return OK;
 }
@@ -175,6 +191,7 @@ export function evaluateTaskCreate(
   input: { assignedTo: string | null; status: TaskStatus },
 ): PolicyResult {
   if (!can(access, "tasks.create") || !access) return deny("PERMISSION_DENIED");
+  if (input.status !== "todo") return deny("TASK_STATUS_FORBIDDEN");
   if (input.assignedTo && input.assignedTo !== access.userId && !canAssignTasks(access)) {
     return deny("TASK_ASSIGN_FORBIDDEN");
   }

@@ -41,8 +41,10 @@ describe("Firebase ↔ application consistency", () => {
   it("Firestore Rules restrict assigned tasks and protect definitions and review outcomes", () => {
     expect(firestoreRules).toContain("data.assigned_to == request.auth.uid");
     expect(firestoreRules).toContain("hasPermission(before.project_id, 'tasks.edit')");
-    expect(firestoreRules).toContain("'revision_required'");
-    expect(firestoreRules).toContain("before.status == 'in_progress'");
+    expect(firestoreRules).toContain("match /task_submissions/{submissionId}");
+    expect(firestoreRules).toContain("match /task_reviews/{reviewId}");
+    expect(firestoreRules).toContain("allow create, update, delete: if false;");
+    expect(firestoreRules).not.toContain("after.status in ['approved', 'revision_required', 'rejected']");
   });
 
   it("Storage Rules require an authenticated, explicitly authorized project member", () => {

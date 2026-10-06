@@ -24,6 +24,8 @@
 - `FIREBASE_SERVICE_ACCOUNT_JSON` أو الزوج `FIREBASE_CLIENT_EMAIL` و`FIREBASE_PRIVATE_KEY`، أو ADC على Google Cloud.
 - `NEXT_PUBLIC_SITE_URL` للنطاق الأساسي، و`PLATFORM_ADMIN_EMAILS` لرسائل المدير الأول، و`APP_TIMEZONE` و`NEXT_PUBLIC_DEFAULT_LOCALE` حسب الحاجة.
 
+تُمنح صلاحية مدير المنصة عبر custom claim باسم `platform_admin` يضبطه Firebase Admin SDK فقط، وتُزامن من ملف المدير أو قائمة البريد الموثقة. لا تضبط هذا الادعاء من المتصفح. عند تغيير صلاحية المدير تُلغى رموز التحديث ويجب على المستخدم تسجيل الدخول مجددًا ليحصل على رمز جديد.
+
 **لا** تضع بيانات حساب الخدمة في متغير يبدأ بـ `NEXT_PUBLIC_`، ولا تحفظها في GitHub. قيّد Firebase API key على واجهات Identity Toolkit المطلوبة حيثما أمكن.
 
 ## 3. إعداد التطبيق محليًا
@@ -42,12 +44,12 @@ npm run dev
 
 ## 4. مراجعة ونشر القواعد والفهارس
 
-ملف `.firebaserc` يحدد `research-team-platform` كهدف CLI افتراضي. تحقّق من المشروع الحالي قبل النشر، خصوصًا إذا كان يحتوي بيانات أو قواعد موجودة.
+لا يوجد هدف Firebase افتراضي في `.firebaserc` عمدًا لتجنّب النشر إلى الإنتاج عن طريق الخطأ. استخدم معرّف هدف صريحًا وتحقق منه قبل أي نشر؛ راجع كذلك [دليل الترحيل والقطع والرجوع](MIGRATION_RUNBOOK.md).
 
 ```bash
-firebase use research-team-platform
 firebase emulators:exec --project demo-research-platform --only firestore,storage "vitest run --config vitest.firebase.config.mts"
-firebase deploy --only firestore:rules,firestore:indexes,storage
+test -n "$FIREBASE_DEPLOY_PROJECT_ID"
+firebase deploy --project "$FIREBASE_DEPLOY_PROJECT_ID" --only firestore:rules,firestore:indexes,storage
 ```
 
 انشر القواعد والفهارس أولًا إلى بيئة اختبار إن توفرت، وافحص سجلات Firebase والواجهة. تجنّب استبدال قواعد إنتاج قائمة قبل أخذ نسخة ومراجعة أثر التغيير.

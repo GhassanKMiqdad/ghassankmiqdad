@@ -9,11 +9,15 @@ import { cn } from "@/lib/utils";
 
 const TASK_STATUS_VARIANT: Record<TaskStatus, "muted" | "info" | "warning" | "success" | "destructive"> = {
   todo: "muted",
+  accepted: "info",
   in_progress: "info",
+  submitted: "warning",
   review: "warning",
   revision_required: "warning",
+  approved: "success",
   completed: "success",
   rejected: "destructive",
+  cancelled: "muted",
 };
 
 export function TaskStatusBadge({ status, className }: { status: TaskStatus; className?: string }) {
@@ -51,6 +55,7 @@ const PROJECT_STATUS_VARIANT: Record<ProjectStatus, "muted" | "info" | "warning"
   planning: "muted",
   active: "info",
   on_hold: "warning",
+  under_review: "warning",
   completed: "success",
   archived: "outline",
 };

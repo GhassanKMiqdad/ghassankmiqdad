@@ -11,7 +11,15 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/consistent-type-imports": ["error", { fixStyle: "inline-type-imports" }],
     },
   },
-  globalIgnores([".next/**", "out/**", "build/**", "coverage/**", "next-env.d.ts", "src/types/database.types.ts"]),
+  globalIgnores([
+    ".next/**",
+    "out/**",
+    "build/**",
+    "coverage/**",
+    "functions/lib/**",
+    "next-env.d.ts",
+    "src/types/database.types.ts",
+  ]),
 ]);
 
 export default eslintConfig;

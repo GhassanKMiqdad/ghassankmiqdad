@@ -49,7 +49,7 @@ In Firebase Console:
 4. Provision a server service account with the minimum required Auth, Firestore and Storage permissions. Set either `FIREBASE_SERVICE_ACCOUNT_JSON` or `FIREBASE_CLIENT_EMAIL` plus `FIREBASE_PRIVATE_KEY` in the server environment; on Google Cloud, Application Default Credentials may be used.
 5. Restrict the public Firebase API key to the required Identity Toolkit API where supported. Never expose a service-account JSON/private key to the browser or commit it.
 
-The repository's `.firebaserc` points the Firebase CLI at `research-team-platform`. Review the target project before deployment.
+No default Firebase CLI project is configured intentionally. Always pass an explicit `--project` target and verify it is the intended staging or production project before deployment.
 
 ## Environment variables
 
@@ -68,7 +68,7 @@ The repository's `.firebaserc` points the Firebase CLI at `research-team-platfor
 
 ## Security Rules and tests
 
-Security Rules are in `firestore.rules` and `storage.rules`; indexes are in `firestore.indexes.json`. Direct client access is restricted. The Admin SDK **bypasses Firebase Security Rules**, so every server query/action also applies explicit authorization in `src/lib/firebase/compat.ts` and the shared policy layer. Do not add a server route that uses Admin SDK without those checks.
+Security Rules are in `firestore.rules` and `storage.rules`; indexes are in `firestore.indexes.json`. Global Director access in Rules uses the Admin-SDK-managed `platform_admin` custom claim, never a client-writable profile field. Role changes revoke refresh tokens, and affected users must sign in again. Direct client access is otherwise restricted. The Admin SDK **bypasses Firebase Security Rules**, so every server query/action also applies explicit authorization in `src/lib/firebase/compat.ts` and the shared policy layer. Do not add a server route that uses Admin SDK without those checks.
 
 ```bash
 npm test
@@ -85,7 +85,7 @@ The Firebase rules tests use the Firestore and Storage emulators. The signed POS
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for environment setup and deployment steps. Deploy rules and indexes only after reviewing the target Firebase project:
 
 ```bash
-firebase deploy --only firestore:rules,firestore:indexes,storage
+firebase deploy --project "$FIREBASE_DEPLOY_PROJECT_ID" --only firestore:rules,firestore:indexes,storage
 ```
 
 ## Existing Supabase data

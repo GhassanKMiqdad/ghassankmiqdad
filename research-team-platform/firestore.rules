@@ -9,49 +9,83 @@ service cloud.firestore {
       return /databases/$(database)/documents/project_members/$(projectId + '_' + userId);
     }
 
+    function teamMemberPath(teamId, userId) {
+      return /databases/$(database)/documents/team_members/$(teamId + '_' + userId);
+    }
+
+    function isPlatformAdmin() {
+      return signedIn()
+        && ('platform_admin' in request.auth.token)
+        && request.auth.token.platform_admin == true;
+    }
+
     function isActiveMember(projectId) {
       let path = memberPath(projectId, request.auth.uid);
-      let membership = get(path).data;
-      return signedIn()
-        && exists(path)
-        && membership.status == 'active';
+      return isPlatformAdmin()
+        || (signedIn() && exists(path) && get(path).data.status == 'active');
     }
 
     function hasPermission(projectId, key) {
       let path = memberPath(projectId, request.auth.uid);
       let membership = get(path).data;
-      return signedIn()
-        && exists(path)
-        && membership.status == 'active'
-        && (
-          membership.role == 'owner'
-          || (
-            membership.permissions is list
-            && 'project.view' in membership.permissions
-            && key in membership.permissions
-          )
-        );
+      return isPlatformAdmin()
+        || (signedIn()
+          && exists(path)
+          && membership.status == 'active'
+          && (membership.role == 'owner'
+            || (membership.permissions is list
+              && 'project.view' in membership.permissions
+              && key in membership.permissions)));
+    }
+
+    function isTeamMember(teamId) {
+      let path = teamMemberPath(teamId, request.auth.uid);
+      return signedIn() && exists(path) && get(path).data.status == 'active';
+    }
+
+    function taskTeamScope(data) {
+      return !('team_id' in data)
+        || data.team_id == null
+        || isPlatformAdmin()
+        || hasPermission(data.project_id, 'members.manage')
+        || isTeamMember(data.team_id);
     }
 
     function canSeeTask(data) {
-      return hasPermission(data.project_id, 'tasks.view')
-        || (hasPermission(data.project_id, 'tasks.review') && data.status == 'review')
-        || (
-          hasPermission(data.project_id, 'project.view')
-          && data.assigned_to == request.auth.uid
+      return signedIn()
+        && hasPermission(data.project_id, 'project.view')
+        && (
+          data.assigned_to == request.auth.uid
+          || (taskTeamScope(data)
+            && (hasPermission(data.project_id, 'tasks.view')
+              || (hasPermission(data.project_id, 'tasks.review') && data.status in ['submitted', 'review'])))
         );
+    }
+
+    function activeProjectMember(projectId, userId) {
+      let path = memberPath(projectId, userId);
+      return exists(path) && get(path).data.status == 'active';
+    }
+
+    function activeTeam(teamId, projectId) {
+      let path = /databases/$(database)/documents/teams/$(teamId);
+      return exists(path) && get(path).data.project_id == projectId && get(path).data.status == 'active';
     }
 
     function validTaskCreate() {
       let data = request.resource.data;
       return signedIn()
+        && data.keys().hasOnly(['project_id', 'created_by', 'title', 'description', 'expected_output', 'required_deliverables', 'status', 'priority', 'assigned_to', 'team_id', 'due_date', 'created_at', 'updated_at'])
         && data.created_by == request.auth.uid
         && data.project_id is string
         && hasPermission(data.project_id, 'tasks.create')
         && (data.assigned_to == null
-          || data.assigned_to == request.auth.uid
-          || hasPermission(data.project_id, 'tasks.assign'))
-        && data.status in ['todo', 'in_progress', 'review']
+          || (data.assigned_to == request.auth.uid && activeProjectMember(data.project_id, data.assigned_to))
+          || (hasPermission(data.project_id, 'tasks.assign') && activeProjectMember(data.project_id, data.assigned_to)))
+        && (!('team_id' in data) || data.team_id == null || (activeTeam(data.team_id, data.project_id)
+          && (hasPermission(data.project_id, 'members.manage') || isTeamMember(data.team_id))))
+        && (!('team_id' in data) || data.team_id == null || data.assigned_to == null || exists(teamMemberPath(data.team_id, data.assigned_to)))
+        && data.status == 'todo'
         && data.title is string
         && data.title.size() >= 2
         && data.title.size() <= 200
@@ -77,27 +111,33 @@ service cloud.firestore {
       let contentChanged = changed.hasAny(['title', 'description', 'expected_output', 'required_deliverables', 'priority', 'due_date']);
       let statusChanged = changed.hasAny(['status']);
       let assigneeChanged = changed.hasAny(['assigned_to']);
+      let teamChanged = changed.hasAny(['team_id']);
       let progressChanged = changed.hasAny(['progress']);
       let notesChanged = changed.hasAny(['work_notes']);
       let statusAllowed = !statusChanged
-        || hasPermission(before.project_id, 'tasks.edit')
-        || (hasPermission(before.project_id, 'tasks.review')
-          && before.status == 'review'
-          && after.status in ['completed', 'rejected', 'revision_required'])
+        || (hasPermission(before.project_id, 'tasks.edit') && after.status == 'cancelled')
         || (before.assigned_to == request.auth.uid
           && hasPermission(before.project_id, 'tasks.submit')
-          && after.status == 'review'
-          && before.status == 'in_progress')
+          && after.status == 'accepted'
+          && before.status == 'todo')
         || (before.assigned_to == request.auth.uid
           && hasPermission(before.project_id, 'tasks.update_progress')
           && after.status == 'in_progress'
-          && before.status in ['todo', 'in_progress', 'revision_required']);
-      return changed.hasOnly(['title', 'description', 'expected_output', 'required_deliverables', 'priority', 'due_date', 'status', 'assigned_to', 'progress', 'work_notes'])
+          && before.status in ['todo', 'accepted', 'revision_required']);
+      let teamValid = !teamChanged || after.team_id == null
+        || (hasPermission(before.project_id, 'tasks.assign')
+          && activeTeam(after.team_id, before.project_id)
+          && (after.assigned_to == null || exists(teamMemberPath(after.team_id, after.assigned_to))));
+      return changed.hasOnly(['title', 'description', 'expected_output', 'required_deliverables', 'priority', 'due_date', 'status', 'assigned_to', 'team_id', 'progress', 'work_notes'])
         && before.project_id == after.project_id
         && before.created_by == after.created_by
+        && after.status in ['todo', 'accepted', 'in_progress', 'submitted', 'review', 'revision_required', 'approved', 'completed', 'rejected', 'cancelled']
         && (!contentChanged || hasPermission(before.project_id, 'tasks.edit'))
         && statusAllowed
-        && (!assigneeChanged || hasPermission(before.project_id, 'tasks.assign'))
+        && (!assigneeChanged || (hasPermission(before.project_id, 'tasks.assign')
+          && (after.assigned_to == null || activeProjectMember(before.project_id, after.assigned_to))
+          && (!('team_id' in after) || after.team_id == null || exists(teamMemberPath(after.team_id, after.assigned_to)))))
+        && teamValid
         && (!progressChanged || (before.assigned_to == request.auth.uid && hasPermission(before.project_id, 'tasks.update_progress') && after.progress is number && after.progress >= 0 && after.progress <= 100))
         && (!notesChanged || (before.assigned_to == request.auth.uid && hasPermission(before.project_id, 'tasks.add_work_notes') && after.work_notes is string && after.work_notes.size() <= 10000))
         && (!('title' in after) || (after.title is string && after.title.size() >= 2 && after.title.size() <= 200))
@@ -108,19 +148,22 @@ service cloud.firestore {
 
     function canSeeDocument(data) {
       return hasPermission(data.project_id, 'project.view')
-        && (
-          ('authorized_users' in data && data.authorized_users is list && request.auth.uid in data.authorized_users)
-          || (hasPermission(data.project_id, 'documents.view')
-            && (!('authorized_users' in data) || data.authorized_users == null
-              || data.authorized_users.size() == 0 || hasPermission(data.project_id, 'team.view')))
-        );
+        && (('task_id' in data && data.task_id is string
+          && exists(/databases/$(database)/documents/tasks/$(data.task_id))
+          && canSeeTask(get(/databases/$(database)/documents/tasks/$(data.task_id)).data)
+          && (request.auth.uid == data.uploaded_by
+            || hasPermission(data.project_id, 'tasks.review')
+            || hasPermission(data.project_id, 'tasks.view')))
+          || (!('task_id' in data)
+            && (('authorized_users' in data && data.authorized_users is list && request.auth.uid in data.authorized_users)
+              || (hasPermission(data.project_id, 'documents.view')
+                && (!('authorized_users' in data) || data.authorized_users == null
+                  || data.authorized_users.size() == 0 || hasPermission(data.project_id, 'team.view'))))));
     }
 
-    // Public profile fields are never globally enumerable from client SDKs.
-    // The server returns only the profiles needed by a user's authorized views.
     match /profiles/{userId} {
-      allow get: if signedIn() && request.auth.uid == userId;
-      allow list, create, update, delete: if false;
+      allow get, list: if signedIn() && (request.auth.uid == userId || isPlatformAdmin());
+      allow create, update, delete: if false;
     }
 
     match /projects/{projectId} {
@@ -128,27 +171,44 @@ service cloud.firestore {
       allow create, delete: if false;
       allow update: if hasPermission(projectId, 'project.edit')
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['name', 'description', 'research_goal', 'status', 'start_date', 'deadline', 'updated_at'])
+          .hasOnly(['name', 'description', 'research_goal', 'research_type', 'research_objectives', 'research_questions', 'methodology', 'status', 'start_date', 'deadline', 'updated_at'])
         && request.resource.data.created_by == resource.data.created_by;
     }
 
     match /project_members/{memberId} {
       allow get, list: if signedIn()
-        && (
-          resource.data.user_id == request.auth.uid
-          || hasPermission(resource.data.project_id, 'team.view')
-          || hasPermission(resource.data.project_id, 'tasks.assign')
-        );
+        && (resource.data.user_id == request.auth.uid || hasPermission(resource.data.project_id, 'team.view'));
       allow create, update, delete: if false;
     }
 
     match /user_permissions/{grantId} {
       allow get, list: if signedIn()
-        && (
-          resource.data.user_id == request.auth.uid
-          || hasPermission(resource.data.project_id, 'team.view')
-        );
+        && ((resource.data.user_id == request.auth.uid && hasPermission(resource.data.project_id, 'project.view'))
+          || hasPermission(resource.data.project_id, 'team.view'));
       allow write: if false;
+    }
+
+    match /teams/{teamId} {
+      allow get, list: if isPlatformAdmin()
+        || hasPermission(resource.data.project_id, 'members.manage')
+        || isTeamMember(teamId);
+      allow create, update, delete: if false;
+    }
+
+    match /team_members/{teamMemberId} {
+      allow get, list: if signedIn()
+        && (resource.data.user_id == request.auth.uid
+          || isPlatformAdmin()
+          || hasPermission(resource.data.project_id, 'members.manage'));
+      allow create, update, delete: if false;
+    }
+
+    match /milestones/{milestoneId} {
+      allow get, list: if isPlatformAdmin()
+        || hasPermission(resource.data.project_id, 'members.manage')
+        || (signedIn() && resource.data.responsible_researcher_id == request.auth.uid)
+        || (resource.data.responsible_team_id is string && isTeamMember(resource.data.responsible_team_id));
+      allow create, update, delete: if false;
     }
 
     match /tasks/{taskId} {
@@ -158,25 +218,46 @@ service cloud.firestore {
       allow delete: if hasPermission(resource.data.project_id, 'tasks.delete');
     }
 
+    match /task_submissions/{submissionId} {
+      allow get, list: if signedIn()
+        && exists(/databases/$(database)/documents/tasks/$(resource.data.task_id))
+        && canSeeTask(get(/databases/$(database)/documents/tasks/$(resource.data.task_id)).data)
+        && (resource.data.submitted_by == request.auth.uid
+          || hasPermission(resource.data.project_id, 'tasks.review')
+          || hasPermission(resource.data.project_id, 'tasks.view'));
+      allow create, update, delete: if false;
+    }
+
+    match /task_reviews/{reviewId} {
+      allow get, list: if signedIn()
+        && exists(/databases/$(database)/documents/tasks/$(resource.data.task_id))
+        && canSeeTask(get(/databases/$(database)/documents/tasks/$(resource.data.task_id)).data)
+        && (get(/databases/$(database)/documents/tasks/$(resource.data.task_id)).data.assigned_to == request.auth.uid
+          || hasPermission(resource.data.project_id, 'tasks.review')
+          || hasPermission(resource.data.project_id, 'tasks.view'));
+      allow create, update, delete: if false;
+    }
+
     match /documents/{documentId} {
       allow get, list: if canSeeDocument(resource.data);
       allow create, update, delete: if false;
     }
 
     match /comments/{commentId} {
-      allow get, list: if signedIn() && (resource.data.author_id == request.auth.uid
-        || (resource.data.task_id == null
-          ? hasPermission(resource.data.project_id, 'team.view')
-          : canSeeTask(get(/databases/$(database)/documents/tasks/$(resource.data.task_id)).data)));
+      allow get, list: if signedIn()
+        && hasPermission(resource.data.project_id, 'project.view')
+        && (resource.data.task_id == null
+          ? (resource.data.author_id == request.auth.uid || hasPermission(resource.data.project_id, 'team.view'))
+          : canSeeTask(get(/databases/$(database)/documents/tasks/$(resource.data.task_id)).data));
       allow create, update, delete: if false;
     }
 
     match /activity_logs/{activityId} {
       allow get, list: if signedIn()
-        && (
-          resource.data.actor_id == request.auth.uid
-          || (resource.data.project_id != null && hasPermission(resource.data.project_id, 'activity.view'))
-        );
+        && (resource.data.project_id == null
+          ? (isPlatformAdmin() || resource.data.actor_id == request.auth.uid)
+          : (hasPermission(resource.data.project_id, 'project.view')
+            && (resource.data.actor_id == request.auth.uid || hasPermission(resource.data.project_id, 'activity.view'))));
       allow create, update, delete: if false;
     }
 
@@ -189,7 +270,6 @@ service cloud.firestore {
         && (request.resource.data.read_at == null || request.resource.data.read_at is string);
     }
 
-    // Catalogs are static, non-sensitive, and seeded from source-controlled definitions.
     match /permissions/{permissionId} {
       allow read: if signedIn();
       allow write: if false;

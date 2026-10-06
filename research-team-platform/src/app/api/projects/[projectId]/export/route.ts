@@ -127,7 +127,9 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/proj
   const [project, documents, comments, members] = await Promise.all([
     firebase
       .from("projects")
-      .select("id, name, description, research_goal, status, start_date, deadline, created_at, updated_at")
+      .select(
+        "id, name, description, research_goal, research_type, research_objectives, research_questions, methodology, status, start_date, deadline, created_at, updated_at",
+      )
       .eq("id", projectId)
       .maybeSingle(),
     can(access, "documents.view")

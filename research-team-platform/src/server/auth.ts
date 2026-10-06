@@ -3,7 +3,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
-import { FieldValue, firebaseAdminAuth, firebaseAdminFirestore } from "@/lib/firebase/admin";
+import { FieldValue, firebaseAdminAuth, firebaseAdminFirestore, syncPlatformAdminClaim } from "@/lib/firebase/admin";
 import { getPlatformAdminEmails } from "@/lib/env.server";
 import { getFirebaseSession } from "@/lib/firebase/server";
 
@@ -80,6 +80,7 @@ export const getCurrentProfile = cache(async (): Promise<CurrentProfile | null> 
       { is_platform_admin: true, can_create_projects: true, updated_at: FieldValue.serverTimestamp() },
       { merge: true },
     );
+    await syncPlatformAdminClaim(session.uid, true);
     isPlatformAdmin = true;
     canCreateProjects = true;
   }

@@ -40,6 +40,7 @@ export async function createTaskAction(projectId: string, input: unknown): Promi
           status: values.status,
           priority: values.priority,
           assigned_to: values.assignedTo,
+          team_id: values.teamId,
           due_date: values.dueDate,
         })
         .select("id")
@@ -62,7 +63,7 @@ export async function updateTaskAction(taskId: string, input: unknown): Promise<
       await firebase
         .from("tasks")
         .select(
-          "id, project_id, title, description, expected_output, required_deliverables, priority, due_date, status, created_by, assigned_to",
+          "id, project_id, title, description, expected_output, required_deliverables, priority, due_date, status, created_by, assigned_to, team_id",
         )
         .eq("id", id)
         .maybeSingle(),
@@ -72,7 +73,7 @@ export async function updateTaskAction(taskId: string, input: unknown): Promise<
     const access = await assertProjectAccess(task.project_id);
     const decision = evaluateTaskUpdate(
       access,
-      { createdBy: task.created_by, assignedTo: task.assigned_to, status: task.status },
+      { createdBy: task.created_by, assignedTo: task.assigned_to, teamId: task.team_id, status: task.status },
       {
         title: patch.title,
         description: patch.description,
@@ -82,6 +83,7 @@ export async function updateTaskAction(taskId: string, input: unknown): Promise<
         dueDate: patch.dueDate,
         status: patch.status,
         assignedTo: patch.assignedTo,
+        teamId: patch.teamId,
         progress: patch.progress,
         workNotes: patch.workNotes,
       },
@@ -104,6 +106,7 @@ export async function updateTaskAction(taskId: string, input: unknown): Promise<
       status?: typeof task.status;
       priority?: typeof task.priority;
       assigned_to?: string | null;
+      team_id?: string | null;
       due_date?: string | null;
       progress?: number;
       work_notes?: string;
@@ -115,6 +118,7 @@ export async function updateTaskAction(taskId: string, input: unknown): Promise<
     if (patch.status !== undefined) update.status = patch.status;
     if (patch.priority !== undefined) update.priority = patch.priority;
     if (patch.assignedTo !== undefined) update.assigned_to = patch.assignedTo;
+    if (patch.teamId !== undefined) update.team_id = patch.teamId;
     if (patch.dueDate !== undefined) update.due_date = patch.dueDate;
     if (patch.progress !== undefined) update.progress = patch.progress;
     if (patch.workNotes !== undefined) update.work_notes = patch.workNotes;

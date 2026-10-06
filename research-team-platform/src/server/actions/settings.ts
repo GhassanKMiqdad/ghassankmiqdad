@@ -1,12 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 
 import type { ActionResult } from "@/lib/action-result";
 import { AppError } from "@/lib/errors";
+import { identityToolkitRequest } from "@/lib/firebase/auth-rest";
 import { firebaseAdminAuth } from "@/lib/firebase/admin";
 import { createFirebaseServerClient } from "@/lib/firebase/compat";
-import { newPasswordSchema } from "@/lib/validation/auth";
+import { FIREBASE_SESSION_COOKIE } from "@/lib/firebase/server";
+import { changePasswordSchema } from "@/lib/validation/auth";
 import { platformFlagsSchema, profileSchema } from "@/lib/validation/settings";
 import { getCurrentProfile } from "@/server/auth";
 import { parseInput, runAction, unwrap } from "@/server/action";
@@ -26,8 +29,27 @@ export async function updateProfileAction(input: unknown): Promise<ActionResult<
 
 export async function changePasswordAction(input: unknown): Promise<ActionResult<null>> {
   return runAction(async (user) => {
-    const { password } = parseInput(newPasswordSchema, input);
+    const { currentPassword, password } = parseInput(changePasswordSchema, input);
+    const account = await firebaseAdminAuth().getUser(user.id);
+    if (!account.email) {
+      throw new AppError("VALIDATION_ERROR", {
+        fieldErrors: { currentPassword: "validation.currentPasswordIncorrect" },
+      });
+    }
+    const reauthenticated = await identityToolkitRequest<{ localId: string }>("accounts:signInWithPassword", {
+      email: account.email,
+      password: currentPassword,
+      returnSecureToken: true,
+    });
+    if (reauthenticated.error || reauthenticated.data.localId !== user.id) {
+      throw new AppError("VALIDATION_ERROR", {
+        fieldErrors: { currentPassword: "validation.currentPasswordIncorrect" },
+      });
+    }
     await firebaseAdminAuth().updateUser(user.id, { password });
+    await firebaseAdminAuth().revokeRefreshTokens(user.id);
+    const cookieStore = await cookies();
+    cookieStore.delete(FIREBASE_SESSION_COOKIE);
     return null;
   });
 }

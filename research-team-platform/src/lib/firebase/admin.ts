@@ -67,6 +67,19 @@ export function firebaseAdminAuth() {
   return getAuth(createAdminApp());
 }
 
+/** Only trusted server code may grant the claim consumed by Firestore/Storage Rules. */
+export async function syncPlatformAdminClaim(userId: string, enabled: boolean): Promise<boolean> {
+  const auth = firebaseAdminAuth();
+  const user = await auth.getUser(userId);
+  const claims = { ...(user.customClaims ?? {}) };
+  const currentlyEnabled = claims.platform_admin === true;
+  if (currentlyEnabled === enabled) return false;
+  if (enabled) claims.platform_admin = true;
+  else delete claims.platform_admin;
+  await auth.setCustomUserClaims(userId, claims);
+  return true;
+}
+
 export function firebaseAdminFirestore() {
   if (!firestoreInstance) {
     firestoreInstance = getFirestore(createAdminApp());

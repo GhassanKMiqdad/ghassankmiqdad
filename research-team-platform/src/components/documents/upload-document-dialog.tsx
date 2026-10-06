@@ -35,7 +35,15 @@ type Phase = "idle" | "preparing" | "uploading" | "finalizing";
  * server-chosen path, the browser sends the file straight to Storage, then the
  * server registers the document (the database verifies the object exists).
  */
-export function UploadDocumentDialog({ projectId }: { projectId: string }) {
+export function UploadDocumentDialog({
+  projectId,
+  taskId,
+  onUploaded,
+}: {
+  projectId: string;
+  taskId?: string;
+  onUploaded?: (documentId: string) => void;
+}) {
   const { t, fmt, locale } = useI18n();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -77,7 +85,7 @@ export function UploadDocumentDialog({ projectId }: { projectId: string }) {
     setError(null);
 
     setPhase("preparing");
-    const prepared = await prepareDocumentUploadAction({ projectId, fileName: file.name, size: file.size });
+    const prepared = await prepareDocumentUploadAction({ projectId, taskId, fileName: file.name, size: file.size });
     if (!prepared.ok) {
       setError(prepared.error.message);
       setPhase("idle");
@@ -102,6 +110,7 @@ export function UploadDocumentDialog({ projectId }: { projectId: string }) {
     setPhase("finalizing");
     const finalized = await finalizeDocumentUploadAction({
       projectId,
+      taskId,
       documentId,
       storagePath,
       fileName: file.name,
@@ -109,13 +118,14 @@ export function UploadDocumentDialog({ projectId }: { projectId: string }) {
       description: description.trim(),
     });
     if (!finalized.ok) {
-      await discardDocumentUploadAction(projectId, storagePath);
+      await discardDocumentUploadAction(projectId, storagePath, taskId);
       setError(finalized.error.message);
       setPhase("idle");
       return;
     }
 
     toast.success(t.documents.uploaded);
+    onUploaded?.(finalized.data.documentId);
     setOpen(false);
     reset();
     router.refresh();

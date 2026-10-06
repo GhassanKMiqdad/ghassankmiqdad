@@ -29,9 +29,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      # Public placeholders: the build never contacts Supabase. No secrets here.
-      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key-not-a-secret
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4
@@ -47,10 +44,10 @@ jobs:
       - run: npm test
       - run: npm run build
 
-  database:
-    name: Database and API security tests (Supabase)
+  firebase-rules:
+    name: Firestore and Storage Rules (Firebase Emulator)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -58,35 +55,9 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: research-team-platform/package-lock.json
-      - uses: supabase/setup-cli@v1
+      - uses: actions/setup-java@v4
         with:
-          version: 2.119.0
+          distribution: temurin
+          java-version: "21"
       - run: npm ci
-
-      - name: Start Supabase (database, auth, REST API, storage)
-        run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta
-
-      - name: pgTAP — RLS, triggers, RPCs, storage policies, audit log
-        run: supabase test db
-
-      - name: Expose the local stack to the test scripts
-        # Well-known keys of the throw-away local stack, not project secrets.
-        run: |
-          eval "$(supabase status -o env | grep -E '^(API_URL|ANON_KEY|SERVICE_ROLE_KEY)=')"
-          {
-            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
-            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
-            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
-          } >> "$GITHUB_ENV"
-
-      - name: API security suite — direct requests with real user sessions
-        run: npm run test:integration
-
-      - name: Seed script
-        run: npm run seed
-        env:
-          SEED_USER_PASSWORD: ci-demo-password-2026
-
-      - name: Stop Supabase
-        if: always()
-        run: supabase stop --no-backup
+      - run: npm run test:firebase

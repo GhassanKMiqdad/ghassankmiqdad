@@ -5,23 +5,39 @@ import { usePathname } from "next/navigation";
 import {
   FileText,
   FolderKanban,
+  CalendarDays,
+  BarChart3,
   History,
   LayoutDashboard,
   ListChecks,
   Settings,
   Users,
+  UserRoundCog,
   type LucideIcon,
 } from "lucide-react";
 
 import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 
-export type NavKey = "dashboard" | "projects" | "tasks" | "documents" | "team" | "activity" | "settings";
+export type NavKey =
+  | "dashboard"
+  | "projects"
+  | "tasks"
+  | "calendar"
+  | "reports"
+  | "researchers"
+  | "documents"
+  | "team"
+  | "activity"
+  | "settings";
 
 const NAV_ITEMS: { key: NavKey; href: string; icon: LucideIcon }[] = [
   { key: "dashboard", href: "/dashboard", icon: LayoutDashboard },
   { key: "projects", href: "/projects", icon: FolderKanban },
   { key: "tasks", href: "/tasks", icon: ListChecks },
+  { key: "calendar", href: "/calendar", icon: CalendarDays },
+  { key: "reports", href: "/reports", icon: BarChart3 },
+  { key: "researchers", href: "/researchers", icon: UserRoundCog },
   { key: "documents", href: "/documents", icon: FileText },
   { key: "team", href: "/team", icon: Users },
   { key: "activity", href: "/activity", icon: History },

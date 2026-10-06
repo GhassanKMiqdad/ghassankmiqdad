@@ -9,18 +9,54 @@ service firebase.storage {
       return /databases/(default)/documents/project_members/$(projectId + '_' + userId);
     }
 
+    function teamMemberPath(teamId, userId) {
+      return /databases/(default)/documents/team_members/$(teamId + '_' + userId);
+    }
+
+    function isPlatformAdmin() {
+      return signedIn()
+        && ('platform_admin' in request.auth.token)
+        && request.auth.token.platform_admin == true;
+    }
+
     function hasPermission(projectId, key) {
       let path = memberPath(projectId, request.auth.uid);
-      return signedIn()
-        && firestore.exists(path)
-        && firestore.get(path).data.status == 'active'
+      return isPlatformAdmin()
+        || (signedIn()
+          && firestore.exists(path)
+          && firestore.get(path).data.status == 'active'
+          && (firestore.get(path).data.role == 'owner'
+            || ('project.view' in firestore.get(path).data.permissions
+              && key in firestore.get(path).data.permissions)));
+    }
+
+    function isTeamMember(teamId) {
+      let path = teamMemberPath(teamId, request.auth.uid);
+      return signedIn() && firestore.exists(path) && firestore.get(path).data.status == 'active';
+    }
+
+    function taskScopeAllows(projectId, taskId) {
+      let path = /databases/(default)/documents/tasks/$(taskId);
+      let task = firestore.get(path).data;
+      return firestore.exists(path)
+        && task.project_id == projectId
+        && hasPermission(projectId, 'project.view')
         && (
-          firestore.get(path).data.role == 'owner'
-          || (
-            'project.view' in firestore.get(path).data.permissions
-            && key in firestore.get(path).data.permissions
-          )
+          task.assigned_to == request.auth.uid
+          || ((!(('team_id' in task) && task.team_id != null)
+              || isPlatformAdmin()
+              || hasPermission(projectId, 'members.manage')
+              || isTeamMember(task.team_id))
+            && (hasPermission(projectId, 'tasks.view')
+              || (hasPermission(projectId, 'tasks.review') && task.status in ['submitted', 'review'])))
         );
+    }
+
+    function documentPathMatches(projectId, documentId, fileName) {
+      let path = /databases/(default)/documents/documents/$(documentId);
+      return firestore.exists(path)
+        && firestore.get(path).data.project_id == projectId
+        && firestore.get(path).data.storage_path == projectId + '/' + documentId + '/' + fileName;
     }
 
     function allowedMimeType() {
@@ -47,29 +83,31 @@ service firebase.storage {
 
     match /{projectId}/{documentId}/{fileName} {
       allow read: if hasPermission(projectId, 'project.view')
-        && firestore.exists(/databases/(default)/documents/documents/$(documentId))
-        && firestore.get(/databases/(default)/documents/documents/$(documentId)).data.project_id == projectId
+        && documentPathMatches(projectId, documentId, fileName)
         && (
-          (('authorized_users' in firestore.get(/databases/(default)/documents/documents/$(documentId)).data)
-            && request.auth.uid in firestore.get(/databases/(default)/documents/documents/$(documentId)).data.authorized_users)
-          || (hasPermission(projectId, 'documents.view')
-            && (!('authorized_users' in firestore.get(/databases/(default)/documents/documents/$(documentId)).data)
-              || firestore.get(/databases/(default)/documents/documents/$(documentId)).data.authorized_users == null
-              || firestore.get(/databases/(default)/documents/documents/$(documentId)).data.authorized_users.size() == 0
-              || hasPermission(projectId, 'team.view')))
+          (('task_id' in firestore.get(/databases/(default)/documents/documents/$(documentId)).data)
+            && firestore.get(/databases/(default)/documents/documents/$(documentId)).data.task_id is string
+            && taskScopeAllows(projectId, firestore.get(/databases/(default)/documents/documents/$(documentId)).data.task_id))
+          || (!('task_id' in firestore.get(/databases/(default)/documents/documents/$(documentId)).data)
+            && (
+              (('authorized_users' in firestore.get(/databases/(default)/documents/documents/$(documentId)).data)
+                && firestore.get(/databases/(default)/documents/documents/$(documentId)).data.authorized_users is list
+                && request.auth.uid in firestore.get(/databases/(default)/documents/documents/$(documentId)).data.authorized_users)
+              || (hasPermission(projectId, 'documents.view')
+                && (!('authorized_users' in firestore.get(/databases/(default)/documents/documents/$(documentId)).data)
+                  || firestore.get(/databases/(default)/documents/documents/$(documentId)).data.authorized_users == null
+                  || (firestore.get(/databases/(default)/documents/documents/$(documentId)).data.authorized_users is list
+                    && (firestore.get(/databases/(default)/documents/documents/$(documentId)).data.authorized_users.size() == 0
+                      || hasPermission(projectId, 'team.view')))))
+            ))
         );
 
-      allow create: if hasPermission(projectId, 'documents.upload')
-        && resource == null
-        && request.resource.size > 0
-        && request.resource.size <= 50 * 1024 * 1024
-        && allowedMimeType()
-        && fileName.matches('^[A-Za-z0-9._-]{1,120}$');
-
+      // Browser clients cannot create untracked or arbitrary objects. Uploads
+      // use the exact server-issued signed POST policy.
+      allow create: if false;
       allow update: if false;
       allow delete: if hasPermission(projectId, 'documents.delete')
-        && firestore.exists(/databases/(default)/documents/documents/$(documentId))
-        && firestore.get(/databases/(default)/documents/documents/$(documentId)).data.project_id == projectId;
+        && documentPathMatches(projectId, documentId, fileName);
     }
 
     match /{allPaths=**} {

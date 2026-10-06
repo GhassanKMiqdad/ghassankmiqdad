@@ -12,6 +12,7 @@
 
 - Firebase Auth email/password endpoints are called server-side through Identity Toolkit REST.
 - Session cookies are HTTP-only, `SameSite=Lax`, and `Secure` in production. Logout clears the cookie.
+- Direct Firestore/Storage Rules recognize a Director only through the Admin-SDK-managed `platform_admin` custom claim. The claim is synchronized from the server-side profile flag or the verified bootstrap allowlist; client input cannot grant it. Changing the platform-admin flag synchronizes the claim and revokes refresh tokens, so the affected account must authenticate again.
 - Verification and password-reset action codes are handled by `/auth/confirm`; reset codes are validated again server-side.
 - Redirects after login use `safeRedirectPath` to reject absolute/open redirects.
 - Password reset returns a generic success response to avoid disclosing account existence.
@@ -20,6 +21,7 @@
 ## Firestore and application authorization
 
 - `firestore.rules` denies unknown collections and protects profile flags, project memberships, permission catalogs, and activity records from direct writes.
+- Members with `tasks.assign` but without `team.view` receive only a minimal server-side active-assignee roster; direct Firestore reads of other membership records remain denied.
 - Task reads are assignment-limited for researchers. Reviewers see only the review queue; project managers with `tasks.view` may see all project tasks.
 - Researchers assigned to a task can change only allowed progress, work-note, and status fields. Task definition, due date, priority, assignment, project ownership, and membership/permission records are manager-controlled.
 - The server adapter repeats these checks because Admin access bypasses the Rules. It also filters documents by explicit `authorized_users`, and comments by project/task visibility.
@@ -43,4 +45,4 @@
 
 ## Known limitations
 
-Admin SDK operations and activity logging are not all wrapped in one Firestore transaction; multi-write workflows can require reconciliation after a partial failure. The current code migration does not include an automated legacy data importer, push notifications, or a versioned task-submission entity. Do not market those as implemented until built and integration-tested.
+Admin SDK operations and activity logging are not all wrapped in one Firestore transaction; multi-write workflows can require reconciliation after a partial failure. Migration scripts exist, but no real-data staging or production migration has been run. The product still has no first-class team, milestone, or versioned submission/review entities; the current workflow uses project memberships, task status transitions, comments, work notes, and in-app notifications. It has no deadline scheduler/push notifications or dedicated Reports/Calendar routes. Do not market these missing capabilities as implemented until built and integration-tested.

@@ -1,5 +1,6 @@
 # dependencies
 /node_modules
+/functions/node_modules/
 /.pnp
 .pnp.*
 
@@ -15,6 +16,7 @@ next-env.d.ts
 
 # production
 /build
+/functions/lib/
 
 # misc
 .DS_Store
@@ -46,3 +48,7 @@ supabase/.temp
 .firebase/
 *-debug.log
 firebase-debug.log
+
+# Local migration reports/checkpoints may contain internal record IDs
+/migration-reports/
+/migration-state/

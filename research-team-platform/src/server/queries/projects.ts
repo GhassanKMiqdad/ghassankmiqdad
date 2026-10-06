@@ -20,7 +20,7 @@ export async function listMyProjects(): Promise<ProjectListItem[]> {
   const [projects, memberRows, stats] = await Promise.all([
     firebase
       .from("projects")
-      .select("id, name, description, status, start_date, deadline, updated_at")
+      .select("id, name, description, status, priority, start_date, deadline, updated_at")
       .in("id", ids)
       .order("updated_at", { ascending: false }),
     teamVisible.length > 0
@@ -41,6 +41,7 @@ export async function listMyProjects(): Promise<ProjectListItem[]> {
     name: project.name,
     description: project.description,
     status: project.status,
+    priority: ["low", "medium", "high", "critical"].includes(String(project.priority)) ? project.priority : "medium",
     startDate: project.start_date,
     deadline: project.deadline,
     updatedAt: project.updated_at,
@@ -57,7 +58,7 @@ export async function getProjectDetails(projectId: string): Promise<ProjectDetai
     await firebase
       .from("projects")
       .select(
-        `id, name, description, research_goal, status, start_date, deadline, created_at, updated_at,
+        `id, name, description, research_goal, research_type, research_objectives, research_questions, methodology, status, priority, start_date, deadline, created_at, updated_at,
          creator:profiles!projects_created_by_fkey(${PROFILE_FIELDS})`,
       )
       .eq("id", projectId)
@@ -70,7 +71,12 @@ export async function getProjectDetails(projectId: string): Promise<ProjectDetai
     name: project.name,
     description: project.description,
     researchGoal: project.research_goal,
+    researchType: project.research_type ?? "",
+    researchObjectives: project.research_objectives ?? "",
+    researchQuestions: project.research_questions ?? "",
+    methodology: project.methodology ?? "",
     status: project.status,
+    priority: ["low", "medium", "high", "critical"].includes(String(project.priority)) ? project.priority : "medium",
     startDate: project.start_date,
     deadline: project.deadline,
     createdAt: project.created_at,

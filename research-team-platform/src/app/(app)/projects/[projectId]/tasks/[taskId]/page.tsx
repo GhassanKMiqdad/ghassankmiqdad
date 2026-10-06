@@ -13,6 +13,7 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { DeleteTaskButton } from "@/components/tasks/delete-task-button";
 import { TaskFormDialog } from "@/components/tasks/task-form-dialog";
 import { TaskProgressEditor } from "@/components/tasks/task-progress-editor";
+import { TaskSubmissionPanel } from "@/components/research/task-submission-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getI18n } from "@/lib/i18n/server";
@@ -22,6 +23,8 @@ import { getProjectAccess } from "@/server/access";
 import { listActivity } from "@/server/queries/activity";
 import { listComments } from "@/server/queries/comments";
 import { getTask, listAssignableMembers } from "@/server/queries/tasks";
+import { listResearchTeams } from "@/server/queries/research";
+import { listTaskSubmissionHistory } from "@/server/queries/research";
 
 export async function generateMetadata(props: PageProps<"/projects/[projectId]/tasks/[taskId]">): Promise<Metadata> {
   const { taskId } = await props.params;
@@ -45,11 +48,15 @@ export default async function TaskPage(props: PageProps<"/projects/[projectId]/t
     return <AccessDenied message={t.errors.NOT_FOUND} />;
   }
 
-  const [comments, members, history] = await Promise.all([
+  const [comments, members, history, teams, submissions] = await Promise.all([
     listComments(projectId, taskId),
     can(access, "team.view") || canAssignTasks(access) ? listAssignableMembers(projectId) : Promise.resolve([]),
     // The task history is part of the audit log: only shown with activity.view.
     can(access, "activity.view") ? listActivity({ entityId: taskId, pageSize: 20 }) : Promise.resolve(null),
+    access.isOwner || can(access, "members.manage") || can(access, "team.view")
+      ? listResearchTeams(projectId)
+      : Promise.resolve([]),
+    listTaskSubmissionHistory(taskId),
   ]);
 
   const dto = toAccessDTO(access);
@@ -85,6 +92,7 @@ export default async function TaskPage(props: PageProps<"/projects/[projectId]/t
               projectId={projectId}
               access={dto}
               members={memberOptions}
+              teams={teams}
               task={task}
               trigger={
                 <Button variant="outline">
@@ -113,6 +121,7 @@ export default async function TaskPage(props: PageProps<"/projects/[projectId]/t
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
+          <TaskSubmissionPanel task={task} access={dto} history={submissions} />
           {task.assignedToId === access.userId &&
           (can(access, "tasks.update_progress") || can(access, "tasks.add_work_notes")) ? (
             <TaskProgressEditor

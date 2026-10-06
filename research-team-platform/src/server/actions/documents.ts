@@ -10,6 +10,8 @@ import { createFirebaseServerClient } from "@/lib/firebase/compat";
 import { uuidField } from "@/lib/validation/common";
 import { documentDetailsSchema, finalizeUploadSchema, prepareUploadSchema } from "@/lib/validation/document";
 import { assertProjectPermission } from "@/server/access";
+import { can } from "@/lib/permissions/policy";
+import { requireTaskAccess } from "@/server/research-domain";
 import { parseInput, runAction, unwrap } from "@/server/action";
 import { getDocumentForAction } from "@/server/queries/documents";
 import { DOCUMENT_BUCKET, SIGNED_URL_TTL_SECONDS } from "@/server/storage";
@@ -33,9 +35,20 @@ export async function prepareDocumentUploadAction(input: unknown): Promise<
     mimeType: string;
   }>
 > {
-  return runAction(async () => {
+  return runAction(async (user) => {
     const values = parseInput(prepareUploadSchema, input);
-    await assertProjectPermission(values.projectId, "documents.upload");
+    if (values.taskId) {
+      const { projectId, task, access } = await requireTaskAccess(user.id, values.taskId);
+      if (
+        projectId !== values.projectId ||
+        task.assigned_to !== user.id ||
+        !can(access, "tasks.submit") ||
+        !["accepted", "in_progress", "revision_required"].includes(String(task.status))
+      )
+        throw new AppError("PERMISSION_DENIED");
+    } else {
+      await assertProjectPermission(values.projectId, "documents.upload");
+    }
 
     const fileType = resolveFileType(values.fileName);
     if (!fileType) throw new AppError("FILE_TYPE_NOT_ALLOWED");
@@ -68,9 +81,20 @@ export async function prepareDocumentUploadAction(input: unknown): Promise<
 
 /** Step 2: register the uploaded file (the database verifies the object exists). */
 export async function finalizeDocumentUploadAction(input: unknown): Promise<ActionResult<{ documentId: string }>> {
-  return runAction(async () => {
+  return runAction(async (user) => {
     const values = parseInput(finalizeUploadSchema, input);
-    await assertProjectPermission(values.projectId, "documents.upload");
+    if (values.taskId) {
+      const { projectId, task, access } = await requireTaskAccess(user.id, values.taskId);
+      if (
+        projectId !== values.projectId ||
+        task.assigned_to !== user.id ||
+        !can(access, "tasks.submit") ||
+        !["accepted", "in_progress", "revision_required"].includes(String(task.status))
+      )
+        throw new AppError("PERMISSION_DENIED");
+    } else {
+      await assertProjectPermission(values.projectId, "documents.upload");
+    }
 
     if (!isDocumentPathFor(values.projectId, values.documentId, values.storagePath)) {
       throw new AppError("INVALID_INPUT");
@@ -83,6 +107,7 @@ export async function finalizeDocumentUploadAction(input: unknown): Promise<Acti
       await firebase.from("documents").insert({
         id: values.documentId,
         project_id: values.projectId,
+        task_id: values.taskId,
         title: values.title,
         description: values.description,
         file_name: values.fileName,
@@ -98,10 +123,21 @@ export async function finalizeDocumentUploadAction(input: unknown): Promise<Acti
 }
 
 /** Removes an uploaded object that could not be registered (failed step 2). */
-export async function discardDocumentUploadAction(projectId: string, storagePath: string): Promise<ActionResult<null>> {
-  return runAction(async () => {
+export async function discardDocumentUploadAction(
+  projectId: string,
+  storagePath: string,
+  taskId?: string,
+): Promise<ActionResult<null>> {
+  return runAction(async (user) => {
     const id = parseInput(uuidField, projectId);
-    await assertProjectPermission(id, "documents.upload");
+    const validatedTaskId = taskId ? parseInput(uuidField, taskId) : null;
+    if (validatedTaskId) {
+      const { projectId, task, access } = await requireTaskAccess(user.id, validatedTaskId);
+      if (projectId !== id || task.assigned_to !== user.id || !can(access, "tasks.submit"))
+        throw new AppError("PERMISSION_DENIED");
+    } else {
+      await assertProjectPermission(id, "documents.upload");
+    }
     const segments = storagePath.split("/");
     if (segments.length !== 3 || segments[0] !== id || !isDocumentPathFor(id, segments[1] ?? "", storagePath)) {
       throw new AppError("INVALID_INPUT");

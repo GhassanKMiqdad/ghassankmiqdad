@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { PROJECT_STATUSES } from "@/lib/permissions/catalog";
+import { PROJECT_STATUSES, TASK_PRIORITIES } from "@/lib/permissions/catalog";
 import { optionalDateField, uuidField } from "@/lib/validation/common";
 
 export const projectFormSchema = z
@@ -8,6 +8,11 @@ export const projectFormSchema = z
     name: z.string().trim().min(2, "validation.tooShort").max(160, "validation.tooLong"),
     description: z.string().trim().max(5000, "validation.tooLong"),
     researchGoal: z.string().trim().max(5000, "validation.tooLong"),
+    researchType: z.string().trim().max(160, "validation.tooLong").default(""),
+    researchObjectives: z.string().trim().max(5000, "validation.tooLong").default(""),
+    researchQuestions: z.string().trim().max(5000, "validation.tooLong").default(""),
+    methodology: z.string().trim().max(5000, "validation.tooLong").default(""),
+    priority: z.enum(TASK_PRIORITIES, "validation.invalid").default("medium"),
     status: z.enum(PROJECT_STATUSES, "validation.invalid"),
     startDate: optionalDateField,
     deadline: optionalDateField,

@@ -1,13 +1,13 @@
 "use server";
 
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import type { ActionResult } from "@/lib/action-result";
 import { AppError } from "@/lib/errors";
-import { getSiteUrl } from "@/lib/env.server";
+import { getPlatformAdminEmails, getSiteUrl } from "@/lib/env.server";
 import { identityToolkitRequest, toAuthErrorKey } from "@/lib/firebase/auth-rest";
-import { firebaseAdminAuth, firebaseAdminFirestore, FieldValue } from "@/lib/firebase/admin";
+import { firebaseAdminAuth, firebaseAdminFirestore, FieldValue, syncPlatformAdminClaim } from "@/lib/firebase/admin";
 import { FIREBASE_SESSION_COOKIE, FIREBASE_SESSION_TTL_MS } from "@/lib/firebase/server";
 import { getI18n } from "@/lib/i18n/server";
 import {
@@ -18,7 +18,6 @@ import {
   signupSchema,
 } from "@/lib/validation/auth";
 import { parseInput } from "@/server/action";
-import type { SessionUser } from "@/server/auth";
 
 const SESSION_COOKIE_OPTIONS = {
   httpOnly: true,
@@ -87,22 +86,39 @@ async function runPublic<T>(body: () => Promise<ActionResult<T>>): Promise<Actio
   }
 }
 
-async function requestOrigin(): Promise<string | null> {
-  const headerStore = await headers();
-  const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host");
-  const proto = headerStore.get("x-forwarded-proto") ?? "https";
-  return host ? `${proto}://${host}` : null;
-}
-
 async function setSessionCookie(idToken: string) {
   const sessionCookie = await firebaseAdminAuth().createSessionCookie(idToken, { expiresIn: FIREBASE_SESSION_TTL_MS });
   const cookieStore = await cookies();
   cookieStore.set(FIREBASE_SESSION_COOKIE, sessionCookie, SESSION_COOKIE_OPTIONS);
 }
 
+async function preparePlatformAdminClaim(email: string): Promise<void> {
+  let account;
+  try {
+    account = await firebaseAdminAuth().getUserByEmail(email);
+  } catch (error) {
+    const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
+    if (code === "auth/user-not-found") return;
+    throw error;
+  }
+
+  const profileRef = firebaseAdminFirestore().collection("profiles").doc(account.uid);
+  const profile = await profileRef.get();
+  const allowlisted = getPlatformAdminEmails().includes(email.toLowerCase());
+  const isPlatformAdmin = profile.get("is_platform_admin") === true || allowlisted;
+  if (allowlisted && profile.get("is_platform_admin") !== true) {
+    await profileRef.set(
+      { id: account.uid, email, email_lower: email.toLowerCase(), is_platform_admin: true, can_create_projects: true },
+      { merge: true },
+    );
+  }
+  await syncPlatformAdminClaim(account.uid, isPlatformAdmin);
+}
+
 export async function signInAction(input: unknown, next?: string): Promise<ActionResult<never>> {
   return runPublic(async () => {
     const values = parseInput(loginSchema, input);
+    await preparePlatformAdminClaim(values.email);
     const result = await identityToolkitRequest<IdentityUser>("accounts:signInWithPassword", {
       email: values.email,
       password: values.password,
@@ -164,7 +180,7 @@ export async function signUpAction(input: unknown): Promise<ActionResult<{ needs
       last_sign_in_at: null,
     });
 
-    const siteUrl = getSiteUrl(await requestOrigin());
+    const siteUrl = getSiteUrl();
     const verification = await identityToolkitRequest("accounts:sendOobCode", {
       requestType: "VERIFY_EMAIL",
       idToken: signup.data.idToken,
@@ -193,7 +209,7 @@ export async function signUpAction(input: unknown): Promise<ActionResult<{ needs
 export async function requestPasswordResetAction(input: unknown): Promise<ActionResult<null>> {
   return runPublic(async () => {
     const values = parseInput(forgotPasswordSchema, input);
-    const siteUrl = getSiteUrl(await requestOrigin());
+    const siteUrl = getSiteUrl();
     const result = await identityToolkitRequest("accounts:sendOobCode", {
       requestType: "PASSWORD_RESET",
       email: values.email,
@@ -221,16 +237,6 @@ export async function finishPasswordResetAction(oobCode: string, input: unknown)
       const key = authKey(result.error);
       return authFailure(key ?? "linkInvalid");
     }
-    return { ok: true, data: null };
-  });
-}
-
-export async function updatePasswordAction(input: unknown): Promise<ActionResult<null>> {
-  return runPublic(async () => {
-    const values = parseInput(newPasswordSchema, input);
-    const { requireSessionUser } = await import("@/server/auth");
-    const user: SessionUser = await requireSessionUser();
-    await firebaseAdminAuth().updateUser(user.id, { password: values.password });
     return { ok: true, data: null };
   });
 }

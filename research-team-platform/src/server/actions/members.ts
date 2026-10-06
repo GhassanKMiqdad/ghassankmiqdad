@@ -1,6 +1,5 @@
 "use server";
 
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 import type { ActionResult } from "@/lib/action-result";
@@ -70,9 +69,6 @@ export async function addMemberAction(
     // Firebase Admin creates the account; Identity Toolkit sends a one-time
     // password-setup link. The membership RPC rechecks the caller's permission.
     const admin = createFirebaseAdminClient();
-    const headerStore = await headers();
-    const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host");
-    const origin = host ? `${headerStore.get("x-forwarded-proto") ?? "https"}://${host}` : null;
     const normalizedEmail = values.email.trim().toLowerCase();
     let createdUser = false;
     let targetUser;
@@ -103,7 +99,7 @@ export async function addMemberAction(
     const invite = await identityToolkitRequest("accounts:sendOobCode", {
       requestType: "PASSWORD_RESET",
       email: normalizedEmail,
-      continueUrl: `${getSiteUrl(origin)}/auth/confirm?next=/reset-password`,
+      continueUrl: `${getSiteUrl()}/auth/confirm?next=/reset-password`,
       canHandleCodeInApp: true,
     });
     if (invite.error) {

@@ -120,7 +120,7 @@ export default async function DashboardPage() {
 
       <section className="grid gap-6 lg:grid-cols-2">
         <TasksByStatusChart data={stats.tasksByStatus} />
-        <TasksByMemberChart data={stats.tasksByMember} />
+        {stats.canViewTeam ? <TasksByMemberChart data={stats.tasksByMember} /> : null}
       </section>
 
       <section className="grid gap-6 lg:grid-cols-5">

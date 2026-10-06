@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/i18n/provider";
-import { PROJECT_STATUSES, type ProjectStatus } from "@/lib/permissions/catalog";
+import { PROJECT_STATUSES, TASK_PRIORITIES, type ProjectStatus, type TaskPriority } from "@/lib/permissions/catalog";
 import { projectFormSchema, type ProjectFormInput, type ProjectFormValues } from "@/lib/validation/project";
 import { createProjectAction, updateProjectAction } from "@/server/actions/projects";
 
@@ -20,7 +20,12 @@ export type ProjectFormDefaults = {
   name: string;
   description: string;
   researchGoal: string;
+  researchType: string;
+  researchObjectives: string;
+  researchQuestions: string;
+  methodology: string;
   status: ProjectStatus;
+  priority: TaskPriority;
   startDate: string | null;
   deadline: string | null;
 };
@@ -46,7 +51,12 @@ export function ProjectForm({
       name: defaults?.name ?? "",
       description: defaults?.description ?? "",
       researchGoal: defaults?.researchGoal ?? "",
+      researchType: defaults?.researchType ?? "",
+      researchObjectives: defaults?.researchObjectives ?? "",
+      researchQuestions: defaults?.researchQuestions ?? "",
+      methodology: defaults?.methodology ?? "",
       status: defaults?.status ?? "planning",
+      priority: defaults?.priority ?? "medium",
       startDate: defaults?.startDate ?? "",
       deadline: defaults?.deadline ?? "",
     },
@@ -95,6 +105,60 @@ export function ProjectForm({
           />
           <FormField
             control={form.control}
+            name="researchType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t.projects.fields.researchType}</FormLabel>
+                <FormControl>
+                  <Input placeholder={t.projects.placeholders.researchType} {...field} />
+                </FormControl>
+                <FormMessage localize={message} />
+              </FormItem>
+            )}
+          />
+          <div className="grid gap-5 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="researchObjectives"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t.projects.fields.researchObjectives}</FormLabel>
+                  <FormControl>
+                    <Textarea rows={4} placeholder={t.projects.placeholders.researchObjectives} {...field} />
+                  </FormControl>
+                  <FormMessage localize={message} />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="researchQuestions"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t.projects.fields.researchQuestions}</FormLabel>
+                  <FormControl>
+                    <Textarea rows={4} placeholder={t.projects.placeholders.researchQuestions} {...field} />
+                  </FormControl>
+                  <FormMessage localize={message} />
+                </FormItem>
+              )}
+            />
+          </div>
+          <FormField
+            control={form.control}
+            name="methodology"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t.projects.fields.methodology}</FormLabel>
+                <FormControl>
+                  <Textarea rows={4} placeholder={t.projects.placeholders.methodology} {...field} />
+                </FormControl>
+                <FormMessage localize={message} />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
             name="description"
             render={({ field }) => (
               <FormItem>
@@ -106,7 +170,7 @@ export function ProjectForm({
               </FormItem>
             )}
           />
-          <div className="grid gap-5 sm:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             <FormField
               control={form.control}
               name="status"
@@ -123,6 +187,30 @@ export function ProjectForm({
                       {PROJECT_STATUSES.map((status) => (
                         <SelectItem key={status} value={status}>
                           {t.projectStatus[status]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage localize={message} />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="priority"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t.projects.fields.priority}</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange} disabled={readOnly || pending}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {TASK_PRIORITIES.map((priority) => (
+                        <SelectItem key={priority} value={priority}>
+                          {t.taskPriority[priority]}
                         </SelectItem>
                       ))}
                     </SelectContent>
