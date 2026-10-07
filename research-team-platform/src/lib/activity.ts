@@ -14,6 +14,8 @@ export type ActivityChange = {
 type Formatters = {
   t: Dictionary;
   date: (value: string) => string;
+  /** Date and time (instants such as deadlines); defaults to `date`. */
+  datetime?: (value: string) => string;
   locale: string;
 };
 
@@ -52,6 +54,7 @@ function formatValue(
 ): string | null {
   const { t } = f;
   if (value === null || value === undefined) return null;
+  f = { ...f, datetime: f.datetime ?? f.date };
 
   if (item.action === "permissions.changed" || item.entityType === "platform_user") {
     if (typeof value === "boolean") {
@@ -64,6 +67,7 @@ function formatValue(
     case "status": {
       const raw = String(value);
       if (item.entityType === "task" && raw in t.taskStatus) return t.taskStatus[raw as keyof Dictionary["taskStatus"]];
+      if (item.entityType === "team" && raw in t.teams.status) return t.teams.status[raw as keyof Dictionary["teams"]["status"]];
       if (item.entityType === "project" && raw in t.projectStatus) {
         return t.projectStatus[raw as keyof Dictionary["projectStatus"]];
       }
@@ -78,8 +82,26 @@ function formatValue(
     }
     case "role": {
       const raw = String(value);
+      if (raw === "team_lead" || raw === "team_member") return t.orgRoles[raw];
       return raw in t.roles ? t.roles[raw as keyof Dictionary["roles"]] : raw;
     }
+    case "duration_unit": {
+      const raw = String(value);
+      return raw in t.durationUnits ? t.durationUnits[raw as keyof Dictionary["durationUnits"]] : raw;
+    }
+    case "visibility": {
+      const raw = String(value);
+      return raw === "private" || raw === "team" ? t.tasks.visibility[raw] : raw;
+    }
+    case "progress":
+      return `${asString(value)}%`;
+    case "due_at":
+    case "planned_start_at":
+    case "actual_start_at":
+    case "submitted_at":
+    case "approved_at":
+    case "completed_at":
+      return typeof value === "string" ? f.datetime!(value) : asString(value);
     case "assigned_to":
     case "owner_id": {
       const name = side?.assignee_name ?? side?.owner_name;
@@ -102,7 +124,7 @@ function formatValue(
   }
 }
 
-const HIDDEN_FIELDS = new Set(["assignee_name", "owner_name"]);
+const HIDDEN_FIELDS = new Set(["assignee_name", "owner_name", "team_member_id", "user_id", "team_id", "depends_on"]);
 
 /** Field-level changes (old -> new) of an audit entry, ready for display. */
 export function activityChanges(item: ActivityItem, f: Formatters): ActivityChange[] {

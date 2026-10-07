@@ -70,10 +70,13 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/proj
   const tasks = await supabase
     .from("tasks")
     .select(
-      "id, title, description, status, priority, due_date, created_at, updated_at, completed_at, assignee:profiles!tasks_assigned_to_fkey(full_name, email), creator:profiles!tasks_created_by_fkey(full_name, email)",
+      `id, task_code, title, description, original_instructions, expected_output, completion_criteria, status, priority,
+       planning_month, planning_week, planned_start_at, planned_duration, duration_unit, due_at, due_at_overridden,
+       actual_start_at, submitted_at, approved_at, completed_at, progress, visibility, created_at, updated_at, schedule_status,
+       assignee:profiles!tasks_assigned_to_fkey(full_name, email), creator:profiles!tasks_created_by_fkey(full_name, email)`,
     )
     .eq("project_id", projectId)
-    .order("created_at", { ascending: true });
+    .order("task_code", { ascending: true });
   if (tasks.error) return NextResponse.json({ error: t.errors.UNEXPECTED }, { status: 500 });
 
   const stamp = new Date().toISOString().slice(0, 10);
@@ -82,33 +85,59 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/proj
 
   if (format === "csv") {
     const header = [
-      "id",
+      "task_id",
       "title",
       "description",
       "status",
+      "schedule_status",
       "priority",
-      "assignee",
-      "assignee_email",
+      "responsible",
+      "responsible_email",
       "created_by",
-      "due_date",
+      "planning_month",
+      "planning_week",
+      "planned_start_at",
+      "planned_duration",
+      "duration_unit",
+      "due_at",
+      "actual_start_at",
+      "submitted_at",
+      "approved_at",
+      "completed_at",
+      "progress",
+      "visibility",
+      "expected_output",
+      "completion_criteria",
       "created_at",
       "updated_at",
-      "completed_at",
     ];
     const rows = (tasks.data ?? []).map((task) =>
       [
-        task.id,
+        task.task_code,
         task.title,
         task.description,
         task.status,
+        task.schedule_status,
         task.priority,
         task.assignee?.full_name ?? "",
         task.assignee?.email ?? "",
         task.creator?.full_name ?? "",
-        task.due_date,
+        task.planning_month,
+        task.planning_week,
+        task.planned_start_at,
+        task.planned_duration,
+        task.duration_unit,
+        task.due_at,
+        task.actual_start_at,
+        task.submitted_at,
+        task.approved_at,
+        task.completed_at,
+        task.progress,
+        task.visibility,
+        task.expected_output,
+        task.completion_criteria,
         task.created_at,
         task.updated_at,
-        task.completed_at,
       ]
         .map(csvCell)
         .join(","),

@@ -22,6 +22,7 @@ export const ACTIVITY_ENTITY_TYPES = [
   "member",
   "permissions",
   "platform_user",
+  "team",
 ] as const;
 
 /**

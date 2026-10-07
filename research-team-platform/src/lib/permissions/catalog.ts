@@ -71,14 +71,79 @@ export type ProjectStatus = Database["public"]["Enums"]["project_status"];
 
 export const PROJECT_ROLES = ["owner", "manager", "member", "reviewer"] as const satisfies readonly ProjectRole[];
 export const MEMBER_STATUSES = ["active", "suspended"] as const satisfies readonly MemberStatus[];
+export type DurationUnit = Database["public"]["Enums"]["duration_unit"];
+export type TaskVisibility = Database["public"]["Enums"]["task_visibility"];
+export type SubmissionStatus = Database["public"]["Enums"]["submission_status"];
+export type ReviewDecision = Database["public"]["Enums"]["review_decision"];
+export type TeamRole = Database["public"]["Enums"]["team_role"];
+export type TeamMemberStatus = Database["public"]["Enums"]["team_member_status"];
+
+/** Execution lifecycle, in workflow order. Mirrors public.task_status. */
 export const TASK_STATUSES = [
-  "todo",
+  "not_started",
+  "scheduled",
   "in_progress",
-  "review",
+  "blocked",
+  "submitted",
+  "under_review",
+  "revision_required",
+  "approved",
   "completed",
-  "rejected",
+  "cancelled",
 ] as const satisfies readonly TaskStatus[];
-export const TASK_PRIORITIES = ["low", "medium", "high", "critical"] as const satisfies readonly TaskPriority[];
+/** P0 (critical) … P3 (low). */
+export const TASK_PRIORITIES = ["p0", "p1", "p2", "p3"] as const satisfies readonly TaskPriority[];
+export const DURATION_UNITS = ["hours", "days", "weeks"] as const satisfies readonly DurationUnit[];
+export const TEAM_ROLES = ["team_lead", "team_member"] as const satisfies readonly TeamRole[];
+export const TEAM_MEMBER_STATUSES = ["pending", "active", "inactive"] as const satisfies readonly TeamMemberStatus[];
+
+/** Computed by public.schedule_status() with the database clock. */
+export const SCHEDULE_STATUSES = [
+  "unscheduled",
+  "not_started",
+  "scheduled",
+  "active",
+  "due_soon",
+  "overdue",
+  "completed",
+  "cancelled",
+] as const;
+export type ScheduleStatus = (typeof SCHEDULE_STATUSES)[number];
+
+/** Work that is not finished yet. */
+export const OPEN_TASK_STATUSES: readonly TaskStatus[] = [
+  "not_started",
+  "scheduled",
+  "in_progress",
+  "blocked",
+  "submitted",
+  "under_review",
+  "revision_required",
+  "approved",
+];
+/** Waiting for a reviewer. */
+export const REVIEW_QUEUE_STATUSES: readonly TaskStatus[] = ["submitted", "under_review"];
+
+/** Permissions of a Team Lead in the projects of their team. Mirrors private.team_lead_permissions(). */
+export const TEAM_LEAD_PERMISSIONS: readonly PermissionKey[] = [
+  "project.view",
+  "tasks.view",
+  "tasks.create",
+  "tasks.edit",
+  "tasks.edit_own",
+  "tasks.edit_assigned",
+  "tasks.assign",
+  "tasks.review",
+  "tasks.delete",
+  "documents.view",
+  "documents.upload",
+  "documents.edit",
+  "comments.create",
+  "comments.delete",
+  "team.view",
+  "activity.view",
+  "data.export",
+];
 export const PROJECT_STATUSES = [
   "planning",
   "active",
@@ -87,8 +152,8 @@ export const PROJECT_STATUSES = [
   "archived",
 ] as const satisfies readonly ProjectStatus[];
 
-/** Final workflow states: entering or leaving them requires review rights. */
-export const FINAL_TASK_STATUSES: readonly TaskStatus[] = ["completed", "rejected"];
+/** Closed workflow states. */
+export const FINAL_TASK_STATUSES: readonly TaskStatus[] = ["completed", "cancelled"];
 
 /** Higher rank can manage lower rank. Mirrors private.role_rank(). */
 export const ROLE_RANK: Record<ProjectRole, number> = {
@@ -126,9 +191,6 @@ export const ROLE_TEMPLATES: Record<ProjectRole, readonly PermissionKey[]> = {
   ],
   member: [
     "project.view",
-    "tasks.view",
-    "tasks.create",
-    "tasks.edit_own",
     "tasks.edit_assigned",
     "documents.view",
     "documents.upload",

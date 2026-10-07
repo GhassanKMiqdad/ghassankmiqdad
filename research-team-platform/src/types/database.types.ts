@@ -175,6 +175,65 @@ export type Database = {
           },
         ];
       };
+      notifications: {
+        Row: {
+          actor_id: string | null;
+          actor_name: string | null;
+          created_at: string;
+          data: NonNullable<Json>;
+          id: string;
+          project_id: string | null;
+          read_at: string | null;
+          task_id: string | null;
+          type: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          actor_id?: string | null;
+          actor_name?: string | null;
+          created_at?: string;
+          data?: NonNullable<Json>;
+          id?: string;
+          project_id?: string | null;
+          read_at?: string | null;
+          task_id?: string | null;
+          type: string;
+          user_id: string;
+        };
+        Update: {
+          actor_id?: string | null;
+          actor_name?: string | null;
+          created_at?: string;
+          data?: NonNullable<Json>;
+          id?: string;
+          project_id?: string | null;
+          read_at?: string | null;
+          task_id?: string | null;
+          type?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notifications_project_id_fkey";
+            columns: ["project_id"];
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_task_id_fkey";
+            columns: ["task_id"];
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey";
+            columns: ["user_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       permissions: {
         Row: {
           category: string;
@@ -205,6 +264,7 @@ export type Database = {
           email: string | null;
           full_name: string;
           id: string;
+          is_director: boolean;
           is_platform_admin: boolean;
           last_sign_in_at: string | null;
           updated_at: string;
@@ -217,6 +277,7 @@ export type Database = {
           email?: string | null;
           full_name?: string;
           id: string;
+          is_director?: boolean;
           is_platform_admin?: boolean;
           last_sign_in_at?: string | null;
           updated_at?: string;
@@ -228,6 +289,7 @@ export type Database = {
           email?: string | null;
           full_name?: string;
           id?: string;
+          is_director?: boolean;
           is_platform_admin?: boolean;
           last_sign_in_at?: string | null;
           updated_at?: string;
@@ -298,6 +360,7 @@ export type Database = {
           research_goal: string;
           start_date: string | null;
           status: Database["public"]["Enums"]["project_status"];
+          team_id: string | null;
           updated_at: string;
         };
         ComputedFields: never;
@@ -311,6 +374,7 @@ export type Database = {
           research_goal?: string;
           start_date?: string | null;
           status?: Database["public"]["Enums"]["project_status"];
+          team_id?: string | null;
           updated_at?: string;
         };
         Update: {
@@ -323,6 +387,7 @@ export type Database = {
           research_goal?: string;
           start_date?: string | null;
           status?: Database["public"]["Enums"]["project_status"];
+          team_id?: string | null;
           updated_at?: string;
         };
         Relationships: [
@@ -330,6 +395,12 @@ export type Database = {
             foreignKeyName: "projects_created_by_fkey";
             columns: ["created_by"];
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "projects_team_id_fkey";
+            columns: ["team_id"];
+            referencedRelation: "teams";
             referencedColumns: ["id"];
           },
         ];
@@ -357,49 +428,359 @@ export type Database = {
           },
         ];
       };
-      tasks: {
+      task_dependencies: {
         Row: {
-          assigned_to: string | null;
-          completed_at: string | null;
           created_at: string;
           created_by: string | null;
-          description: string;
-          due_date: string | null;
-          id: string;
-          priority: Database["public"]["Enums"]["task_priority"];
+          depends_on_task_id: string;
           project_id: string;
-          status: Database["public"]["Enums"]["task_status"];
-          title: string;
-          updated_at: string;
+          task_id: string;
         };
         ComputedFields: never;
         Insert: {
-          assigned_to?: string | null;
-          completed_at?: string | null;
           created_at?: string;
           created_by?: string | null;
-          description?: string;
-          due_date?: string | null;
-          id?: string;
-          priority?: Database["public"]["Enums"]["task_priority"];
+          depends_on_task_id: string;
           project_id: string;
-          status?: Database["public"]["Enums"]["task_status"];
-          title: string;
-          updated_at?: string;
+          task_id: string;
         };
         Update: {
+          created_at?: string;
+          created_by?: string | null;
+          depends_on_task_id?: string;
+          project_id?: string;
+          task_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "task_dependencies_created_by_fkey";
+            columns: ["created_by"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_dependencies_predecessor_fkey";
+            columns: ["depends_on_task_id", "project_id"];
+            referencedRelation: "tasks";
+            referencedColumns: ["id", "project_id"];
+          },
+          {
+            foreignKeyName: "task_dependencies_task_fkey";
+            columns: ["task_id", "project_id"];
+            referencedRelation: "tasks";
+            referencedColumns: ["id", "project_id"];
+          },
+        ];
+      };
+      task_publications: {
+        Row: {
+          completed_at: string;
+          deliverable_links: string[];
+          final_result: string;
+          final_submission_version: number;
+          project_id: string;
+          published_at: string;
+          published_by: string | null;
+          responsible_id: string | null;
+          responsible_name: string | null;
+          responsible_title: string | null;
+          task_code: string;
+          task_id: string;
+          team_comment: string;
+          team_id: string | null;
+          title: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          completed_at: string;
+          deliverable_links?: string[];
+          final_result: string;
+          final_submission_version: number;
+          project_id: string;
+          published_at?: string;
+          published_by?: string | null;
+          responsible_id?: string | null;
+          responsible_name?: string | null;
+          responsible_title?: string | null;
+          task_code: string;
+          task_id: string;
+          team_comment?: string;
+          team_id?: string | null;
+          title: string;
+        };
+        Update: {
+          completed_at?: string;
+          deliverable_links?: string[];
+          final_result?: string;
+          final_submission_version?: number;
+          project_id?: string;
+          published_at?: string;
+          published_by?: string | null;
+          responsible_id?: string | null;
+          responsible_name?: string | null;
+          responsible_title?: string | null;
+          task_code?: string;
+          task_id?: string;
+          team_comment?: string;
+          team_id?: string | null;
+          title?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "task_publications_project_id_fkey";
+            columns: ["project_id"];
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_publications_published_by_fkey";
+            columns: ["published_by"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_publications_responsible_id_fkey";
+            columns: ["responsible_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_publications_task_fkey";
+            columns: ["task_id", "project_id"];
+            referencedRelation: "tasks";
+            referencedColumns: ["id", "project_id"];
+          },
+          {
+            foreignKeyName: "task_publications_team_id_fkey";
+            columns: ["team_id"];
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      task_reviews: {
+        Row: {
+          additional_instructions: string;
+          comment: string;
+          created_at: string;
+          decision: Database["public"]["Enums"]["review_decision"];
+          id: string;
+          new_due_at: string | null;
+          previous_due_at: string | null;
+          project_id: string;
+          required_changes: string;
+          reviewer_id: string | null;
+          submission_id: string;
+          task_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          additional_instructions?: string;
+          comment?: string;
+          created_at?: string;
+          decision: Database["public"]["Enums"]["review_decision"];
+          id?: string;
+          new_due_at?: string | null;
+          previous_due_at?: string | null;
+          project_id: string;
+          required_changes?: string;
+          reviewer_id?: string | null;
+          submission_id: string;
+          task_id: string;
+        };
+        Update: {
+          additional_instructions?: string;
+          comment?: string;
+          created_at?: string;
+          decision?: Database["public"]["Enums"]["review_decision"];
+          id?: string;
+          new_due_at?: string | null;
+          previous_due_at?: string | null;
+          project_id?: string;
+          required_changes?: string;
+          reviewer_id?: string | null;
+          submission_id?: string;
+          task_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "task_reviews_reviewer_id_fkey";
+            columns: ["reviewer_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_reviews_submission_id_fkey";
+            columns: ["submission_id"];
+            referencedRelation: "task_submissions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_reviews_task_fkey";
+            columns: ["task_id", "project_id"];
+            referencedRelation: "tasks";
+            referencedColumns: ["id", "project_id"];
+          },
+        ];
+      };
+      task_submissions: {
+        Row: {
+          deliverable_links: string[];
+          id: string;
+          is_final: boolean;
+          notes: string;
+          project_id: string;
+          status: Database["public"]["Enums"]["submission_status"];
+          submitted_at: string;
+          submitted_by: string | null;
+          summary: string;
+          task_id: string;
+          version: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          deliverable_links?: string[];
+          id?: string;
+          is_final?: boolean;
+          notes?: string;
+          project_id: string;
+          status?: Database["public"]["Enums"]["submission_status"];
+          submitted_at?: string;
+          submitted_by?: string | null;
+          summary: string;
+          task_id: string;
+          version: number;
+        };
+        Update: {
+          deliverable_links?: string[];
+          id?: string;
+          is_final?: boolean;
+          notes?: string;
+          project_id?: string;
+          status?: Database["public"]["Enums"]["submission_status"];
+          submitted_at?: string;
+          submitted_by?: string | null;
+          summary?: string;
+          task_id?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "task_submissions_submitted_by_fkey";
+            columns: ["submitted_by"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_submissions_task_fkey";
+            columns: ["task_id", "project_id"];
+            referencedRelation: "tasks";
+            referencedColumns: ["id", "project_id"];
+          },
+        ];
+      };
+      tasks: {
+        Row: {
+          actual_start_at: string | null;
+          approved_at: string | null;
+          assigned_to: string | null;
+          completed_at: string | null;
+          completion_criteria: string;
+          created_at: string;
+          created_by: string | null;
+          description: string;
+          due_at: string | null;
+          due_at_overridden: boolean;
+          duration_unit: Database["public"]["Enums"]["duration_unit"] | null;
+          expected_output: string;
+          id: string;
+          original_instructions: string;
+          planned_duration: number | null;
+          planned_duration_minutes: number | null;
+          planned_start_at: string | null;
+          planning_month: number;
+          planning_week: number | null;
+          priority: Database["public"]["Enums"]["task_priority"];
+          progress: number;
+          project_id: string;
+          published_at: string | null;
+          status: Database["public"]["Enums"]["task_status"];
+          submitted_at: string | null;
+          task_code: string;
+          team_id: string | null;
+          title: string;
+          updated_at: string;
+          visibility: Database["public"]["Enums"]["task_visibility"];
+          work_notes: string;
+          is_blocked: boolean | null;
+          schedule_status: string | null;
+        };
+        ComputedFields: "is_blocked" | "schedule_status";
+        Insert: {
+          actual_start_at?: string | null;
+          approved_at?: string | null;
           assigned_to?: string | null;
           completed_at?: string | null;
+          completion_criteria?: string;
           created_at?: string;
           created_by?: string | null;
           description?: string;
-          due_date?: string | null;
+          due_at?: string | null;
+          due_at_overridden?: boolean;
+          duration_unit?: Database["public"]["Enums"]["duration_unit"] | null;
+          expected_output?: string;
           id?: string;
+          original_instructions?: string;
+          planned_duration?: number | null;
+          planned_duration_minutes?: number | null;
+          planned_start_at?: string | null;
+          planning_month?: number;
+          planning_week?: number | null;
           priority?: Database["public"]["Enums"]["task_priority"];
-          project_id?: string;
+          progress?: number;
+          project_id: string;
+          published_at?: string | null;
           status?: Database["public"]["Enums"]["task_status"];
+          submitted_at?: string | null;
+          task_code?: string;
+          team_id?: string | null;
+          title: string;
+          updated_at?: string;
+          visibility?: Database["public"]["Enums"]["task_visibility"];
+          work_notes?: string;
+        };
+        Update: {
+          actual_start_at?: string | null;
+          approved_at?: string | null;
+          assigned_to?: string | null;
+          completed_at?: string | null;
+          completion_criteria?: string;
+          created_at?: string;
+          created_by?: string | null;
+          description?: string;
+          due_at?: string | null;
+          due_at_overridden?: boolean;
+          duration_unit?: Database["public"]["Enums"]["duration_unit"] | null;
+          expected_output?: string;
+          id?: string;
+          original_instructions?: string;
+          planned_duration?: number | null;
+          planned_duration_minutes?: number | null;
+          planned_start_at?: string | null;
+          planning_month?: number;
+          planning_week?: number | null;
+          priority?: Database["public"]["Enums"]["task_priority"];
+          progress?: number;
+          project_id?: string;
+          published_at?: string | null;
+          status?: Database["public"]["Enums"]["task_status"];
+          submitted_at?: string | null;
+          task_code?: string;
+          team_id?: string | null;
           title?: string;
           updated_at?: string;
+          visibility?: Database["public"]["Enums"]["task_visibility"];
+          work_notes?: string;
         };
         Relationships: [
           {
@@ -424,6 +805,135 @@ export type Database = {
             foreignKeyName: "tasks_project_id_fkey";
             columns: ["project_id"];
             referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_team_id_fkey";
+            columns: ["team_id"];
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      team_member_invites: {
+        Row: {
+          created_at: string;
+          email: string;
+          team_member_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          email: string;
+          team_member_id: string;
+        };
+        Update: {
+          created_at?: string;
+          email?: string;
+          team_member_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "team_member_invites_team_member_id_fkey";
+            columns: ["team_member_id"];
+            referencedRelation: "team_members";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      team_members: {
+        Row: {
+          added_by: string | null;
+          created_at: string;
+          display_name: string;
+          id: string;
+          job_title: string;
+          member_code: string;
+          role: Database["public"]["Enums"]["team_role"];
+          status: Database["public"]["Enums"]["team_member_status"];
+          team_id: string;
+          updated_at: string;
+          user_id: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          added_by?: string | null;
+          created_at?: string;
+          display_name: string;
+          id?: string;
+          job_title?: string;
+          member_code: string;
+          role?: Database["public"]["Enums"]["team_role"];
+          status?: Database["public"]["Enums"]["team_member_status"];
+          team_id: string;
+          updated_at?: string;
+          user_id?: string | null;
+        };
+        Update: {
+          added_by?: string | null;
+          created_at?: string;
+          display_name?: string;
+          id?: string;
+          job_title?: string;
+          member_code?: string;
+          role?: Database["public"]["Enums"]["team_role"];
+          status?: Database["public"]["Enums"]["team_member_status"];
+          team_id?: string;
+          updated_at?: string;
+          user_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "team_members_added_by_fkey";
+            columns: ["added_by"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "team_members_team_id_fkey";
+            columns: ["team_id"];
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "team_members_user_id_fkey";
+            columns: ["user_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      teams: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          description: string;
+          id: string;
+          name: string;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          description?: string;
+          id?: string;
+          name: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          description?: string;
+          id?: string;
+          name?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "teams_created_by_fkey";
+            columns: ["created_by"];
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];
@@ -500,6 +1010,10 @@ export type Database = {
         Args: { p_user_id: string };
         Returns: undefined;
       };
+      complete_task: {
+        Args: { p_task_id: string; p_team_comment?: string };
+        Returns: undefined;
+      };
       create_project: {
         Args: {
           p_deadline?: string;
@@ -511,7 +1025,27 @@ export type Database = {
         };
         Returns: string;
       };
+      create_team: {
+        Args: { p_description?: string; p_name: string };
+        Returns: string;
+      };
       get_dashboard_stats: { Args: { p_today?: string }; Returns: Json };
+      get_execution_report: {
+        Args: { p_planning_month?: number; p_project_id?: string };
+        Returns: {
+          avg_completion_delay_hours: number;
+          avg_start_delay_hours: number;
+          completed: number;
+          completed_on_time: number;
+          in_review: number;
+          name: string;
+          overdue: number;
+          revisions: number;
+          submissions: number;
+          total: number;
+          user_id: string;
+        }[];
+      };
       get_my_project_access: {
         Args: { p_project_id?: string };
         Returns: {
@@ -539,6 +1073,26 @@ export type Database = {
           user_id: string;
         }[];
       };
+      get_team_invites: {
+        Args: { p_team_id: string };
+        Returns: {
+          email: string;
+          team_member_id: string;
+        }[];
+      };
+      is_blocked: {
+        Args: {
+          p_task: Omit<
+            Database["public"]["Tables"]["tasks"]["Row"],
+            Database["public"]["Tables"]["tasks"]["ComputedFields"]
+          >;
+        };
+        Returns: boolean;
+      };
+      link_team_member: {
+        Args: { p_email: string; p_member_id: string };
+        Returns: string;
+      };
       record_project_export: {
         Args: { p_format: string; p_project_id: string; p_scope: string };
         Returns: undefined;
@@ -547,6 +1101,27 @@ export type Database = {
         Args: { p_project_id: string; p_user_id: string };
         Returns: undefined;
       };
+      remove_team_member: { Args: { p_member_id: string }; Returns: undefined };
+      review_task: {
+        Args: {
+          p_additional_instructions?: string;
+          p_comment?: string;
+          p_decision: Database["public"]["Enums"]["review_decision"];
+          p_new_due_at?: string;
+          p_required_changes?: string;
+          p_task_id: string;
+        };
+        Returns: string;
+      };
+      schedule_status: {
+        Args: {
+          p_task: Omit<
+            Database["public"]["Tables"]["tasks"]["Row"],
+            Database["public"]["Tables"]["tasks"]["ComputedFields"]
+          >;
+        };
+        Returns: string;
+      };
       set_member_permissions: {
         Args: {
           p_permissions: string[];
@@ -554,6 +1129,31 @@ export type Database = {
           p_user_id: string;
         };
         Returns: string[];
+      };
+      set_project_team: {
+        Args: { p_project_id: string; p_team_id: string };
+        Returns: undefined;
+      };
+      set_team_member_status: {
+        Args: {
+          p_member_id: string;
+          p_status: Database["public"]["Enums"]["team_member_status"];
+        };
+        Returns: undefined;
+      };
+      set_user_director: {
+        Args: { p_is_director: boolean; p_user_id: string };
+        Returns: undefined;
+      };
+      start_task_review: { Args: { p_task_id: string }; Returns: undefined };
+      submit_task: {
+        Args: {
+          p_deliverable_links?: string[];
+          p_notes?: string;
+          p_summary: string;
+          p_task_id: string;
+        };
+        Returns: string;
       };
       transfer_project_ownership: {
         Args: { p_new_owner_id: string; p_project_id: string };
@@ -569,14 +1169,47 @@ export type Database = {
         };
         Returns: undefined;
       };
+      update_team: {
+        Args: { p_description: string; p_name: string; p_team_id: string };
+        Returns: undefined;
+      };
+      upsert_team_member: {
+        Args: {
+          p_display_name: string;
+          p_invite_email?: string;
+          p_job_title: string;
+          p_member_code: string;
+          p_member_id: string;
+          p_role: Database["public"]["Enums"]["team_role"];
+          p_team_id: string;
+        };
+        Returns: string;
+      };
     };
     Enums: {
+      duration_unit: "hours" | "days" | "weeks";
       member_status: "active" | "suspended";
       project_role: "owner" | "manager" | "member" | "reviewer";
       project_status:
         "planning" | "active" | "on_hold" | "completed" | "archived";
-      task_priority: "low" | "medium" | "high" | "critical";
-      task_status: "todo" | "in_progress" | "review" | "completed" | "rejected";
+      review_decision: "approved" | "revision_required";
+      submission_status:
+        "submitted" | "under_review" | "revision_required" | "approved";
+      task_priority: "p0" | "p1" | "p2" | "p3";
+      task_status:
+        | "not_started"
+        | "scheduled"
+        | "in_progress"
+        | "blocked"
+        | "submitted"
+        | "under_review"
+        | "revision_required"
+        | "approved"
+        | "completed"
+        | "cancelled";
+      task_visibility: "private" | "team";
+      team_member_status: "pending" | "active" | "inactive";
+      team_role: "team_lead" | "team_member";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -704,6 +1337,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      duration_unit: ["hours", "days", "weeks"],
       member_status: ["active", "suspended"],
       project_role: ["owner", "manager", "member", "reviewer"],
       project_status: [
@@ -713,8 +1347,29 @@ export const Constants = {
         "completed",
         "archived",
       ],
-      task_priority: ["low", "medium", "high", "critical"],
-      task_status: ["todo", "in_progress", "review", "completed", "rejected"],
+      review_decision: ["approved", "revision_required"],
+      submission_status: [
+        "submitted",
+        "under_review",
+        "revision_required",
+        "approved",
+      ],
+      task_priority: ["p0", "p1", "p2", "p3"],
+      task_status: [
+        "not_started",
+        "scheduled",
+        "in_progress",
+        "blocked",
+        "submitted",
+        "under_review",
+        "revision_required",
+        "approved",
+        "completed",
+        "cancelled",
+      ],
+      task_visibility: ["private", "team"],
+      team_member_status: ["pending", "active", "inactive"],
+      team_role: ["team_lead", "team_member"],
     },
   },
 } as const;

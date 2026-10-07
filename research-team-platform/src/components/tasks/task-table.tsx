@@ -1,67 +1,57 @@
 "use client";
 
 import Link from "next/link";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Lock } from "lucide-react";
 
-import { OverdueBadge, PriorityBadge } from "@/components/shared/badges";
+import { PriorityBadge, ScheduleStatusBadge, TaskCode, TaskStatusBadge } from "@/components/shared/badges";
 import { DateText } from "@/components/shared/date-text";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { DeleteTaskButton } from "@/components/tasks/delete-task-button";
-import { TaskStatusSelect } from "@/components/tasks/task-status-select";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useI18n } from "@/lib/i18n/provider";
-import { fromAccessDTO, type ProjectAccessDTO } from "@/lib/permissions/access";
-import { canDeleteTasks } from "@/lib/permissions/policy";
 import type { TaskListItem } from "@/types/app";
 
-export function TaskTable({
-  tasks,
-  accessByProject,
-  showProject = false,
-}: {
-  tasks: TaskListItem[];
-  accessByProject: Record<string, ProjectAccessDTO>;
-  showProject?: boolean;
-}) {
-  const { t } = useI18n();
+/** Task list: ID, task, responsible, plan, priority, status/schedule, start and deadline. */
+export function TaskTable({ tasks, showProject = false }: { tasks: TaskListItem[]; showProject?: boolean }) {
+  const { t, fmt } = useI18n();
 
   return (
     <div className="rounded-xl border bg-card">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="ps-4">{t.tasks.fields.title}</TableHead>
+            <TableHead className="ps-4">{t.tasks.fields.taskCode}</TableHead>
+            <TableHead>{t.tasks.fields.title}</TableHead>
             {showProject ? <TableHead>{t.tasks.fields.project}</TableHead> : null}
-            <TableHead>{t.tasks.fields.status}</TableHead>
-            <TableHead>{t.tasks.fields.priority}</TableHead>
             <TableHead>{t.tasks.fields.assignee}</TableHead>
-            <TableHead>{t.tasks.fields.dueDate}</TableHead>
-            <TableHead className="w-12 pe-4">
-              <span className="sr-only">{t.common.actions}</span>
-            </TableHead>
+            <TableHead>{t.tasks.fields.planningWeek}</TableHead>
+            <TableHead>{t.tasks.fields.priority}</TableHead>
+            <TableHead>{t.tasks.fields.status}</TableHead>
+            <TableHead>{t.tasks.fields.plannedStart}</TableHead>
+            <TableHead className="pe-4">{t.tasks.fields.dueAt}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {tasks.map((task) => {
-            const access = accessByProject[task.projectId];
-            const canDelete = access ? canDeleteTasks(fromAccessDTO(access)) : false;
             const href = `/projects/${task.projectId}/tasks/${task.id}`;
             return (
               <TableRow key={task.id}>
-                <TableCell className="max-w-80 ps-4">
-                  <Link href={href} className="block truncate font-medium hover:underline">
-                    {task.title}
+                <TableCell className="ps-4">
+                  <Link href={href} className="hover:opacity-80">
+                    <TaskCode code={task.code} />
+                  </Link>
+                </TableCell>
+                <TableCell className="max-w-72">
+                  <Link href={href} className="flex items-center gap-1.5 font-medium hover:underline">
+                    {task.visibility === "private" ? (
+                      <Lock className="size-3 shrink-0 text-muted-foreground" aria-label={t.tasks.visibility.private} />
+                    ) : null}
+                    <span className="truncate" dir="auto">
+                      {task.title}
+                    </span>
                   </Link>
                 </TableCell>
                 {showProject ? (
-                  <TableCell className="max-w-48">
+                  <TableCell className="max-w-40">
                     <Link
                       href={`/projects/${task.projectId}`}
                       className="block truncate text-muted-foreground hover:text-foreground hover:underline"
@@ -71,54 +61,39 @@ export function TaskTable({
                   </TableCell>
                 ) : null}
                 <TableCell>
-                  <TaskStatusSelect task={task} access={access} />
-                </TableCell>
-                <TableCell>
-                  <PriorityBadge priority={task.priority} />
-                </TableCell>
-                <TableCell>
                   {task.assignee ? (
                     <span className="flex items-center gap-2">
                       <UserAvatar name={task.assignee.name} seed={task.assignee.id} className="size-6" />
-                      <span className="max-w-36 truncate">{task.assignee.name}</span>
+                      <span className="min-w-0">
+                        <span className="block max-w-36 truncate">{task.assignee.name}</span>
+                        {task.assigneeTitle ? (
+                          <span className="block max-w-36 truncate text-xs text-muted-foreground">{task.assigneeTitle}</span>
+                        ) : null}
+                      </span>
                     </span>
                   ) : (
                     <span className="text-muted-foreground">{t.tasks.unassigned}</span>
                   )}
                 </TableCell>
+                <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
+                  {task.planningWeek
+                    ? fmt(t.tasks.planLabel, { month: String(task.planningMonth).padStart(2, "0"), week: task.planningWeek })
+                    : fmt(t.tasks.planMonthOnly, { month: String(task.planningMonth).padStart(2, "0") })}
+                </TableCell>
                 <TableCell>
-                  <span className="flex items-center gap-2">
-                    <DateText value={task.dueDate} fallback="—" className="tabular-nums" />
-                    {task.isOverdue ? <OverdueBadge /> : null}
+                  <PriorityBadge priority={task.priority} />
+                </TableCell>
+                <TableCell>
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <TaskStatusBadge status={task.status} />
+                    <ScheduleStatusBadge status={task.scheduleStatus} />
                   </span>
                 </TableCell>
-                <TableCell className="pe-4">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon-sm" aria-label={t.common.actions}>
-                        <MoreHorizontal aria-hidden />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild>
-                        <Link href={href}>
-                          <Pencil aria-hidden />
-                          {t.common.open}
-                        </Link>
-                      </DropdownMenuItem>
-                      {canDelete ? (
-                        <DeleteTaskButton
-                          taskId={task.id}
-                          trigger={
-                            <DropdownMenuItem variant="destructive" onSelect={(event) => event.preventDefault()}>
-                              <Trash2 aria-hidden />
-                              {t.common.delete}
-                            </DropdownMenuItem>
-                          }
-                        />
-                      ) : null}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                <TableCell className="whitespace-nowrap">
+                  <DateText value={task.plannedStartAt} style="datetime" fallback="—" className="tabular-nums" />
+                </TableCell>
+                <TableCell className="pe-4 whitespace-nowrap">
+                  <DateText value={task.dueAt} style="datetime" fallback="—" className="tabular-nums" />
                 </TableCell>
               </TableRow>
             );

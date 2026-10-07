@@ -19,6 +19,8 @@ export type CurrentProfile = {
   displayName: string;
   isPlatformAdmin: boolean;
   canCreateProjects: boolean;
+  /** Organization Director (explicit role, changed only by another Director). */
+  isDirector: boolean;
   createdAt: string;
   lastSignInAt: string | null;
 };
@@ -46,7 +48,7 @@ export const getCurrentProfile = cache(async (): Promise<CurrentProfile | null> 
   const supabase = await createSupabaseServerClient();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, email, full_name, is_platform_admin, can_create_projects, created_at, last_sign_in_at")
+    .select("id, email, full_name, is_platform_admin, can_create_projects, is_director, created_at, last_sign_in_at")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -54,10 +56,14 @@ export const getCurrentProfile = cache(async (): Promise<CurrentProfile | null> 
 
   let isPlatformAdmin = profile.is_platform_admin;
   let canCreateProjects = profile.can_create_projects;
+  let isDirector = profile.is_director;
 
   if (!isPlatformAdmin && (await bootstrapPlatformAdmin(user))) {
     isPlatformAdmin = true;
     canCreateProjects = true;
+    // The bootstrap also makes the first admin the Director when there is none.
+    const { data: refreshed } = await supabase.from("profiles").select("is_director").eq("id", user.id).maybeSingle();
+    isDirector = refreshed?.is_director ?? isDirector;
   }
 
   return {
@@ -67,6 +73,7 @@ export const getCurrentProfile = cache(async (): Promise<CurrentProfile | null> 
     displayName: profile.full_name.trim() || profile.email || "—",
     isPlatformAdmin,
     canCreateProjects: isPlatformAdmin || canCreateProjects,
+    isDirector,
     createdAt: profile.created_at,
     lastSignInAt: profile.last_sign_in_at,
   };

@@ -24,6 +24,8 @@ export type AccessSubject = {
   status: MemberStatus;
   /** Effective permissions (owners: all; inactive members or no project.view: none). */
   permissions: ReadonlySet<PermissionKey>;
+  /** Organization Director (may review their own work; holds every permission everywhere). */
+  isDirector?: boolean;
 };
 
 export type PolicyResult = { ok: true } | { ok: false; code: PolicyErrorCode };
@@ -33,6 +35,7 @@ export type PolicyErrorCode =
   | "TASK_EDIT_FORBIDDEN"
   | "TASK_STATUS_FORBIDDEN"
   | "TASK_ASSIGN_FORBIDDEN"
+  | "SELF_REVIEW_FORBIDDEN"
   | "ROLE_NOT_ALLOWED"
   | "CANNOT_MODIFY_OWNER"
   | "CANNOT_MODIFY_SELF"
@@ -55,7 +58,8 @@ export function canAny(access: AccessSubject | null | undefined, permissions: re
 }
 
 // -----------------------------------------------------------------------------
-// Tasks
+// Tasks — mirrors private.tasks_before_insert / tasks_before_update,
+// private.task_transition_allowed and the workflow functions.
 // -----------------------------------------------------------------------------
 export type TaskSnapshot = {
   createdBy: string | null;
@@ -63,23 +67,61 @@ export type TaskSnapshot = {
   status: TaskStatus;
 };
 
-export type TaskPatch = Partial<{
-  title: string;
-  description: string;
-  priority: string;
-  dueDate: string | null;
-  status: TaskStatus;
-  assignedTo: string | null;
-}>;
+/** Supervisor: plans, schedules, edits, cancels (tasks.edit). Directors and Team Leads hold it. */
+export function canSuperviseTasks(access: AccessSubject | null | undefined): boolean {
+  return can(access, "tasks.edit");
+}
 
-/** Title, description, priority and due date. */
+/** Title, description, instructions, expected output, completion criteria, priority. */
 export function canEditTaskContent(access: AccessSubject | null | undefined, task: TaskSnapshot): boolean {
-  if (!access) return false;
-  return (
-    can(access, "tasks.edit") ||
-    (can(access, "tasks.edit_own") && task.createdBy === access.userId) ||
-    (can(access, "tasks.edit_assigned") && task.assignedTo === access.userId)
-  );
+  if (!access || task.status === "completed") return false;
+  return canSuperviseTasks(access) || (can(access, "tasks.edit_own") && task.createdBy === access.userId);
+}
+
+/** Planning month/week, start, duration and deadline: supervisors only. */
+export function canEditTaskSchedule(access: AccessSubject | null | undefined, task: TaskSnapshot): boolean {
+  return task.status !== "completed" && canSuperviseTasks(access);
+}
+
+/** The responsible member executing their task (start, progress, notes, submit). */
+export function canExecuteTask(access: AccessSubject | null | undefined, task: TaskSnapshot): boolean {
+  return !!access && task.assignedTo === access.userId && can(access, "tasks.edit_assigned");
+}
+
+export function canUpdateTaskProgress(access: AccessSubject | null | undefined, task: TaskSnapshot): boolean {
+  return task.status !== "completed" && (canExecuteTask(access, task) || canSuperviseTasks(access));
+}
+
+/** Review, approve, request revisions and mark as completed. Nobody but a Director reviews their own task. */
+export function canReviewTask(access: AccessSubject | null | undefined, task: TaskSnapshot): boolean {
+  if (!access || !can(access, "tasks.review")) return false;
+  return task.assignedTo !== access.userId || access.isDirector === true;
+}
+
+/** Status changes allowed through a direct update (SQL: private.task_transition_allowed). */
+export function isDirectTransitionAllowed(
+  from: TaskStatus,
+  to: TaskStatus,
+  isSupervisor: boolean,
+  isExecutor: boolean,
+): boolean {
+  if (from === to) return true;
+  switch (to) {
+    case "in_progress":
+      return (
+        (["not_started", "scheduled", "revision_required"].includes(from) && (isSupervisor || isExecutor)) ||
+        (from === "blocked" && isSupervisor)
+      );
+    case "blocked":
+      return ["not_started", "scheduled", "in_progress"].includes(from) && isSupervisor;
+    case "not_started":
+    case "scheduled":
+      return ["blocked", "cancelled", "not_started", "scheduled"].includes(from) && isSupervisor;
+    case "cancelled":
+      return !FINAL_TASK_STATUSES.includes(from) && isSupervisor;
+    default:
+      return false;
+  }
 }
 
 export function canChangeTaskStatus(
@@ -87,22 +129,12 @@ export function canChangeTaskStatus(
   task: TaskSnapshot,
   next: TaskStatus,
 ): boolean {
-  if (!access) return false;
-  if (next === task.status) return true;
-  if (can(access, "tasks.edit")) return true;
-  if (can(access, "tasks.review") && (task.status === "review" || FINAL_TASK_STATUSES.includes(task.status))) {
-    return true;
-  }
-  return (
-    canEditTaskContent(access, task) &&
-    !FINAL_TASK_STATUSES.includes(task.status) &&
-    !FINAL_TASK_STATUSES.includes(next)
-  );
+  if (!access || !isActive(access)) return false;
+  return isDirectTransitionAllowed(task.status, next, canSuperviseTasks(access), canExecuteTask(access, task));
 }
 
-export function allowedTaskStatuses(access: AccessSubject | null | undefined, task: TaskSnapshot): TaskStatus[] {
-  const all: TaskStatus[] = ["todo", "in_progress", "review", "completed", "rejected"];
-  return all.filter((status) => canChangeTaskStatus(access, task, status));
+export function canSubmitTask(access: AccessSubject | null | undefined, task: TaskSnapshot): boolean {
+  return canExecuteTask(access, task) && (task.status === "in_progress" || task.status === "revision_required");
 }
 
 export function canAssignTasks(access: AccessSubject | null | undefined): boolean {
@@ -113,55 +145,48 @@ export function canDeleteTasks(access: AccessSubject | null | undefined): boolea
   return can(access, "tasks.delete");
 }
 
-/** Whether the task offers any editing path at all (used to show the edit form). */
+/** Whether the task definition form can be opened at all. */
 export function canUpdateTask(access: AccessSubject | null | undefined, task: TaskSnapshot): boolean {
-  return (
-    canEditTaskContent(access, task) ||
-    canAssignTasks(access) ||
-    allowedTaskStatuses(access, task).some((status) => status !== task.status)
-  );
+  return canEditTaskContent(access, task) || canEditTaskSchedule(access, task) || (canAssignTasks(access) && task.status !== "completed");
 }
 
-/** Field-level evaluation of an update, identical to the tasks_before_update trigger. */
+export type TaskPatch = Partial<{
+  content: boolean;
+  schedule: boolean;
+  progress: boolean;
+  status: TaskStatus;
+  assignedTo: string | null;
+}>;
+
+/** Field-group evaluation of a direct update, identical to the tasks_before_update trigger. */
 export function evaluateTaskUpdate(
   access: AccessSubject | null | undefined,
   task: TaskSnapshot,
   patch: TaskPatch,
-  current: { title: string; description: string; priority: string; dueDate: string | null },
 ): PolicyResult {
   if (!access || !isActive(access)) return deny("PERMISSION_DENIED");
-
-  const contentChanged =
-    (patch.title !== undefined && patch.title !== current.title) ||
-    (patch.description !== undefined && patch.description !== current.description) ||
-    (patch.priority !== undefined && patch.priority !== current.priority) ||
-    (patch.dueDate !== undefined && patch.dueDate !== current.dueDate);
-
-  if (contentChanged && !canEditTaskContent(access, task)) return deny("TASK_EDIT_FORBIDDEN");
-
+  if (patch.content && !canEditTaskContent(access, task)) return deny("TASK_EDIT_FORBIDDEN");
+  if (patch.schedule && !canEditTaskSchedule(access, task)) return deny("TASK_EDIT_FORBIDDEN");
+  if (patch.progress && !canUpdateTaskProgress(access, task)) return deny("TASK_EDIT_FORBIDDEN");
   if (patch.status !== undefined && patch.status !== task.status && !canChangeTaskStatus(access, task, patch.status)) {
     return deny("TASK_STATUS_FORBIDDEN");
   }
-
   if (patch.assignedTo !== undefined && patch.assignedTo !== task.assignedTo && !canAssignTasks(access)) {
     return deny("TASK_ASSIGN_FORBIDDEN");
   }
-
   return OK;
 }
 
-/** Creating a task: tasks.create, and assignment to others requires tasks.assign. */
+/** Creating a task: tasks.create; others' assignment needs tasks.assign; plan, schedule and manual IDs need tasks.edit. */
 export function evaluateTaskCreate(
   access: AccessSubject | null | undefined,
-  input: { assignedTo: string | null; status: TaskStatus },
+  input: { assignedTo: string | null; planned: boolean },
 ): PolicyResult {
   if (!can(access, "tasks.create") || !access) return deny("PERMISSION_DENIED");
   if (input.assignedTo && input.assignedTo !== access.userId && !canAssignTasks(access)) {
     return deny("TASK_ASSIGN_FORBIDDEN");
   }
-  if (FINAL_TASK_STATUSES.includes(input.status) && !can(access, "tasks.edit")) {
-    return deny("TASK_STATUS_FORBIDDEN");
-  }
+  if (input.planned && !canSuperviseTasks(access)) return deny("TASK_EDIT_FORBIDDEN");
   return OK;
 }
 

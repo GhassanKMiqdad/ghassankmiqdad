@@ -179,6 +179,8 @@ update public.tasks t
  where t.task_code is null;
 
 alter table public.tasks alter column task_code set not null;
+-- An empty ID on insert means "generate it" (private.tasks_before_insert).
+alter table public.tasks alter column task_code set default '';
 create unique index tasks_task_code_key on public.tasks (task_code);
 
 -- -----------------------------------------------------------------------------
@@ -270,7 +272,7 @@ create index task_reviews_task_idx on public.task_reviews (task_id, created_at);
 -- -----------------------------------------------------------------------------
 create table public.task_publications (
   task_id uuid primary key,
-  project_id uuid not null,
+  project_id uuid not null references public.projects (id) on delete cascade,
   team_id uuid references public.teams (id) on delete set null,
   task_code text not null,
   title text not null,

@@ -3,11 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BarChart3,
+  CalendarDays,
   FileText,
   FolderKanban,
   History,
   LayoutDashboard,
   ListChecks,
+  Megaphone,
+  Network,
   Settings,
   Users,
   type LucideIcon,
@@ -16,12 +20,27 @@ import {
 import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 
-export type NavKey = "dashboard" | "projects" | "tasks" | "documents" | "team" | "activity" | "settings";
+export type NavKey =
+  | "dashboard"
+  | "projects"
+  | "tasks"
+  | "schedule"
+  | "results"
+  | "teams"
+  | "reports"
+  | "documents"
+  | "team"
+  | "activity"
+  | "settings";
 
 const NAV_ITEMS: { key: NavKey; href: string; icon: LucideIcon }[] = [
   { key: "dashboard", href: "/dashboard", icon: LayoutDashboard },
   { key: "projects", href: "/projects", icon: FolderKanban },
   { key: "tasks", href: "/tasks", icon: ListChecks },
+  { key: "schedule", href: "/schedule", icon: CalendarDays },
+  { key: "results", href: "/results", icon: Megaphone },
+  { key: "teams", href: "/teams", icon: Network },
+  { key: "reports", href: "/reports", icon: BarChart3 },
   { key: "documents", href: "/documents", icon: FileText },
   { key: "team", href: "/team", icon: Users },
   { key: "activity", href: "/activity", icon: History },

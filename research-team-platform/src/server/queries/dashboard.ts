@@ -3,7 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { z } from "zod";
 
-import { PROJECT_STATUSES, TASK_STATUSES, type TaskStatus } from "@/lib/permissions/catalog";
+import { PROJECT_STATUSES, TASK_PRIORITIES, TASK_STATUSES, type TaskPriority, type TaskStatus } from "@/lib/permissions/catalog";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { unwrap } from "@/server/action";
 import { appToday } from "@/server/queries/shared";
@@ -19,9 +19,13 @@ const statsSchema = z.object({
   active_tasks: count,
   completed_tasks: count,
   overdue_tasks: count,
+  due_soon_tasks: count,
+  awaiting_review: count,
+  awaiting_completion: count,
   can_view_team: z.boolean().catch(false),
   team_members: count,
   tasks_by_status: z.record(z.string(), count).catch({}),
+  tasks_by_priority: z.record(z.string(), count).catch({}),
   tasks_by_member: z
     .array(
       z.object({
@@ -30,6 +34,7 @@ const statsSchema = z.object({
         total: count,
         open: count,
         completed: count,
+        overdue: count,
       }),
     )
     .catch([]),
@@ -54,6 +59,9 @@ export const getDashboardStats = cache(async (): Promise<DashboardStats> => {
   const tasksByStatus = Object.fromEntries(
     TASK_STATUSES.map((status) => [status, stats.tasks_by_status[status] ?? 0]),
   ) as Record<TaskStatus, number>;
+  const tasksByPriority = Object.fromEntries(
+    TASK_PRIORITIES.map((priority) => [priority, stats.tasks_by_priority[priority] ?? 0]),
+  ) as Record<TaskPriority, number>;
 
   return {
     totalProjects: stats.total_projects,
@@ -62,15 +70,20 @@ export const getDashboardStats = cache(async (): Promise<DashboardStats> => {
     activeTasks: stats.active_tasks,
     completedTasks: stats.completed_tasks,
     overdueTasks: stats.overdue_tasks,
+    dueSoonTasks: stats.due_soon_tasks,
+    awaitingReview: stats.awaiting_review,
+    awaitingCompletion: stats.awaiting_completion,
     canViewTeam: stats.can_view_team,
     teamMembers: stats.team_members,
     tasksByStatus,
+    tasksByPriority,
     tasksByMember: stats.tasks_by_member.map((item) => ({
       userId: item.user_id,
       name: item.name,
       total: item.total,
       open: item.open,
       completed: item.completed,
+      overdue: item.overdue,
     })),
     projectProgress: stats.project_progress.map((item) => ({
       projectId: item.project_id,
