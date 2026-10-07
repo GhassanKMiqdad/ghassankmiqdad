@@ -38,11 +38,13 @@ jobs:
           cache: npm
           cache-dependency-path: research-team-platform/package-lock.json
       - run: npm ci
+      - run: npm ci --prefix functions
       - run: npm run lint
       - run: npm run format:check
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npm --prefix functions run build
 
   firebase-rules:
     name: Firestore and Storage Rules (Firebase Emulator)
