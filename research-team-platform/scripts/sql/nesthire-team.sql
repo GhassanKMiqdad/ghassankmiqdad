@@ -16,6 +16,7 @@ do $$
 declare
   v_director uuid := (select p.id from public.profiles p where p.is_director order by p.created_at limit 1);
   v_team uuid;
+  v_created boolean;
   v_entry record;
 begin
   if v_director is null then
@@ -24,8 +25,12 @@ begin
 
   insert into public.teams (name, description, created_by)
   values ('NestHire Team', 'NestHire product team', v_director)
-  on conflict ((lower(btrim(name)))) do nothing;
-  select t.id into v_team from public.teams t where lower(btrim(t.name)) = 'nesthire team';
+  on conflict ((lower(btrim(name)))) do nothing
+  returning id into v_team;
+  v_created := v_team is not null;
+  if not v_created then
+    select t.id into v_team from public.teams t where lower(btrim(t.name)) = 'nesthire team';
+  end if;
 
   for v_entry in
     select * from (values
@@ -50,10 +55,12 @@ begin
     on conflict (team_id, member_code) do nothing;
   end loop;
 
-  perform private.log_activity(
-    null, 'team.created', 'team', v_team, 'NestHire Team', null,
-    jsonb_build_object('name', 'NestHire Team', 'roster', 9), jsonb_build_object('reason', 'bootstrap')
-  );
+  if v_created then
+    perform private.log_activity(
+      null, 'team.created', 'team', v_team, 'NestHire Team', null,
+      jsonb_build_object('name', 'NestHire Team', 'roster', 9), jsonb_build_object('reason', 'bootstrap')
+    );
+  end if;
 end;
 $$;
 
