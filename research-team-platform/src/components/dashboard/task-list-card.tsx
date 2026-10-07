@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { PriorityBadge, ScheduleStatusBadge, TaskCode, TaskStatusBadge } from "@/components/shared/badges";
 import { DateText } from "@/components/shared/date-text";
@@ -14,7 +14,7 @@ import type { TaskListItem } from "@/types/app";
 /** Compact task list used by the dashboards (today, this week, overdue, review queue…). */
 export function TaskListCard({
   title,
-  icon: Icon,
+  icon,
   tasks,
   showAssignee = false,
   date = "due",
@@ -24,7 +24,8 @@ export function TaskListCard({
   className,
 }: {
   title: string;
-  icon?: LucideIcon;
+  /** A rendered icon element (components cannot be passed from Server Components). */
+  icon?: ReactNode;
   tasks: TaskListItem[];
   showAssignee?: boolean;
   date?: "due" | "start";
@@ -39,7 +40,7 @@ export function TaskListCard({
   return (
     <Card className={className}>
       <CardHeader className="flex flex-row items-center gap-2 space-y-0">
-        {Icon ? (
+        {icon ? (
           <span
             className={cn(
               "flex size-7 items-center justify-center rounded-md",
@@ -50,11 +51,14 @@ export function TaskListCard({
                   : "bg-primary/10 text-primary",
             )}
           >
-            <Icon className="size-4" aria-hidden />
+            {icon}
           </span>
         ) : null}
         <CardTitle className="text-base">{title}</CardTitle>
-        <Badge variant={tasks.length > 0 && tone === "critical" ? "destructive" : "secondary"} className="ms-auto tabular-nums">
+        <Badge
+          variant={tasks.length > 0 && tone === "critical" ? "destructive" : "secondary"}
+          className="ms-auto tabular-nums"
+        >
           {number(tasks.length)}
         </Badge>
       </CardHeader>

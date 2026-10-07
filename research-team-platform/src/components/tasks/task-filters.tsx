@@ -52,9 +52,20 @@ export function TaskFilters({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  const hasFilters = ["q", "status", "priority", "assignee", "project", "team", "month", "week", "schedule", "from", "to", "overdue"].some(
-    (key) => searchParams.has(key),
-  );
+  const hasFilters = [
+    "q",
+    "status",
+    "priority",
+    "assignee",
+    "project",
+    "team",
+    "month",
+    "week",
+    "schedule",
+    "from",
+    "to",
+    "overdue",
+  ].some((key) => searchParams.has(key));
 
   return (
     <div className={cn("flex flex-wrap items-center gap-2 transition-opacity", pending && "opacity-60")}>

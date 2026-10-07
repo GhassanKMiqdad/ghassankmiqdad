@@ -109,8 +109,21 @@ export default async function DashboardPage() {
     <section className="space-y-4" aria-label={t.planner.member}>
       <h2 className="text-lg font-semibold">{t.planner.member}</h2>
       <div className="grid gap-4 lg:grid-cols-3">
-        <TaskListCard title={t.planner.myTasks} icon={ListTodo} tasks={myOpen} href="/tasks?assignee=me" limit={6} />
-        <TaskListCard title={t.planner.mySchedule} icon={CalendarDays} tasks={mine.thisWeek} date="start" href="/schedule?assignee=me" limit={6} />
+        <TaskListCard
+          title={t.planner.myTasks}
+          icon={<ListTodo className="size-4" aria-hidden />}
+          tasks={myOpen}
+          href="/tasks?assignee=me"
+          limit={6}
+        />
+        <TaskListCard
+          title={t.planner.mySchedule}
+          icon={<CalendarDays className="size-4" aria-hidden />}
+          tasks={mine.thisWeek}
+          date="start"
+          href="/schedule?assignee=me"
+          limit={6}
+        />
         <div className="space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center gap-2 space-y-0">
@@ -131,7 +144,9 @@ export default async function DashboardPage() {
                 })}
               </p>
               {progress.onTimeRate !== null ? (
-                <p className="text-xs text-muted-foreground">{fmt(t.planner.onTimeRate, { rate: i18n.number(progress.onTimeRate) })}</p>
+                <p className="text-xs text-muted-foreground">
+                  {fmt(t.planner.onTimeRate, { rate: i18n.number(progress.onTimeRate) })}
+                </p>
               ) : null}
               {mine.overdue.length > 0 ? (
                 <p className="flex items-center gap-1.5 text-xs font-medium text-destructive">
@@ -199,15 +214,45 @@ export default async function DashboardPage() {
         <div className="grid gap-4 lg:grid-cols-3">
           <TaskListCard
             title={`${t.planner.today} · ${t.planner.dueToday}`}
-            icon={Sun}
+            icon={<Sun className="size-4" aria-hidden />}
             tasks={[...all.startingToday.filter((task) => !all.dueToday.includes(task)), ...all.dueToday]}
             showAssignee
           />
-          <TaskListCard title={t.planner.dueThisWeek} icon={CalendarClock} tasks={all.dueThisWeek} showAssignee href="/schedule?view=week" />
-          <TaskListCard title={t.planner.overdue} icon={AlertTriangle} tasks={all.overdue} showAssignee tone="critical" href="/tasks?schedule=overdue" />
-          <TaskListCard title={t.planner.dueSoon} icon={Clock3} tasks={all.dueSoon} showAssignee tone="warning" href="/tasks?schedule=due_soon" />
-          <TaskListCard title={t.planner.awaitingReview} icon={ShieldCheck} tasks={all.awaitingReview} showAssignee />
-          <TaskListCard title={t.planner.readyToPublish} icon={Megaphone} tasks={all.readyToPublish} showAssignee />
+          <TaskListCard
+            title={t.planner.dueThisWeek}
+            icon={<CalendarClock className="size-4" aria-hidden />}
+            tasks={all.dueThisWeek}
+            showAssignee
+            href="/schedule?view=week"
+          />
+          <TaskListCard
+            title={t.planner.overdue}
+            icon={<AlertTriangle className="size-4" aria-hidden />}
+            tasks={all.overdue}
+            showAssignee
+            tone="critical"
+            href="/tasks?schedule=overdue"
+          />
+          <TaskListCard
+            title={t.planner.dueSoon}
+            icon={<Clock3 className="size-4" aria-hidden />}
+            tasks={all.dueSoon}
+            showAssignee
+            tone="warning"
+            href="/tasks?schedule=due_soon"
+          />
+          <TaskListCard
+            title={t.planner.awaitingReview}
+            icon={<ShieldCheck className="size-4" aria-hidden />}
+            tasks={all.awaitingReview}
+            showAssignee
+          />
+          <TaskListCard
+            title={t.planner.readyToPublish}
+            icon={<Megaphone className="size-4" aria-hidden />}
+            tasks={all.readyToPublish}
+            showAssignee
+          />
         </div>
       </section>
 

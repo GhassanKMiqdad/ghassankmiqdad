@@ -67,7 +67,8 @@ function formatValue(
     case "status": {
       const raw = String(value);
       if (item.entityType === "task" && raw in t.taskStatus) return t.taskStatus[raw as keyof Dictionary["taskStatus"]];
-      if (item.entityType === "team" && raw in t.teams.status) return t.teams.status[raw as keyof Dictionary["teams"]["status"]];
+      if (item.entityType === "team" && raw in t.teams.status)
+        return t.teams.status[raw as keyof Dictionary["teams"]["status"]];
       if (item.entityType === "project" && raw in t.projectStatus) {
         return t.projectStatus[raw as keyof Dictionary["projectStatus"]];
       }

@@ -33,7 +33,9 @@ export async function createTeamAction(input: unknown): Promise<ActionResult<{ t
   return runAction(async () => {
     const values = parseInput(teamSchema, input);
     const supabase = await requireDirector();
-    const teamId = unwrap(await supabase.rpc("create_team", { p_name: values.name, p_description: values.description }));
+    const teamId = unwrap(
+      await supabase.rpc("create_team", { p_name: values.name, p_description: values.description }),
+    );
     revalidateTeams();
     return { teamId };
   });
@@ -44,7 +46,9 @@ export async function updateTeamAction(teamId: string, input: unknown): Promise<
     const id = parseInput(uuidField, teamId);
     const values = parseInput(teamSchema, input);
     const supabase = await requireDirector();
-    unwrap(await supabase.rpc("update_team", { p_team_id: id, p_name: values.name, p_description: values.description }));
+    unwrap(
+      await supabase.rpc("update_team", { p_team_id: id, p_name: values.name, p_description: values.description }),
+    );
     revalidateTeams();
     return null;
   });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Save } from "lucide-react";
 
@@ -34,7 +34,7 @@ export function TaskExecutionCard({
     resolver: zodResolver(taskProgressSchema),
     defaultValues: { progress, workNotes },
   });
-  const current = Number(form.watch("progress")) || 0;
+  const current = Number(useWatch({ control: form.control, name: "progress" })) || 0;
 
   if (!editable) {
     return (
@@ -51,7 +51,9 @@ export function TaskExecutionCard({
   }
 
   const onSubmit = form.handleSubmit(async () => {
-    const result = await run(() => updateTaskProgressAction(taskId, form.getValues()), { success: t.workflow.progressSaved });
+    const result = await run(() => updateTaskProgressAction(taskId, form.getValues()), {
+      success: t.workflow.progressSaved,
+    });
     if (result?.ok) router.refresh();
     else applyFieldErrors(result, form.setError);
   });

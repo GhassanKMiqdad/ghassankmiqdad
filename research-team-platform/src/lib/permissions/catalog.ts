@@ -189,14 +189,7 @@ export const ROLE_TEMPLATES: Record<ProjectRole, readonly PermissionKey[]> = {
     "members.manage",
     "data.export",
   ],
-  member: [
-    "project.view",
-    "tasks.edit_assigned",
-    "documents.view",
-    "documents.upload",
-    "comments.create",
-    "team.view",
-  ],
+  member: ["project.view", "tasks.edit_assigned", "documents.view", "documents.upload", "comments.create", "team.view"],
   reviewer: ["project.view", "tasks.view", "tasks.review", "documents.view", "comments.create", "team.view"],
 };
 

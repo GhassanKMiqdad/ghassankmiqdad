@@ -83,7 +83,7 @@ describe.skipIf(!env)("API security — direct requests that bypass the UI", () 
         ),
       ).toHaveLength(1);
       expect(
-        await rows(client.from("tasks").update({ priority: "critical" }).eq("id", f.tasks.ownedByMember).select("id")),
+        await rows(client.from("tasks").update({ priority: "p0" }).eq("id", f.tasks.assignedToMember).select("id")),
       ).toHaveLength(1);
 
       const granted = must(
@@ -114,31 +114,42 @@ describe.skipIf(!env)("API security — direct requests that bypass the UI", () 
   describe("research member", () => {
     it("cannot delete a task without the tasks.delete permission", async () => {
       const { member } = f.users;
-      for (const id of [f.tasks.assignedToMember, f.tasks.ownedByMember, f.tasks.assignedToManager]) {
+      for (const id of [f.tasks.assignedToMember, f.tasks.inReview, f.tasks.assignedToManager]) {
         expect(await rows(member.client.from("tasks").delete().eq("id", id).select("id"))).toEqual([]);
         expect(await taskExists(id)).toBe(true);
       }
     });
 
-    it("can edit a task assigned to them and a task they created", async () => {
+    it("executes a task assigned to them but cannot change its definition or schedule", async () => {
       const { member } = f.users;
       expect(
         await rows(
           member.client
             .from("tasks")
-            .update({ title: "Assigned — updated", status: "in_progress" })
+            .update({ status: "in_progress", progress: 30, work_notes: "Started" })
             .eq("id", f.tasks.assignedToMember)
-            .select("id"),
+            .select("actual_start_at"),
         ),
       ).toHaveLength(1);
-      expect(await taskTitle(f.tasks.assignedToMember)).toBe("Assigned — updated");
+      const started = must(
+        "read",
+        await f.admin.from("tasks").select("actual_start_at").eq("id", f.tasks.assignedToMember).single(),
+      );
+      expect(started.actual_start_at).not.toBeNull();
 
-      expect(
-        await rows(
-          member.client.from("tasks").update({ title: "Own — updated" }).eq("id", f.tasks.ownedByMember).select("id"),
-        ),
-      ).toHaveLength(1);
-      expect(await taskTitle(f.tasks.ownedByMember)).toBe("Own — updated");
+      const rename = await failure(
+        member.client.from("tasks").update({ title: "Renamed" }).eq("id", f.tasks.assignedToMember),
+      );
+      expect(rename.message).toBe("TASK_EDIT_FORBIDDEN");
+      expect(userMessage(rename)).toBe("لا يمكنك تعديل هذه المهمة.");
+      for (const change of [
+        { planned_start_at: new Date().toISOString() },
+        { planned_duration: 9, duration_unit: "days" as const },
+        { due_at: new Date(Date.now() + 864e5).toISOString(), due_at_overridden: true },
+      ]) {
+        const denied = await failure(member.client.from("tasks").update(change).eq("id", f.tasks.assignedToMember));
+        expect(denied.message).toBe("TASK_EDIT_FORBIDDEN");
+      }
     });
 
     it("cannot edit a task that another user created and that is not assigned to them", async () => {
@@ -166,9 +177,17 @@ describe.skipIf(!env)("API security — direct requests that bypass the UI", () 
       expect(approve.message).toBe("TASK_STATUS_FORBIDDEN");
 
       const move = await failure(
-        member.client.from("tasks").update({ project_id: f.projectB }).eq("id", f.tasks.ownedByMember),
+        member.client.from("tasks").update({ project_id: f.projectB }).eq("id", f.tasks.assignedToMember),
       );
       expect(move.code).toBe("42501");
+
+      const publish = await failure(
+        member.client.from("tasks").update({ visibility: "team" }).eq("id", f.tasks.assignedToMember),
+      );
+      expect(publish.code).toBe("42501");
+
+      const create = await failure(member.client.from("tasks").insert({ project_id: f.projectA, title: "Own task" }));
+      expect(create.message).toBe("PERMISSION_DENIED");
 
       const spoofCreator = await failure(
         member.client.from("tasks").insert({ project_id: f.projectA, title: "Spoofed", created_by: manager.id }),
@@ -229,7 +248,7 @@ describe.skipIf(!env)("API security — direct requests that bypass the UI", () 
 
   // -------------------------------------------------------------------------
   describe("reviewer", () => {
-    it("can approve work under review but cannot edit its content", async () => {
+    it("approves submitted work through the review workflow but cannot edit or shortcut it", async () => {
       const { reviewer } = f.users;
       const edit = await failure(
         reviewer.client.from("tasks").update({ title: "Rewritten" }).eq("id", f.tasks.inReview),
@@ -237,11 +256,18 @@ describe.skipIf(!env)("API security — direct requests that bypass the UI", () 
       expect(edit.message).toBe("TASK_EDIT_FORBIDDEN");
       expect(userMessage(edit)).toBe("لا يمكنك تعديل هذه المهمة.");
 
-      expect(
-        await rows(
-          reviewer.client.from("tasks").update({ status: "completed" }).eq("id", f.tasks.inReview).select("status"),
-        ),
-      ).toEqual([{ status: "completed" }]);
+      const shortcut = await failure(
+        reviewer.client.from("tasks").update({ status: "completed" }).eq("id", f.tasks.inReview),
+      );
+      expect(shortcut.message).toBe("TASK_STATUS_FORBIDDEN");
+
+      must("review", await reviewer.client.rpc("review_task", { p_task_id: f.tasks.inReview, p_decision: "approved" }));
+      const reviewed = must(
+        "read",
+        await f.admin.from("tasks").select("status, approved_at").eq("id", f.tasks.inReview).single(),
+      );
+      expect(reviewed.status).toBe("approved");
+      expect(reviewed.approved_at).not.toBeNull();
     });
   });
 
@@ -519,6 +545,153 @@ describe.skipIf(!env)("API security — direct requests that bypass the UI", () 
         });
         expect(response.status).toBe(401);
       }
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe("NestHire: private work until MARK AS COMPLETED (A / B / C)", () => {
+    it("A's work is private; after completion B (same team) sees only the final result and C (other team) nothing", async () => {
+      const { owner, member: a, colleague: b, outsider: c } = f.users;
+      const director = owner.client;
+
+      // Director builds the structure: Team Alpha (A, B) on project A, Team Beta (C) on project B.
+      const alpha = must(
+        "team alpha",
+        await director.rpc("create_team", { p_name: `IT ${f.run} Alpha`, p_description: "" }),
+      );
+      const beta = must(
+        "team beta",
+        await director.rpc("create_team", { p_name: `IT ${f.run} Beta`, p_description: "" }),
+      );
+      for (const [team, user, code] of [
+        [alpha, a, "AA"],
+        [alpha, b, "BB"],
+        [beta, c, "CC"],
+      ] as const) {
+        must(
+          `roster ${code}`,
+          await director.rpc("upsert_team_member", {
+            p_team_id: team,
+            p_member_id: null as unknown as string,
+            p_display_name: `Integration ${code}`,
+            p_member_code: code,
+            p_job_title: "Engineer",
+            p_role: "team_member",
+            p_invite_email: user.email,
+          }),
+        );
+      }
+      must("link A", await director.rpc("set_project_team", { p_project_id: f.projectA, p_team_id: alpha }));
+      must("link B", await director.rpc("set_project_team", { p_project_id: f.projectB, p_team_id: beta }));
+
+      // Team members cannot change the structure or roles.
+      expect((await failure(a.client.rpc("create_team", { p_name: "Shadow", p_description: "" }))).message).toBe(
+        "PERMISSION_DENIED",
+      );
+      expect((await failure(a.client.rpc("set_user_director", { p_user_id: a.id, p_is_director: true }))).message).toBe(
+        "PERMISSION_DENIED",
+      );
+
+      const task = must(
+        "assign",
+        await director
+          .from("tasks")
+          .insert({
+            project_id: f.projectA,
+            title: "Private research result",
+            assigned_to: a.id,
+            planned_start_at: new Date(Date.now() - 36e5).toISOString(),
+            planned_duration: 2,
+            duration_unit: "days",
+          })
+          .select("id, task_code, due_at, planned_start_at")
+          .single(),
+      );
+      expect(task.task_code).toMatch(/^M01-AA-00-\d{2}$/);
+      expect(new Date(task.due_at!).getTime() - new Date(task.planned_start_at!).getTime()).toBe(2 * 864e5);
+
+      // Researcher A works and submits.
+      must("start", await a.client.from("tasks").update({ status: "in_progress" }).eq("id", task.id).select("id"));
+      must(
+        "submit v1",
+        await a.client.rpc("submit_task", {
+          p_task_id: task.id,
+          p_summary: "Draft result",
+          p_deliverable_links: [],
+          p_notes: "",
+        }),
+      );
+
+      // B and C see nothing of the private work.
+      for (const viewer of [b, c]) {
+        expect(await rows(viewer.client.from("tasks").select("id").eq("id", task.id))).toEqual([]);
+        expect(await rows(viewer.client.from("task_submissions").select("id").eq("task_id", task.id))).toEqual([]);
+        expect(await rows(viewer.client.from("task_publications").select("task_id").eq("task_id", task.id))).toEqual(
+          [],
+        );
+      }
+
+      // A cannot publish or complete their own work.
+      expect((await failure(a.client.from("tasks").update({ visibility: "team" }).eq("id", task.id))).code).toBe(
+        "42501",
+      );
+      expect((await failure(a.client.from("tasks").update({ status: "completed" }).eq("id", task.id))).message).toBe(
+        "TASK_STATUS_FORBIDDEN",
+      );
+      expect((await failure(a.client.rpc("complete_task", { p_task_id: task.id, p_team_comment: "" }))).message).toBe(
+        "PERMISSION_DENIED",
+      );
+
+      // Revision loop, approval and MARK AS COMPLETED by the Director.
+      must(
+        "revision",
+        await director.rpc("review_task", {
+          p_task_id: task.id,
+          p_decision: "revision_required",
+          p_required_changes: "Add the evaluation table",
+        }),
+      );
+      must(
+        "submit v2",
+        await a.client.rpc("submit_task", {
+          p_task_id: task.id,
+          p_summary: "Final result with evaluation",
+          p_deliverable_links: ["https://example.com/final"],
+          p_notes: "",
+        }),
+      );
+      must("approve", await director.rpc("review_task", { p_task_id: task.id, p_decision: "approved" }));
+      must(
+        "complete",
+        await director.rpc("complete_task", { p_task_id: task.id, p_team_comment: "Published for the team" }),
+      );
+
+      // B sees the final result only — no task record, drafts, versions or review notes.
+      expect(
+        await rows(
+          b.client
+            .from("task_publications")
+            .select("task_code, final_result, deliverable_links, team_comment")
+            .eq("task_id", task.id),
+        ),
+      ).toEqual([
+        {
+          task_code: task.task_code,
+          final_result: "Final result with evaluation",
+          deliverable_links: ["https://example.com/final"],
+          team_comment: "Published for the team",
+        },
+      ]);
+      expect(await rows(b.client.from("tasks").select("id").eq("id", task.id))).toEqual([]);
+      expect(await rows(b.client.from("task_submissions").select("id").eq("task_id", task.id))).toEqual([]);
+      expect(await rows(b.client.from("task_reviews").select("id").eq("task_id", task.id))).toEqual([]);
+
+      // C, in another team, still sees nothing.
+      expect(await rows(c.client.from("task_publications").select("task_id").eq("task_id", task.id))).toEqual([]);
+
+      // A keeps both versions and the review history.
+      expect((await rows(a.client.from("task_submissions").select("version").eq("task_id", task.id))).length).toBe(2);
+      expect((await rows(a.client.from("task_reviews").select("decision").eq("task_id", task.id))).length).toBe(2);
     });
   });
 });

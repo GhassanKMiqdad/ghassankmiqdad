@@ -47,10 +47,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b bg-background/85 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/70 lg:px-8">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-1 border-b bg-background/85 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/70 sm:gap-2 lg:px-8">
           <MobileNav visible={visible} />
-          <Brand name={t.app.name} className="lg:hidden" />
-          <div className="flex-1" />
+          <Brand name={t.app.name} className="min-w-0 flex-1 lg:hidden" />
+          <div className="flex-1 max-sm:hidden" />
           <NotificationBell unread={unread} />
           <LocaleSwitcher />
           <ThemeToggle />

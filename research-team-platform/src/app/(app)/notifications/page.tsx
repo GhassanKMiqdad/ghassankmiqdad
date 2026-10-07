@@ -42,7 +42,10 @@ export default async function NotificationsPage() {
                 return (
                   <li key={item.id} className={cn("flex items-start gap-3 px-4 py-3", !item.readAt && "bg-primary/5")}>
                     <span
-                      className={cn("mt-1.5 size-2 shrink-0 rounded-full", item.readAt ? "bg-transparent" : "bg-primary")}
+                      className={cn(
+                        "mt-1.5 size-2 shrink-0 rounded-full",
+                        item.readAt ? "bg-transparent" : "bg-primary",
+                      )}
                       aria-hidden
                     />
                     <div className="min-w-0 flex-1 space-y-0.5">

@@ -20,7 +20,9 @@ export async function listTeams(): Promise<TeamSummary[]> {
     name: team.name,
     description: team.description,
     memberCount: memberRows.filter((member) => member.team_id === team.id && member.status !== "inactive").length,
-    projects: projectRows.filter((project) => project.team_id === team.id).map((project) => ({ id: project.id, name: project.name })),
+    projects: projectRows
+      .filter((project) => project.team_id === team.id)
+      .map((project) => ({ id: project.id, name: project.name })),
   }));
 }
 
@@ -30,12 +32,19 @@ export async function getTeamRoster(teamId: string, includeInvites: boolean): Pr
   const [rows, invites] = await Promise.all([
     supabase
       .from("team_members")
-      .select("id, team_id, user_id, display_name, member_code, job_title, role, status, account:profiles!team_members_user_id_fkey(email)")
+      .select(
+        "id, team_id, user_id, display_name, member_code, job_title, role, status, account:profiles!team_members_user_id_fkey(email)",
+      )
       .eq("team_id", teamId),
-    includeInvites ? supabase.rpc("get_team_invites", { p_team_id: teamId }) : Promise.resolve({ data: [], error: null }),
+    includeInvites
+      ? supabase.rpc("get_team_invites", { p_team_id: teamId })
+      : Promise.resolve({ data: [], error: null }),
   ]);
   const inviteMap = new Map<string, string>(
-    (unwrap(invites) as { team_member_id: string; email: string }[]).map((invite) => [invite.team_member_id, invite.email]),
+    (unwrap(invites) as { team_member_id: string; email: string }[]).map((invite) => [
+      invite.team_member_id,
+      invite.email,
+    ]),
   );
   const order: Record<TeamRole, number> = { team_lead: 0, team_member: 1 };
   return unwrap(rows)
@@ -93,15 +102,15 @@ export async function getRosterIndex(teamId: string | null) {
  * Published final results (RLS: the task's team, supervisors and Directors).
  * The publication is a sanitized copy: no drafts, earlier versions or review notes.
  */
-export async function listPublications(options: { teamId?: string; projectId?: string; limit?: number } = {}): Promise<PublicationItem[]> {
+export async function listPublications(
+  options: { teamId?: string; projectId?: string; limit?: number } = {},
+): Promise<PublicationItem[]> {
   const supabase = await createSupabaseServerClient();
-  let query = supabase
-    .from("task_publications")
-    .select(
-      `task_id, project_id, team_id, task_code, title, responsible_name, responsible_title, final_result,
+  let query = supabase.from("task_publications").select(
+    `task_id, project_id, team_id, task_code, title, responsible_name, responsible_title, final_result,
        deliverable_links, team_comment, final_submission_version, completed_at,
        team:teams(name), project:projects(name)`,
-    );
+  );
   if (options.teamId) query = query.eq("team_id", options.teamId);
   if (options.projectId) query = query.eq("project_id", options.projectId);
   const rows = unwrap(await query.order("completed_at", { ascending: false }).limit(options.limit ?? 100));
@@ -126,9 +135,7 @@ export async function listPublications(options: { teamId?: string; projectId?: s
 /** Platform users with their Director flag (Directors / platform admins). */
 export async function listDirectorCandidates() {
   const supabase = await createSupabaseServerClient();
-  const rows = unwrap(
-    await supabase.from("profiles").select("id, full_name, email, is_director").order("full_name"),
-  );
+  const rows = unwrap(await supabase.from("profiles").select("id, full_name, email, is_director").order("full_name"));
   return rows.map((row) => ({
     id: row.id,
     name: row.full_name.trim() || row.email || "—",
@@ -140,7 +147,11 @@ export async function listDirectorCandidates() {
 /** The team a project belongs to (name visible to its members). */
 export async function getProjectTeam(projectId: string): Promise<{ id: string; name: string } | null> {
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase.from("projects").select("team_id, team:teams(id, name)").eq("id", projectId).maybeSingle();
+  const { data } = await supabase
+    .from("projects")
+    .select("team_id, team:teams(id, name)")
+    .eq("id", projectId)
+    .maybeSingle();
   if (!data?.team_id) return null;
   return { id: data.team_id, name: data.team?.name ?? "" };
 }

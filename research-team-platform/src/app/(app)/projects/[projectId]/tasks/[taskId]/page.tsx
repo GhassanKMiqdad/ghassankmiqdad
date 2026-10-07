@@ -26,13 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getI18n } from "@/lib/i18n/server";
 import { toAccessDTO } from "@/lib/permissions/access";
-import {
-  can,
-  canDeleteTasks,
-  canSuperviseTasks,
-  canUpdateTask,
-  canUpdateTaskProgress,
-} from "@/lib/permissions/policy";
+import { can, canDeleteTasks, canSuperviseTasks, canUpdateTask, canUpdateTaskProgress } from "@/lib/permissions/policy";
 import { getProjectAccess } from "@/server/access";
 import { listActivity } from "@/server/queries/activity";
 import { listComments } from "@/server/queries/comments";
@@ -221,7 +215,9 @@ export default async function TaskPage(props: PageProps<"/projects/[projectId]/t
                       <UserAvatar name={task.assignee.name} seed={task.assignee.id} className="size-6" />
                       <span className="text-start">
                         <span className="block">{task.assignee.name}</span>
-                        <span className="block text-xs text-muted-foreground">{task.assigneeTitle ?? t.tasks.noJobTitle}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {task.assigneeTitle ?? t.tasks.noJobTitle}
+                        </span>
                       </span>
                     </span>
                   ) : (
@@ -232,7 +228,10 @@ export default async function TaskPage(props: PageProps<"/projects/[projectId]/t
                 {task.teamName ? <DetailRow label={t.tasks.fields.team}>{task.teamName}</DetailRow> : null}
                 <DetailRow label={t.tasks.fields.planningWeek}>
                   {task.planningWeek
-                    ? fmt(t.tasks.planLabel, { month: String(task.planningMonth).padStart(2, "0"), week: task.planningWeek })
+                    ? fmt(t.tasks.planLabel, {
+                        month: String(task.planningMonth).padStart(2, "0"),
+                        week: task.planningWeek,
+                      })
                     : fmt(t.tasks.planMonthOnly, { month: String(task.planningMonth).padStart(2, "0") })}
                 </DetailRow>
                 {planned ? (
@@ -244,7 +243,9 @@ export default async function TaskPage(props: PageProps<"/projects/[projectId]/t
                       {task.plannedDuration && task.durationUnit
                         ? fmt(t.tasks.durationValue, {
                             value: i18n.number(task.plannedDuration),
-                            unit: t.durationUnits[task.durationUnit],
+                            unit: (task.plannedDuration === 1 ? t.durationUnitsOne : t.durationUnits)[
+                              task.durationUnit
+                            ],
                           })
                         : "—"}
                     </DetailRow>

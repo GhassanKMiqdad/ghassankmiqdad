@@ -206,7 +206,9 @@ export function TeamProjects({
                 aria-label={t.teams.unlinkProject}
                 disabled={pending}
                 onClick={async () => {
-                  const result = await run(() => setProjectTeamAction(project.id, null), { success: t.teams.projectUnlinked });
+                  const result = await run(() => setProjectTeamAction(project.id, null), {
+                    success: t.teams.projectUnlinked,
+                  });
                   if (result?.ok) router.refresh();
                 }}
               >

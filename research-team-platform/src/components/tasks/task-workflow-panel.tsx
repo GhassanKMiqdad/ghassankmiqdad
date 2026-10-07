@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Ban,
@@ -96,7 +96,12 @@ export function TaskWorkflowPanel({ task, access }: { task: WorkflowTask; access
   }
   if (task.status === "revision_required" && can("in_progress")) {
     actions.push(
-      <Button key="resume" variant="outline" onClick={() => changeStatus("in_progress", t.workflow.started)} disabled={pending}>
+      <Button
+        key="resume"
+        variant="outline"
+        onClick={() => changeStatus("in_progress", t.workflow.started)}
+        disabled={pending}
+      >
         <RotateCcw aria-hidden />
         {t.workflow.resume}
       </Button>,
@@ -129,7 +134,12 @@ export function TaskWorkflowPanel({ task, access }: { task: WorkflowTask; access
   }
   if (task.status === "blocked" && can("in_progress")) {
     actions.push(
-      <Button key="unblock" variant="outline" onClick={() => changeStatus("in_progress", fmt(t.workflow.statusChanged, { status: t.taskStatus.in_progress }))} disabled={pending}>
+      <Button
+        key="unblock"
+        variant="outline"
+        onClick={() => changeStatus("in_progress", fmt(t.workflow.statusChanged, { status: t.taskStatus.in_progress }))}
+        disabled={pending}
+      >
         <Undo2 aria-hidden />
         {t.workflow.unblock}
       </Button>,
@@ -137,7 +147,12 @@ export function TaskWorkflowPanel({ task, access }: { task: WorkflowTask; access
   }
   if (supervisor && can("blocked") && task.status !== "blocked") {
     actions.push(
-      <Button key="block" variant="ghost" onClick={() => changeStatus("blocked", fmt(t.workflow.statusChanged, { status: t.taskStatus.blocked }))} disabled={pending}>
+      <Button
+        key="block"
+        variant="ghost"
+        onClick={() => changeStatus("blocked", fmt(t.workflow.statusChanged, { status: t.taskStatus.blocked }))}
+        disabled={pending}
+      >
         <CircleSlash aria-hidden />
         {t.workflow.block}
       </Button>,
@@ -145,7 +160,12 @@ export function TaskWorkflowPanel({ task, access }: { task: WorkflowTask; access
   }
   if (task.status === "cancelled" && can("not_started")) {
     actions.push(
-      <Button key="reopen" variant="outline" onClick={() => changeStatus("not_started", fmt(t.workflow.statusChanged, { status: t.taskStatus.not_started }))} disabled={pending}>
+      <Button
+        key="reopen"
+        variant="outline"
+        onClick={() => changeStatus("not_started", fmt(t.workflow.statusChanged, { status: t.taskStatus.not_started }))}
+        disabled={pending}
+      >
         <RotateCcw aria-hidden />
         {t.workflow.reopen}
       </Button>,
@@ -302,7 +322,7 @@ function ReviewDialog({ taskId }: { taskId: string }) {
     resolver: zodResolver(reviewTaskSchema),
     defaultValues: { decision: "approved", comment: "", requiredChanges: "", additionalInstructions: "", newDueAt: "" },
   });
-  const decision = form.watch("decision");
+  const decision = useWatch({ control: form.control, name: "decision" });
 
   const onSubmit = form.handleSubmit(async () => {
     const values = form.getValues();
@@ -475,7 +495,11 @@ function CompleteDialog({ taskId }: { taskId: string }) {
               <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={pending}>
                 {t.common.cancel}
               </Button>
-              <Button type="submit" disabled={pending} className="bg-success text-success-foreground hover:bg-success/90">
+              <Button
+                type="submit"
+                disabled={pending}
+                className="bg-success text-success-foreground hover:bg-success/90"
+              >
                 {pending ? <Loader2 className="animate-spin" aria-hidden /> : <Megaphone aria-hidden />}
                 {t.workflow.markCompleted}
               </Button>

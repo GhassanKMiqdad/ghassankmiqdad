@@ -61,7 +61,9 @@ export default async function ReportsPage(props: PageProps<"/reports">) {
                   <TableCell className="text-end tabular-nums">{i18n.number(row.total)}</TableCell>
                   <TableCell className="text-end tabular-nums">{i18n.number(row.completed)}</TableCell>
                   <TableCell className="text-end tabular-nums">{i18n.number(row.completedOnTime)}</TableCell>
-                  <TableCell className={`text-end tabular-nums ${row.overdue > 0 ? "font-semibold text-destructive" : ""}`}>
+                  <TableCell
+                    className={`text-end tabular-nums ${row.overdue > 0 ? "font-semibold text-destructive" : ""}`}
+                  >
                     {i18n.number(row.overdue)}
                   </TableCell>
                   <TableCell className="text-end tabular-nums">{i18n.number(row.inReview)}</TableCell>

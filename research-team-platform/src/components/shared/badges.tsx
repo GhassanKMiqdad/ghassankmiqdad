@@ -165,7 +165,11 @@ export function VisibilityBadge({ visibility, className }: { visibility: TaskVis
   const { t } = useI18n();
   const Icon = visibility === "team" ? Globe2 : Lock;
   return (
-    <Badge variant={visibility === "team" ? "success" : "secondary"} className={cn("gap-1", className)} title={t.tasks.visibilityHint[visibility]}>
+    <Badge
+      variant={visibility === "team" ? "success" : "secondary"}
+      className={cn("gap-1", className)}
+      title={t.tasks.visibilityHint[visibility]}
+    >
       <Icon aria-hidden />
       {t.tasks.visibility[visibility]}
     </Badge>
@@ -192,7 +196,10 @@ export type OrgRole = "director" | "team_lead" | "team_member";
 export function OrgRoleBadge({ role, className }: { role: OrgRole; className?: string }) {
   const { t } = useI18n();
   return (
-    <Badge variant={role === "director" ? "default" : role === "team_lead" ? "info" : "secondary"} className={className}>
+    <Badge
+      variant={role === "director" ? "default" : role === "team_lead" ? "info" : "secondary"}
+      className={className}
+    >
       {t.orgRoles[role]}
     </Badge>
   );

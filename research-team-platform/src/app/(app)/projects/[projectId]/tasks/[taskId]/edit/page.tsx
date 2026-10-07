@@ -30,7 +30,9 @@ export default async function EditTaskPage(props: PageProps<"/projects/[projectI
   if (!canUpdateTask(access, snapshot)) return <AccessDenied message={t.errors.TASK_EDIT_FORBIDDEN} />;
 
   const members =
-    can(access, "team.view") || canAssignTasks(access) ? await listAssignableMembersWithRoster(projectId, task.teamId) : [];
+    can(access, "team.view") || canAssignTasks(access)
+      ? await listAssignableMembersWithRoster(projectId, task.teamId)
+      : [];
 
   return (
     <div className="space-y-6">

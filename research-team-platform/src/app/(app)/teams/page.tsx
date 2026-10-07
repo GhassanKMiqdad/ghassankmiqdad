@@ -132,7 +132,11 @@ export default async function TeamsPage() {
                         {person.email}
                       </TableCell>
                       <TableCell className="pe-3 text-end">
-                        <DirectorSwitch userId={person.id} isDirector={person.isDirector} self={person.id === profile.id} />
+                        <DirectorSwitch
+                          userId={person.id}
+                          isDirector={person.isDirector}
+                          self={person.id === profile.id}
+                        />
                       </TableCell>
                     </TableRow>
                   ))}

@@ -119,14 +119,30 @@ describe("domain validation", () => {
   });
 
   it("parses deliverable links one per line and rejects non-http links", () => {
-    const parsed = submitTaskSchema.parse({ summary: "Done", links: "https://a.example\n\n http://b.example ", notes: "" });
+    const parsed = submitTaskSchema.parse({
+      summary: "Done",
+      links: "https://a.example\n\n http://b.example ",
+      notes: "",
+    });
     expect(parsed.links).toEqual(["https://a.example", "http://b.example"]);
-    expect(submitTaskSchema.safeParse({ summary: "Done", links: "javascript:alert(1)", notes: "" }).success).toBe(false);
+    expect(submitTaskSchema.safeParse({ summary: "Done", links: "javascript:alert(1)", notes: "" }).success).toBe(
+      false,
+    );
     expect(submitTaskSchema.safeParse({ summary: " ", links: "", notes: "" }).success).toBe(false);
   });
 
   it("a revision request must say what to change", () => {
-    expect(reviewTaskSchema.safeParse({ decision: "revision_required", comment: "", requiredChanges: "", additionalInstructions: "" }).success).toBe(false);
-    expect(reviewTaskSchema.safeParse({ decision: "approved", comment: "", requiredChanges: "", additionalInstructions: "" }).success).toBe(true);
+    expect(
+      reviewTaskSchema.safeParse({
+        decision: "revision_required",
+        comment: "",
+        requiredChanges: "",
+        additionalInstructions: "",
+      }).success,
+    ).toBe(false);
+    expect(
+      reviewTaskSchema.safeParse({ decision: "approved", comment: "", requiredChanges: "", additionalInstructions: "" })
+        .success,
+    ).toBe(true);
   });
 });

@@ -32,7 +32,13 @@ export function TasksByMemberChart({ data }: { data: MemberRow[] }) {
       description={t.dashboard.tasksByMemberDescription}
       empty={rows.length === 0}
       table={{
-        columns: [t.dashboard.member, t.dashboard.open, t.planner.overdueTasks, t.dashboard.completed, t.dashboard.total],
+        columns: [
+          t.dashboard.member,
+          t.dashboard.open,
+          t.planner.overdueTasks,
+          t.dashboard.completed,
+          t.dashboard.total,
+        ],
         rows: rows.map((row) => [row.name, row.open, row.overdue ?? 0, row.completed, row.total]),
       }}
     >

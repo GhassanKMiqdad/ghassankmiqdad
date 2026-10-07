@@ -173,7 +173,8 @@ begin
     -- Schedule and manual task IDs are supervisor decisions.
     if not v_supervisor and (
          new.planned_start_at is not null or new.planned_duration is not null or new.due_at is not null
-         or new.planning_week is not null or new.planning_month <> 1 or new.task_code is not null
+         or new.planning_week is not null or new.planning_month <> 1
+         or nullif(btrim(coalesce(new.task_code, '')), '') is not null
        ) then
       raise exception using errcode = '42501', message = 'TASK_EDIT_FORBIDDEN';
     end if;

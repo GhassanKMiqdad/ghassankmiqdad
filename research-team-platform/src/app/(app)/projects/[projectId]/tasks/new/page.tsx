@@ -25,7 +25,9 @@ export default async function NewTaskPage(props: PageProps<"/projects/[projectId
 
   const team = await getProjectTeam(projectId);
   const members =
-    can(access, "team.view") || canAssignTasks(access) ? await listAssignableMembersWithRoster(projectId, team?.id ?? null) : [];
+    can(access, "team.view") || canAssignTasks(access)
+      ? await listAssignableMembersWithRoster(projectId, team?.id ?? null)
+      : [];
 
   return (
     <div className="space-y-6">

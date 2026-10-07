@@ -30,7 +30,10 @@ export function PriorityOverview({ data }: { data: Record<TaskPriority, number> 
               <li key={priority} className="grid grid-cols-[7.5rem_1fr_2.5rem] items-center gap-3">
                 <PriorityBadge priority={priority} />
                 <div className="h-2.5 overflow-hidden rounded-full bg-muted">
-                  <div className={`h-full rounded-full ${BAR[priority]}`} style={{ width: `${(value / max) * 100}%` }} />
+                  <div
+                    className={`h-full rounded-full ${BAR[priority]}`}
+                    style={{ width: `${(value / max) * 100}%` }}
+                  />
                 </div>
                 <span className="text-end text-sm font-semibold tabular-nums">{number(value)}</span>
               </li>

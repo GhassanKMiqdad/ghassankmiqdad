@@ -67,7 +67,9 @@ export function TaskTable({ tasks, showProject = false }: { tasks: TaskListItem[
                       <span className="min-w-0">
                         <span className="block max-w-36 truncate">{task.assignee.name}</span>
                         {task.assigneeTitle ? (
-                          <span className="block max-w-36 truncate text-xs text-muted-foreground">{task.assigneeTitle}</span>
+                          <span className="block max-w-36 truncate text-xs text-muted-foreground">
+                            {task.assigneeTitle}
+                          </span>
                         ) : null}
                       </span>
                     </span>
@@ -77,7 +79,10 @@ export function TaskTable({ tasks, showProject = false }: { tasks: TaskListItem[
                 </TableCell>
                 <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
                   {task.planningWeek
-                    ? fmt(t.tasks.planLabel, { month: String(task.planningMonth).padStart(2, "0"), week: task.planningWeek })
+                    ? fmt(t.tasks.planLabel, {
+                        month: String(task.planningMonth).padStart(2, "0"),
+                        week: task.planningWeek,
+                      })
                     : fmt(t.tasks.planMonthOnly, { month: String(task.planningMonth).padStart(2, "0") })}
                 </TableCell>
                 <TableCell>

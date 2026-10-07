@@ -42,10 +42,16 @@ export function TaskDependencies({
               {dependency.done ? (
                 <CheckCircle2 className="size-4 shrink-0 text-success" aria-label={t.dependencies.done} />
               ) : (
-                <Hourglass className="size-4 shrink-0 text-warning-foreground dark:text-warning" aria-label={t.dependencies.blocked} />
+                <Hourglass
+                  className="size-4 shrink-0 text-warning-foreground dark:text-warning"
+                  aria-label={t.dependencies.blocked}
+                />
               )}
               <TaskCode code={dependency.code} />
-              <Link href={`/projects/${projectId}/tasks/${dependency.taskId}`} className="min-w-0 flex-1 truncate hover:underline">
+              <Link
+                href={`/projects/${projectId}/tasks/${dependency.taskId}`}
+                className="min-w-0 flex-1 truncate hover:underline"
+              >
                 {dependency.title}
               </Link>
               <TaskStatusBadge status={dependency.status} />

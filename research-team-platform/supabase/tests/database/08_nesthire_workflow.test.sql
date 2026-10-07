@@ -10,7 +10,8 @@ begin;
 select plan(66);
 
 select tests.setup_world();
-update public.profiles set is_director = true where id = tests.uid('owner');
+-- The fixture's owner is the only Director inside this (rolled back) transaction.
+update public.profiles set is_director = (id = tests.uid('owner'));
 
 -- ---------------------------------------------------------------------------
 -- Role model: only the Director manages teams and roles
@@ -51,7 +52,8 @@ select throws_ok(
 select tests.clear_authentication();
 
 select results_eq(
-  $$ select tm.member_code, tm.status::text, tm.user_id from public.team_members tm order by tm.member_code $$,
+  $$ select tm.member_code, tm.status::text, tm.user_id from public.team_members tm
+     where tm.team_id in (select id from ids where key in ('alpha', 'beta')) order by tm.member_code $$,
   format(
     $$ values ('AH', 'active', %L::uuid), ('OU', 'active', %L::uuid), ('RM', 'active', %L::uuid), ('SA', 'active', %L::uuid) $$,
     tests.uid('member'), tests.uid('outsider'), tests.uid('manager'), tests.uid('member2')
@@ -64,7 +66,9 @@ select results_eq(
   'linking a project to a team adds the roster to the project as members'
 );
 select is(
-  (select count(*)::int from public.activity_logs where action in ('team.created', 'team.member_added', 'team.member_linked', 'project.team_changed')),
+  (select count(*)::int from public.activity_logs
+   where action in ('team.created', 'team.member_added', 'team.member_linked', 'project.team_changed')
+     and (entity_id in (select id from ids where key in ('alpha', 'beta')) or project_id in (tests.uid('project_a'), tests.uid('project_b')))),
   12,
   'team and role changes are audited'
 );
@@ -108,12 +112,14 @@ insert into public.tasks (
   'p0', tests.uid('member'), 1, 1, '2026-11-02 09:00+02', 3, 'days'
 );
 insert into ids select 'task', id from public.tasks where title = 'Train baseline model';
+create temporary table ids_codes on commit drop as select task_code from public.tasks where title = 'Train baseline model';
+grant select on ids_codes to authenticated;
 insert into public.tasks (project_id, title, assigned_to, planned_start_at, planned_duration, duration_unit)
 values (tests.uid('project_a'), 'Hours task', tests.uid('member2'), '2026-11-02 09:00+02', 6, 'hours');
 insert into public.tasks (project_id, title, assigned_to, planned_start_at, planned_duration, duration_unit)
 values (tests.uid('project_a'), 'Weeks task', tests.uid('member2'), '2026-11-02 09:00+02', 2, 'weeks');
 insert into public.tasks (project_id, title, assigned_to, task_code, planned_start_at, planned_duration, duration_unit, due_at, due_at_overridden)
-values (tests.uid('project_a'), 'Overridden deadline', tests.uid('member2'), 'm01-gh-01-01', '2026-11-02 09:00+02', 1, 'days', '2026-11-06 17:00+02', true);
+values (tests.uid('project_a'), 'Overridden deadline', tests.uid('member2'), 't01-gh-01-01', '2026-11-02 09:00+02', 1, 'days', '2026-11-06 17:00+02', true);
 insert into public.tasks (project_id, title, assigned_to)
 values (tests.uid('project_a'), 'Not yet planned', tests.uid('member2'));
 select tests.clear_authentication();
@@ -131,10 +137,10 @@ select results_eq(
   $$ values (null::timestamptz, null::timestamptz, 'not_started'::text, 'unscheduled'::text) $$,
   'no dates are invented: an unplanned task stays unscheduled'
 );
-select is((select task_code from public.tasks where title = 'Train baseline model'), 'M01-AH-01-01', 'the task ID uses month, member code, week and sequence');
-select is((select task_code from public.tasks where title = 'Overridden deadline'), 'M01-GH-01-01', 'an existing task ID entered by the supervisor is preserved');
+select matches((select task_code from public.tasks where title = 'Train baseline model'), '^M01-AH-01-[0-9]{2}$', 'the task ID uses month, member code, week and sequence');
+select is((select task_code from public.tasks where title = 'Overridden deadline'), 'T01-GH-01-01', 'an existing task ID entered by the supervisor is preserved');
 select throws_ok(
-  format($$ insert into public.tasks (project_id, title, task_code) values (%L, 'Duplicate ID', 'M01-GH-01-01') $$, tests.uid('project_a')),
+  format($$ insert into public.tasks (project_id, title, task_code) values (%L, 'Duplicate ID', 'T01-GH-01-01') $$, tests.uid('project_a')),
   '23505', null,
   'task IDs are unique'
 );
@@ -314,9 +320,10 @@ select results_eq(
 -- ---------------------------------------------------------------------------
 select tests.authenticate_as('member2');
 select results_eq(
-  $$ select task_code, title, responsible_name, responsible_title, final_result, deliverable_links, team_comment
+  $$ select task_code = (select task_code from ids_codes), title, responsible_name, responsible_title, final_result,
+            deliverable_links, team_comment
      from public.task_publications $$,
-  $$ values ('M01-AH-01-01'::text, 'Train baseline model'::text, 'Ahmad'::text, 'ML Engineer'::text,
+  $$ values (true, 'Train baseline model'::text, 'Ahmad'::text, 'ML Engineer'::text,
              'Final: baseline F1 0.83'::text, array['https://example.com/v2']::text[],
              'Baseline approved — use it as the reference model'::text) $$,
   'audit 8: B (same team) sees the task ID, title, responsible, final result, deliverables and team comment'

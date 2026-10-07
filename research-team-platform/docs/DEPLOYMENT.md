@@ -166,7 +166,11 @@ Supabase، وبعدد محدود جدًا من الرسائل في الساعة.
 ## التحديثات لاحقًا
 
 - أي دفع (push) إلى `main` يعيد النشر على Vercel تلقائيًا.
-- عند وجود ترحيلات جديدة في `supabase/migrations`: `npx supabase link` ثم `npx supabase db push`.
+- عند وجود ترحيلات جديدة في `supabase/migrations`: `npx supabase link` ثم `npx supabase db push`
+  (أو نفّذ ملفات الترحيل الجديدة بالترتيب في SQL Editor).
+- ترقية NestHire (جدولة المهام وسير التنفيذ): طبّق ملفات `20261007000100…000500` بالترتيب **مع**
+  نشر الكود الجديد، ثم نفّذ مرة واحدة `scripts/sql/nesthire-team.sql` لإنشاء فريق NestHire
+  بأعضائه التسعة ورموزهم (انظر [NESTHIRE.md](NESTHIRE.md)).
 - لتجنب إعادة البناء عند تعديل ملفات خارج المشروع (مثل README الحساب الشخصي): في Vercel ←
   **Settings ← Git ← Ignored Build Step** ضع الأمر `git diff --quiet HEAD^ HEAD -- .`
 

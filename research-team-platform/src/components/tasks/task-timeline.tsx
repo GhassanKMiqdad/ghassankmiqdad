@@ -21,10 +21,18 @@ type TimelineEvent = {
  */
 export function TaskTimeline({ task, submissions }: { task: TaskDetails; submissions: SubmissionItem[] }) {
   const { t, fmt, date } = useI18n();
-  const events: TimelineEvent[] = [{ key: "created", at: task.createdAt, label: t.timeline.created, icon: CircleDot, tone: "default" }];
+  const events: TimelineEvent[] = [
+    { key: "created", at: task.createdAt, label: t.timeline.created, icon: CircleDot, tone: "default" },
+  ];
 
   if (task.plannedStartAt) {
-    events.push({ key: "planned", at: task.plannedStartAt, label: t.timeline.plannedStart, icon: CalendarClock, tone: "planned" });
+    events.push({
+      key: "planned",
+      at: task.plannedStartAt,
+      label: t.timeline.plannedStart,
+      icon: CalendarClock,
+      tone: "planned",
+    });
   }
   if (task.actualStartAt) {
     events.push({ key: "started", at: task.actualStartAt, label: t.timeline.actualStart, icon: Play, tone: "default" });
@@ -36,7 +44,11 @@ export function TaskTimeline({ task, submissions }: { task: TaskDetails; submiss
       label: fmt(t.timeline.submitted, { version: submission.version }),
       icon: Send,
       tone: "default",
-      note: task.dueAt ? (new Date(submission.submittedAt) <= new Date(task.dueAt) ? t.timeline.onTime : t.timeline.late) : undefined,
+      note: task.dueAt
+        ? new Date(submission.submittedAt) <= new Date(task.dueAt)
+          ? t.timeline.onTime
+          : t.timeline.late
+        : undefined,
     });
     for (const review of submission.reviews) {
       events.push({
@@ -49,7 +61,13 @@ export function TaskTimeline({ task, submissions }: { task: TaskDetails; submiss
     }
   }
   if (task.completedAt) {
-    events.push({ key: "completed", at: task.completedAt, label: t.timeline.completed, icon: Megaphone, tone: "success" });
+    events.push({
+      key: "completed",
+      at: task.completedAt,
+      label: t.timeline.completed,
+      icon: Megaphone,
+      tone: "success",
+    });
   }
   if (task.dueAt) {
     events.push({
@@ -86,7 +104,9 @@ export function TaskTimeline({ task, submissions }: { task: TaskDetails; submiss
             </span>
             <p className="text-sm font-medium">
               {event.label}
-              {event.note ? <span className="ms-2 text-xs font-normal text-muted-foreground">· {event.note}</span> : null}
+              {event.note ? (
+                <span className="ms-2 text-xs font-normal text-muted-foreground">· {event.note}</span>
+              ) : null}
             </p>
             <time dateTime={event.at} className="text-xs text-muted-foreground tabular-nums">
               {date(event.at, "datetime")}

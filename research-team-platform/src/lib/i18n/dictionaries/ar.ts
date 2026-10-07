@@ -407,6 +407,11 @@ export const ar: Dictionary = {
     days: "أيام",
     weeks: "أسابيع",
   },
+  durationUnitsOne: {
+    hours: "ساعة",
+    days: "يوم",
+    weeks: "أسبوع",
+  },
   workflow: {
     title: "سير العمل",
     nextStep: "الخطوة التالية",
@@ -813,7 +818,10 @@ export const ar: Dictionary = {
         description: "رؤية كل مهام المشروع بما فيها العمل الخاص قيد التنفيذ (للمشرفين).",
       },
       "tasks.create": { label: "إنشاء المهام", description: "إنشاء مهام جديدة." },
-      "tasks.edit": { label: "تخطيط المهام وتعديلها", description: "تعديل أي مهمة بما في ذلك خطتها وجدولها وموعدها النهائي." },
+      "tasks.edit": {
+        label: "تخطيط المهام وتعديلها",
+        description: "تعديل أي مهمة بما في ذلك خطتها وجدولها وموعدها النهائي.",
+      },
       "tasks.edit_own": { label: "تعديل مهامه الخاصة", description: "تعديل تعريف المهام التي أنشأها (دون الجدول)." },
       "tasks.edit_assigned": {
         label: "تنفيذ المهام المسندة إليه",

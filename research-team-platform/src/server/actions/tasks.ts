@@ -149,20 +149,27 @@ export async function updateTaskAction(taskId: string, input: unknown): Promise<
       completion_criteria: values.completionCriteria,
       priority: values.priority,
     };
-    const contentChanged = (Object.keys(content) as (keyof typeof content)[]).some((key) => content[key] !== current[key]);
+    const contentChanged = (Object.keys(content) as (keyof typeof content)[]).some(
+      (key) => content[key] !== current[key],
+    );
 
     const schedule = toSchedule(values);
     const scheduleChanged =
       schedule.planning_month !== current.planning_month ||
       schedule.planning_week !== current.planning_week ||
       !sameInstant(schedule.planned_start_at, current.planned_start_at) ||
-      (schedule.planned_duration ?? null) !== (current.planned_duration === null ? null : Number(current.planned_duration)) ||
+      (schedule.planned_duration ?? null) !==
+        (current.planned_duration === null ? null : Number(current.planned_duration)) ||
       schedule.duration_unit !== current.duration_unit ||
       schedule.due_at_overridden !== current.due_at_overridden ||
       (schedule.due_at_overridden && !sameInstant(schedule.due_at, current.due_at));
     const assigneeChanged = values.assignedTo !== current.assigned_to;
 
-    const snapshot: TaskSnapshot = { createdBy: current.created_by, assignedTo: current.assigned_to, status: current.status };
+    const snapshot: TaskSnapshot = {
+      createdBy: current.created_by,
+      assignedTo: current.assigned_to,
+      status: current.status,
+    };
     const decision = evaluateTaskUpdate(access, snapshot, {
       content: contentChanged,
       schedule: scheduleChanged,

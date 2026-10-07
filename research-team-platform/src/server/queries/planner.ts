@@ -29,7 +29,9 @@ export function bucketTasks(tasks: TaskListItem[]) {
     ),
     dueToday: tasks.filter((task) => within(instant(task.dueAt), todayRange)),
     dueThisWeek: tasks.filter((task) => within(instant(task.dueAt), weekRange)),
-    thisWeek: tasks.filter((task) => within(instant(task.dueAt), weekRange) || within(instant(task.plannedStartAt), weekRange)),
+    thisWeek: tasks.filter(
+      (task) => within(instant(task.dueAt), weekRange) || within(instant(task.plannedStartAt), weekRange),
+    ),
     overdue: tasks.filter((task) => task.scheduleStatus === "overdue"),
     dueSoon: tasks.filter((task) => task.scheduleStatus === "due_soon"),
     awaitingReview: tasks.filter((task) => REVIEW_QUEUE_STATUSES.includes(task.status)),

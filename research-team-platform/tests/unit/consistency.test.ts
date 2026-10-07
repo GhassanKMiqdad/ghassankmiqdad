@@ -39,7 +39,9 @@ describe("database ↔ application consistency", () => {
   it.each(["manager", "member", "reviewer"] as const)("the %s role template matches the SQL template", (role) => {
     const start = catalogSql.indexOf(`select '${role}'::public.project_role`);
     const end = catalogSql.indexOf("]) as k", start);
-    const sqlKeys = new Set([...catalogSql.slice(start, end).matchAll(/'([a-z_]+\.[a-z_]+)'/g)].map((match) => match[1]));
+    const sqlKeys = new Set(
+      [...catalogSql.slice(start, end).matchAll(/'([a-z_]+\.[a-z_]+)'/g)].map((match) => match[1]),
+    );
     // Later migrations may remove keys from a template.
     const removal = new RegExp(
       `delete from public\\.role_permissions\\s+where role = '${role}'\\s+and permission_key in \\(([^)]*)\\)`,

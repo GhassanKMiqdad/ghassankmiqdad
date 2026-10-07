@@ -61,10 +61,18 @@ export default async function SchedulePage(props: PageProps<"/schedule">) {
   const push = (day: string, event: CalendarEvent) => byDay.set(day, [...(byDay.get(day) ?? []), event]);
   for (const task of tasks) {
     if (task.plannedStartAt) {
-      push(isoToZonedDate(task.plannedStartAt, timeZone), { kind: "start", task, time: isoToZonedLocal(task.plannedStartAt, timeZone).slice(11) });
+      push(isoToZonedDate(task.plannedStartAt, timeZone), {
+        kind: "start",
+        task,
+        time: isoToZonedLocal(task.plannedStartAt, timeZone).slice(11),
+      });
     }
     if (task.dueAt) {
-      push(isoToZonedDate(task.dueAt, timeZone), { kind: "due", task, time: isoToZonedLocal(task.dueAt, timeZone).slice(11) });
+      push(isoToZonedDate(task.dueAt, timeZone), {
+        kind: "due",
+        task,
+        time: isoToZonedLocal(task.dueAt, timeZone).slice(11),
+      });
     }
   }
   for (const events of byDay.values()) events.sort((a, b) => a.time.localeCompare(b.time));
@@ -73,7 +81,9 @@ export default async function SchedulePage(props: PageProps<"/schedule">) {
   const title =
     filters.view === "week"
       ? `${new Intl.DateTimeFormat(intl, { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${gridStart}T00:00:00Z`))} – ${new Intl.DateTimeFormat(intl, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${addDays(gridStart, 6)}T00:00:00Z`))}`
-      : new Intl.DateTimeFormat(intl, { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${monthFirst}T00:00:00Z`));
+      : new Intl.DateTimeFormat(intl, { month: "long", year: "numeric", timeZone: "UTC" }).format(
+          new Date(`${monthFirst}T00:00:00Z`),
+        );
 
   const step = (direction: 1 | -1) => {
     if (filters.view === "week") return addDays(anchor, 7 * direction);
@@ -127,7 +137,9 @@ export default async function SchedulePage(props: PageProps<"/schedule">) {
               aria-current={filters.view === view ? "page" : undefined}
               className={cn(
                 "rounded px-3 py-1 text-sm",
-                filters.view === view ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                filters.view === view
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               {t.schedule[view]}
@@ -187,7 +199,11 @@ export default async function SchedulePage(props: PageProps<"/schedule">) {
                   <span
                     className={cn(
                       "flex size-6 items-center justify-center rounded-full text-xs tabular-nums",
-                      day === today ? "bg-primary font-semibold text-primary-foreground" : outside ? "text-muted-foreground/60" : "text-muted-foreground",
+                      day === today
+                        ? "bg-primary font-semibold text-primary-foreground"
+                        : outside
+                          ? "text-muted-foreground/60"
+                          : "text-muted-foreground",
                     )}
                   >
                     {dayNumber.format(new Date(`${day}T00:00:00Z`))}
@@ -202,14 +218,19 @@ export default async function SchedulePage(props: PageProps<"/schedule">) {
                       title={`${event.task.code} · ${event.task.title} — ${event.kind === "start" ? t.schedule.starts : t.schedule.due} ${event.time}`}
                       className={cn(
                         "block rounded-md border px-1.5 py-1 text-[11px] leading-tight hover:bg-muted",
-                        event.kind === "due" && event.task.scheduleStatus === "overdue" && "border-destructive/50 bg-destructive/5",
+                        event.kind === "due" &&
+                          event.task.scheduleStatus === "overdue" &&
+                          "border-destructive/50 bg-destructive/5",
                         event.task.status === "completed" && "opacity-60",
                       )}
                     >
                       <span className="flex items-center gap-1">
-                        <span className={cn("size-1.5 shrink-0 rounded-full", PRIORITY_DOT[event.task.priority])} aria-hidden />
+                        <span
+                          className={cn("size-1.5 shrink-0 rounded-full", PRIORITY_DOT[event.task.priority])}
+                          aria-hidden
+                        />
                         <Icon className="size-3 shrink-0 text-muted-foreground" aria-hidden />
-                        <span className="tabular-nums text-muted-foreground" dir="ltr">
+                        <span className="text-muted-foreground tabular-nums" dir="ltr">
                           {event.time}
                         </span>
                         <TaskCode code={event.task.code} className="px-1 py-0 text-[10px]" />
@@ -224,7 +245,10 @@ export default async function SchedulePage(props: PageProps<"/schedule">) {
                   );
                 })}
                 {events.length > limit ? (
-                  <Link href={link({ view: "week", date: day })} className="block px-1 text-[11px] text-primary hover:underline">
+                  <Link
+                    href={link({ view: "week", date: day })}
+                    className="block px-1 text-[11px] text-primary hover:underline"
+                  >
                     +{i18n.number(events.length - limit)}
                   </Link>
                 ) : null}

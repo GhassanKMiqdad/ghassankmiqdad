@@ -8,7 +8,10 @@ import { useI18n } from "@/lib/i18n/provider";
 
 export function NotificationBell({ unread }: { unread: number }) {
   const { t, fmt, number } = useI18n();
-  const label = unread > 0 ? `${t.notifications.open} (${fmt(t.notifications.unread, { count: number(unread) })})` : t.notifications.open;
+  const label =
+    unread > 0
+      ? `${t.notifications.open} (${fmt(t.notifications.unread, { count: number(unread) })})`
+      : t.notifications.open;
   return (
     <Button variant="ghost" size="icon" asChild>
       <Link href="/notifications" aria-label={label} className="relative">

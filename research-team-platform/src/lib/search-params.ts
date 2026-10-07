@@ -38,7 +38,10 @@ export function parseTaskSearchParams(params: RawParams) {
 export function parseScheduleSearchParams(params: RawParams) {
   const assignee = first(params.assignee);
   return {
-    view: z.enum(["month", "week"]).catch("month").parse(first(params.view) ?? "month"),
+    view: z
+      .enum(["month", "week"])
+      .catch("month")
+      .parse(first(params.view) ?? "month"),
     date: dateOrUndefined.parse(first(params.date)),
     project: uuidOrUndefined.parse(first(params.project)),
     team: uuidOrUndefined.parse(first(params.team)),

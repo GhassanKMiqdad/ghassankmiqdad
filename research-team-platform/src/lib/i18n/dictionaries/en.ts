@@ -325,7 +325,8 @@ export const en = {
       dueNeedsInputs: "Enter a start and a duration to calculate the deadline.",
       dueOverride: "Set the deadline manually",
       membersCannotChange: "Only the Director or the Team Lead can change the plan and the schedule.",
-      privateUntilCompleted: "The task and its submissions stay private (responsible member and supervisors) until it is marked as completed.",
+      privateUntilCompleted:
+        "The task and its submissions stay private (responsible member and supervisors) until it is marked as completed.",
       noMembers: "No members can be assigned yet. Link the team's roster to this project first.",
     },
     week: "Week {week}",
@@ -357,7 +358,8 @@ export const en = {
     updated: "Task updated.",
     deleted: "Task deleted.",
     deleteTitle: "Delete this task?",
-    deleteDescription: "The task, its submissions and comments will be removed. This action is recorded in the activity log.",
+    deleteDescription:
+      "The task, its submissions and comments will be removed. This action is recorded in the activity log.",
     readOnly: "You can view this task but you are not allowed to change its definition.",
     history: "Activity",
     noDueDate: "No deadline",
@@ -409,6 +411,11 @@ export const en = {
     hours: "hours",
     days: "days",
     weeks: "weeks",
+  },
+  durationUnitsOne: {
+    hours: "hour",
+    days: "day",
+    weeks: "week",
   },
   workflow: {
     title: "Workflow",
@@ -822,8 +829,14 @@ export const en = {
         description: "See every task of the project, including private work in progress (supervisors).",
       },
       "tasks.create": { label: "Create Tasks", description: "Create new tasks." },
-      "tasks.edit": { label: "Plan & Edit Tasks", description: "Edit any task including its plan, schedule and deadline." },
-      "tasks.edit_own": { label: "Edit Own Tasks", description: "Edit the definition of tasks they created (not the schedule)." },
+      "tasks.edit": {
+        label: "Plan & Edit Tasks",
+        description: "Edit any task including its plan, schedule and deadline.",
+      },
+      "tasks.edit_own": {
+        label: "Edit Own Tasks",
+        description: "Edit the definition of tasks they created (not the schedule).",
+      },
       "tasks.edit_assigned": {
         label: "Execute Assigned Tasks",
         description: "Start assigned tasks, report progress and submit results.",

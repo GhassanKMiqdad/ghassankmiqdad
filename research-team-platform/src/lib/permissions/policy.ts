@@ -147,7 +147,11 @@ export function canDeleteTasks(access: AccessSubject | null | undefined): boolea
 
 /** Whether the task definition form can be opened at all. */
 export function canUpdateTask(access: AccessSubject | null | undefined, task: TaskSnapshot): boolean {
-  return canEditTaskContent(access, task) || canEditTaskSchedule(access, task) || (canAssignTasks(access) && task.status !== "completed");
+  return (
+    canEditTaskContent(access, task) ||
+    canEditTaskSchedule(access, task) ||
+    (canAssignTasks(access) && task.status !== "completed")
+  );
 }
 
 export type TaskPatch = Partial<{

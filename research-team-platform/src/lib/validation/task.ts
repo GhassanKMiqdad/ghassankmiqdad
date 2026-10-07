@@ -6,11 +6,7 @@ import { TASK_CODE_PATTERN } from "@/lib/schedule";
 
 /** "" / null → null; otherwise a wall-clock "YYYY-MM-DDTHH:mm" in the application time zone. */
 export const optionalLocalDateTimeField = z
-  .union([
-    z.literal(""),
-    z.null(),
-    z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "validation.invalidDate"),
-  ])
+  .union([z.literal(""), z.null(), z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "validation.invalidDate")])
   .optional()
   .transform((value) => (value ? value : null));
 
@@ -44,8 +40,14 @@ export const taskFormSchema = z
     completionCriteria: text(5000),
     assignedTo: optionalUuidField,
     priority: z.enum(TASK_PRIORITIES, "validation.invalid"),
-    planningMonth: z.coerce.number().int("validation.invalid").min(1, "validation.invalid").max(99, "validation.invalid"),
-    planningWeek: optionalNumber(z.number().int("validation.invalid").min(1, "validation.invalid").max(5, "validation.invalid")),
+    planningMonth: z.coerce
+      .number()
+      .int("validation.invalid")
+      .min(1, "validation.invalid")
+      .max(99, "validation.invalid"),
+    planningWeek: optionalNumber(
+      z.number().int("validation.invalid").min(1, "validation.invalid").max(5, "validation.invalid"),
+    ),
     plannedStart: optionalLocalDateTimeField,
     plannedDuration: optionalNumber(z.number().gt(0, "validation.invalid").max(1000, "validation.invalid")),
     durationUnit: z

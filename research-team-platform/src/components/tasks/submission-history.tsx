@@ -23,7 +23,10 @@ export function SubmissionHistory({ submissions }: { submissions: SubmissionItem
   return (
     <ol className="space-y-4">
       {submissions.map((submission) => (
-        <li key={submission.id} className={cn("rounded-lg border p-4", submission.isFinal && "border-success/40 bg-success/5")}>
+        <li
+          key={submission.id}
+          className={cn("rounded-lg border p-4", submission.isFinal && "border-success/40 bg-success/5")}
+        >
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium">{fmt(t.submissions.version, { version: submission.version })}</span>
             <Badge variant={STATUS_VARIANT[submission.status]}>{t.submissions.status[submission.status]}</Badge>
@@ -34,7 +37,9 @@ export function SubmissionHistory({ submissions }: { submissions: SubmissionItem
               </Badge>
             ) : null}
             <span className="ms-auto text-xs text-muted-foreground">
-              {submission.submittedBy ? `${fmt(t.submissions.submittedBy, { name: submission.submittedBy.name })} · ` : ""}
+              {submission.submittedBy
+                ? `${fmt(t.submissions.submittedBy, { name: submission.submittedBy.name })} · `
+                : ""}
               <DateText value={submission.submittedAt} style="datetime" />
             </span>
           </div>
@@ -65,7 +70,10 @@ export function SubmissionHistory({ submissions }: { submissions: SubmissionItem
             </p>
           ) : null}
           {submission.reviews.map((review) => (
-            <div key={review.id} className="mt-3 space-y-1.5 rounded-md border-s-4 border-s-primary/40 bg-muted/40 p-3 text-sm">
+            <div
+              key={review.id}
+              className="mt-3 space-y-1.5 rounded-md border-s-4 border-s-primary/40 bg-muted/40 p-3 text-sm"
+            >
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant={review.decision === "approved" ? "success" : "destructive"}>
                   {t.submissions.decision[review.decision]}

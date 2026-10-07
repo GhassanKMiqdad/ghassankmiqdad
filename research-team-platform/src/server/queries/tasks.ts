@@ -241,7 +241,10 @@ export async function countUnscheduledTasks(filters: Pick<TaskFilters, "projectI
 /** Every unfinished task the caller can see (dashboards). */
 export async function listOpenTasks(options: { assignedTo?: string; limit?: number } = {}): Promise<TaskListItem[]> {
   const supabase = await createSupabaseServerClient();
-  let query = supabase.from("tasks").select(TASK_LIST_SELECT).in("status", [...OPEN_TASK_STATUSES]);
+  let query = supabase
+    .from("tasks")
+    .select(TASK_LIST_SELECT)
+    .in("status", [...OPEN_TASK_STATUSES]);
   if (options.assignedTo) query = query.eq("assigned_to", options.assignedTo);
   const rows = unwrap(
     await query
@@ -382,7 +385,9 @@ export async function listTaskOptions(projectId: string, excludeIds: string[]): 
       .limit(500),
   );
   const excluded = new Set(excludeIds);
-  return rows.filter((row) => !excluded.has(row.id)).map((row) => ({ id: row.id, code: row.task_code, title: row.title }));
+  return rows
+    .filter((row) => !excluded.has(row.id))
+    .map((row) => ({ id: row.id, code: row.task_code, title: row.title }));
 }
 
 /**
@@ -408,9 +413,16 @@ export async function listAssignableMembers(projectId: string): Promise<MemberOp
 }
 
 /** Assignable members enriched with their member code and job title from the project's team roster. */
-export async function listAssignableMembersWithRoster(projectId: string, teamId: string | null): Promise<MemberOption[]> {
+export async function listAssignableMembersWithRoster(
+  projectId: string,
+  teamId: string | null,
+): Promise<MemberOption[]> {
   const [members, roster] = await Promise.all([listAssignableMembers(projectId), getRosterIndex(teamId)]);
   return members
-    .map((member) => ({ ...member, code: roster.get(member.id)?.code ?? null, jobTitle: roster.get(member.id)?.jobTitle ?? null }))
+    .map((member) => ({
+      ...member,
+      code: roster.get(member.id)?.code ?? null,
+      jobTitle: roster.get(member.id)?.jobTitle ?? null,
+    }))
     .sort((a, b) => (a.code ?? "~").localeCompare(b.code ?? "~") || a.name.localeCompare(b.name));
 }

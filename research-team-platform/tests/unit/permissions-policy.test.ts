@@ -59,7 +59,9 @@ describe("tasks: supervisor (owner / Director / Team Lead)", () => {
     expect(canEditTaskContent(owner, foreign)).toBe(true);
     expect(canEditTaskSchedule(owner, foreign)).toBe(true);
     expect(canDeleteTasks(owner)).toBe(true);
-    expect(evaluateTaskUpdate(owner, foreign, { content: true, schedule: true, assignedTo: MEMBER, status: "cancelled" })).toEqual({
+    expect(
+      evaluateTaskUpdate(owner, foreign, { content: true, schedule: true, assignedTo: MEMBER, status: "cancelled" }),
+    ).toEqual({
       ok: true,
     });
   });
@@ -90,7 +92,10 @@ describe("tasks: team member", () => {
 
   it("member cannot delete, create or assign tasks", () => {
     expect(canDeleteTasks(member)).toBe(false);
-    expect(evaluateTaskCreate(member, { assignedTo: MEMBER, planned: false })).toEqual({ ok: false, code: "PERMISSION_DENIED" });
+    expect(evaluateTaskCreate(member, { assignedTo: MEMBER, planned: false })).toEqual({
+      ok: false,
+      code: "PERMISSION_DENIED",
+    });
     expect(evaluateTaskUpdate(member, task(OWNER, MEMBER), { assignedTo: OTHER })).toEqual({
       ok: false,
       code: "TASK_ASSIGN_FORBIDDEN",
@@ -111,7 +116,10 @@ describe("tasks: team member", () => {
     const assigned = task(OWNER, MEMBER);
     expect(canEditTaskContent(member, assigned)).toBe(false);
     expect(canEditTaskSchedule(member, assigned)).toBe(false);
-    expect(evaluateTaskUpdate(member, assigned, { schedule: true })).toEqual({ ok: false, code: "TASK_EDIT_FORBIDDEN" });
+    expect(evaluateTaskUpdate(member, assigned, { schedule: true })).toEqual({
+      ok: false,
+      code: "TASK_EDIT_FORBIDDEN",
+    });
     expect(evaluateTaskUpdate(member, assigned, { content: true })).toEqual({ ok: false, code: "TASK_EDIT_FORBIDDEN" });
   });
 
@@ -136,7 +144,10 @@ describe("tasks: team member", () => {
     const creator = accessFor("member", { permissions: ["project.view", "tasks.create", "tasks.edit_own"] });
     expect(canEditTaskContent(creator, task(MEMBER, null))).toBe(true);
     expect(canEditTaskSchedule(creator, task(MEMBER, null))).toBe(false);
-    expect(evaluateTaskCreate(creator, { assignedTo: MEMBER, planned: true })).toEqual({ ok: false, code: "TASK_EDIT_FORBIDDEN" });
+    expect(evaluateTaskCreate(creator, { assignedTo: MEMBER, planned: true })).toEqual({
+      ok: false,
+      code: "TASK_EDIT_FORBIDDEN",
+    });
     expect(evaluateTaskCreate(creator, { assignedTo: MEMBER, planned: false })).toEqual({ ok: true });
   });
 });
@@ -147,7 +158,10 @@ describe("tasks: reviewer", () => {
   it("reviews submitted work but cannot edit or schedule it", () => {
     const inReview = task(OWNER, MEMBER, "submitted");
     expect(canReviewTask(reviewer, inReview)).toBe(true);
-    expect(evaluateTaskUpdate(reviewer, inReview, { content: true })).toEqual({ ok: false, code: "TASK_EDIT_FORBIDDEN" });
+    expect(evaluateTaskUpdate(reviewer, inReview, { content: true })).toEqual({
+      ok: false,
+      code: "TASK_EDIT_FORBIDDEN",
+    });
     expect(canChangeTaskStatus(reviewer, task(OWNER, MEMBER, "scheduled"), "in_progress")).toBe(false);
   });
 });

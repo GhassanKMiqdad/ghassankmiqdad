@@ -12,7 +12,9 @@ export async function markNotificationReadAction(notificationId: string): Promis
   return runAction(async () => {
     const id = parseInput(uuidField, notificationId);
     const supabase = await createSupabaseServerClient();
-    unwrap(await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id).select("id"));
+    unwrap(
+      await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id).select("id"),
+    );
     revalidatePath("/", "layout");
     return null;
   });

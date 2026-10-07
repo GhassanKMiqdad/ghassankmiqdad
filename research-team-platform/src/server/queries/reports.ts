@@ -11,7 +11,10 @@ const toNumber = (value: unknown): number | null => {
 };
 
 /** Planned vs actual execution per responsible member (RLS-scoped, SECURITY INVOKER). */
-export async function getExecutionReport(filters: { projectId?: string; month?: number }): Promise<ExecutionReportRow[]> {
+export async function getExecutionReport(filters: {
+  projectId?: string;
+  month?: number;
+}): Promise<ExecutionReportRow[]> {
   const supabase = await createSupabaseServerClient();
   const rows = unwrap(
     await supabase.rpc("get_execution_report", {

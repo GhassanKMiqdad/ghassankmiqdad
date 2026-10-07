@@ -5,7 +5,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, CalendarClock, CheckCircle2, ClipboardCheck, Flag, Info, Loader2, Target, UserRound } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarClock,
+  CheckCircle2,
+  ClipboardCheck,
+  Flag,
+  Info,
+  Loader2,
+  Target,
+  UserRound,
+} from "lucide-react";
 
 import { PriorityBadge, TaskCode } from "@/components/shared/badges";
 import { applyFieldErrors, useServerAction } from "@/components/shared/use-action";
@@ -134,7 +144,9 @@ export function TaskEditor({
 
   const toSummary = form.handleSubmit(() => setStep("summary"));
 
-  const onConfirm = form.handleSubmit(async (values) => {
+  // The server action re-validates the raw form values (never the client-parsed output).
+  const onConfirm = form.handleSubmit(async () => {
+    const values = form.getValues();
     if (task) {
       const result = await run(() => updateTaskAction(task.id, values), { success: t.tasks.updated });
       if (result?.ok) {
@@ -163,8 +175,22 @@ export function TaskEditor({
   if (step === "summary") {
     const values = form.getValues();
     const rows: [string, React.ReactNode][] = [
-      [t.tasks.fields.taskCode, task ? <TaskCode code={task.code} /> : values.taskCode ? <TaskCode code={String(values.taskCode).toUpperCase()} /> : <TaskCode code={codePreview} />],
-      [t.tasks.fields.title, <span key="title" dir="auto">{values.title}</span>],
+      [
+        t.tasks.fields.taskCode,
+        task ? (
+          <TaskCode code={task.code} />
+        ) : values.taskCode ? (
+          <TaskCode code={String(values.taskCode).toUpperCase()} />
+        ) : (
+          <TaskCode code={codePreview} />
+        ),
+      ],
+      [
+        t.tasks.fields.title,
+        <span key="title" dir="auto">
+          {values.title}
+        </span>,
+      ],
       [t.tasks.fields.project, `${projectName}${teamName ? ` · ${teamName}` : ""}`],
       [
         t.tasks.fields.assignee,
@@ -175,7 +201,10 @@ export function TaskEditor({
       [
         t.tasks.fields.planningWeek,
         values.planningWeek
-          ? fmt(t.tasks.planLabel, { month: String(values.planningMonth).padStart(2, "0"), week: String(values.planningWeek) })
+          ? fmt(t.tasks.planLabel, {
+              month: String(values.planningMonth).padStart(2, "0"),
+              week: String(values.planningWeek),
+            })
           : fmt(t.tasks.planMonthOnly, { month: String(values.planningMonth).padStart(2, "0") }),
       ],
       [t.tasks.fields.priority, <PriorityBadge key="priority" priority={values.priority ?? "p2"} />],
@@ -183,12 +212,25 @@ export function TaskEditor({
       [
         t.tasks.fields.duration,
         durationNumber > 0 && values.durationUnit
-          ? fmt(t.tasks.durationValue, { value: i18n.number(durationNumber), unit: t.durationUnits[values.durationUnit] })
+          ? fmt(t.tasks.durationValue, {
+              value: i18n.number(durationNumber),
+              unit: (durationNumber === 1 ? t.durationUnitsOne : t.durationUnits)[values.durationUnit],
+            })
           : "—",
       ],
       [t.tasks.fields.dueAt, effectiveDue ? i18n.date(effectiveDue, "datetime") : t.tasks.scheduleNotDefined],
-      [t.tasks.fields.expectedOutput, <span key="expected" dir="auto" className="whitespace-pre-wrap">{values.expectedOutput || "—"}</span>],
-      [t.tasks.fields.completionCriteria, <span key="criteria" dir="auto" className="whitespace-pre-wrap">{values.completionCriteria || "—"}</span>],
+      [
+        t.tasks.fields.expectedOutput,
+        <span key="expected" dir="auto" className="whitespace-pre-wrap">
+          {values.expectedOutput || "—"}
+        </span>,
+      ],
+      [
+        t.tasks.fields.completionCriteria,
+        <span key="criteria" dir="auto" className="whitespace-pre-wrap">
+          {values.completionCriteria || "—"}
+        </span>,
+      ],
     ];
     return (
       <Card className="mx-auto max-w-3xl">
@@ -229,7 +271,10 @@ export function TaskEditor({
   return (
     <Form {...form}>
       <form onSubmit={toSummary} className="mx-auto max-w-3xl space-y-6" noValidate>
-        <Link href={backHref} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href={backHref}
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden />
           {t.common.back}
         </Link>
@@ -285,7 +330,12 @@ export function TaskEditor({
               <FormItem>
                 <FormLabel>{t.tasks.fields.description}</FormLabel>
                 <FormControl>
-                  <Textarea rows={3} placeholder={t.tasks.placeholders.description} disabled={!contentEditable} {...field} />
+                  <Textarea
+                    rows={3}
+                    placeholder={t.tasks.placeholders.description}
+                    disabled={!contentEditable}
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage localize={message} />
               </FormItem>
@@ -298,7 +348,12 @@ export function TaskEditor({
               <FormItem>
                 <FormLabel>{t.tasks.fields.originalInstructions}</FormLabel>
                 <FormControl>
-                  <Textarea rows={4} placeholder={t.tasks.placeholders.originalInstructions} disabled={!contentEditable} {...field} />
+                  <Textarea
+                    rows={4}
+                    placeholder={t.tasks.placeholders.originalInstructions}
+                    disabled={!contentEditable}
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage localize={message} />
               </FormItem>
@@ -409,7 +464,13 @@ export function TaskEditor({
                 <FormItem>
                   <FormLabel>{t.tasks.fields.plannedStart}</FormLabel>
                   <FormControl>
-                    <Input type="datetime-local" dir="ltr" disabled={!scheduleEditable} {...field} value={field.value ?? ""} />
+                    <Input
+                      type="datetime-local"
+                      dir="ltr"
+                      disabled={!scheduleEditable}
+                      {...field}
+                      value={field.value ?? ""}
+                    />
                   </FormControl>
                   <FormMessage localize={message} />
                 </FormItem>
@@ -496,7 +557,13 @@ export function TaskEditor({
                 <FormItem className="sm:max-w-xs">
                   <FormLabel>{t.tasks.fields.dueAt}</FormLabel>
                   <FormControl>
-                    <Input type="datetime-local" dir="ltr" disabled={!scheduleEditable} {...field} value={field.value ?? ""} />
+                    <Input
+                      type="datetime-local"
+                      dir="ltr"
+                      disabled={!scheduleEditable}
+                      {...field}
+                      value={field.value ?? ""}
+                    />
                   </FormControl>
                   <FormMessage localize={message} />
                 </FormItem>
@@ -518,7 +585,11 @@ export function TaskEditor({
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="sr-only">{t.tasks.fields.priority}</FormLabel>
-                <div role="radiogroup" aria-label={t.tasks.fields.priority} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div
+                  role="radiogroup"
+                  aria-label={t.tasks.fields.priority}
+                  className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+                >
                   {TASK_PRIORITIES.map((priority) => (
                     <button
                       key={priority}
@@ -529,7 +600,9 @@ export function TaskEditor({
                       onClick={() => field.onChange(priority)}
                       className={cn(
                         "flex items-center justify-center rounded-lg border px-3 py-2.5 transition-colors disabled:opacity-60",
-                        field.value === priority ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "hover:bg-muted/60",
+                        field.value === priority
+                          ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                          : "hover:bg-muted/60",
                       )}
                     >
                       <PriorityBadge priority={priority} />
@@ -550,7 +623,12 @@ export function TaskEditor({
               <FormItem>
                 <FormLabel>{t.tasks.fields.expectedOutput}</FormLabel>
                 <FormControl>
-                  <Textarea rows={3} placeholder={t.tasks.placeholders.expectedOutput} disabled={!contentEditable} {...field} />
+                  <Textarea
+                    rows={3}
+                    placeholder={t.tasks.placeholders.expectedOutput}
+                    disabled={!contentEditable}
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage localize={message} />
               </FormItem>
@@ -563,7 +641,12 @@ export function TaskEditor({
               <FormItem>
                 <FormLabel>{t.tasks.fields.completionCriteria}</FormLabel>
                 <FormControl>
-                  <Textarea rows={3} placeholder={t.tasks.placeholders.completionCriteria} disabled={!contentEditable} {...field} />
+                  <Textarea
+                    rows={3}
+                    placeholder={t.tasks.placeholders.completionCriteria}
+                    disabled={!contentEditable}
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage localize={message} />
               </FormItem>
