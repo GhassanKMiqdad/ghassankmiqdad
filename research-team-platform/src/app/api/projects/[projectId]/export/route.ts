@@ -73,7 +73,8 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/proj
       `id, task_code, title, description, original_instructions, expected_output, completion_criteria, status, priority,
        planning_month, planning_week, planned_start_at, planned_duration, duration_unit, due_at, due_at_overridden,
        actual_start_at, submitted_at, approved_at, completed_at, progress, visibility, created_at, updated_at, schedule_status,
-       assignee:profiles!tasks_assigned_to_fkey(full_name, email), creator:profiles!tasks_created_by_fkey(full_name, email)`,
+       assignee:profiles!tasks_assigned_to_fkey(full_name, email), creator:profiles!tasks_created_by_fkey(full_name, email),
+       responsible:team_members!tasks_responsible_member_id_fkey(display_name)`,
     )
     .eq("project_id", projectId)
     .order("task_code", { ascending: true });
@@ -119,7 +120,7 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/proj
         task.status,
         task.schedule_status,
         task.priority,
-        task.assignee?.full_name ?? "",
+        task.assignee?.full_name ?? task.responsible?.display_name ?? "",
         task.assignee?.email ?? "",
         task.creator?.full_name ?? "",
         task.planning_month,

@@ -39,6 +39,8 @@ export const taskFormSchema = z
     expectedOutput: text(5000),
     completionCriteria: text(5000),
     assignedTo: optionalUuidField,
+    /** A roster entry without an account (used when assignedTo is empty). */
+    responsibleMemberId: optionalUuidField,
     priority: z.enum(TASK_PRIORITIES, "validation.invalid"),
     planningMonth: z.coerce
       .number()

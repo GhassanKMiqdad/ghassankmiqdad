@@ -184,9 +184,10 @@ export function evaluateTaskUpdate(
 /** Creating a task: tasks.create; others' assignment needs tasks.assign; plan, schedule and manual IDs need tasks.edit. */
 export function evaluateTaskCreate(
   access: AccessSubject | null | undefined,
-  input: { assignedTo: string | null; planned: boolean },
+  input: { assignedTo: string | null; planned: boolean; responsibleMemberId?: string | null },
 ): PolicyResult {
   if (!can(access, "tasks.create") || !access) return deny("PERMISSION_DENIED");
+  if (input.responsibleMemberId && !canAssignTasks(access)) return deny("TASK_ASSIGN_FORBIDDEN");
   if (input.assignedTo && input.assignedTo !== access.userId && !canAssignTasks(access)) {
     return deny("TASK_ASSIGN_FORBIDDEN");
   }

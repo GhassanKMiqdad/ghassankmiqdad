@@ -704,6 +704,7 @@ export type Database = {
           progress: number;
           project_id: string;
           published_at: string | null;
+          responsible_member_id: string | null;
           status: Database["public"]["Enums"]["task_status"];
           submitted_at: string | null;
           task_code: string;
@@ -740,6 +741,7 @@ export type Database = {
           progress?: number;
           project_id: string;
           published_at?: string | null;
+          responsible_member_id?: string | null;
           status?: Database["public"]["Enums"]["task_status"];
           submitted_at?: string | null;
           task_code?: string;
@@ -773,6 +775,7 @@ export type Database = {
           progress?: number;
           project_id?: string;
           published_at?: string | null;
+          responsible_member_id?: string | null;
           status?: Database["public"]["Enums"]["task_status"];
           submitted_at?: string | null;
           task_code?: string;
@@ -805,6 +808,12 @@ export type Database = {
             foreignKeyName: "tasks_project_id_fkey";
             columns: ["project_id"];
             referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_responsible_member_id_fkey";
+            columns: ["responsible_member_id"];
+            referencedRelation: "team_members";
             referencedColumns: ["id"];
           },
           {

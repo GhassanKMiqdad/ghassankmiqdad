@@ -16,7 +16,7 @@ import { addDays, zonedDayRange } from "@/lib/schedule";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { unwrap, unwrapMaybe } from "@/server/action";
 import { pageRange, PROFILE_FIELDS, sanitizeSearch, toUserRef } from "@/server/queries/shared";
-import { getRosterIndex } from "@/server/queries/teams";
+import { getRosterIndex, listPendingRoster } from "@/server/queries/teams";
 import type {
   DependencyItem,
   MemberOption,
@@ -51,7 +51,8 @@ export type TaskFilters = {
 const TASK_LIST_SELECT = `id, project_id, team_id, task_code, title, status, priority, planning_month, planning_week,
   planned_start_at, planned_duration, duration_unit, due_at, due_at_overridden, actual_start_at, submitted_at,
   approved_at, completed_at, progress, visibility, created_at, updated_at, created_by, assigned_to,
-  schedule_status, is_blocked,
+  schedule_status, is_blocked, responsible_member_id,
+  responsible:team_members!tasks_responsible_member_id_fkey(display_name, member_code, job_title),
   project:projects(id, name),
   assignee:profiles!tasks_assigned_to_fkey(${PROFILE_FIELDS})`;
 
@@ -82,6 +83,8 @@ type TaskListRow = {
   assigned_to: string | null;
   schedule_status: string | null;
   is_blocked: boolean | null;
+  responsible_member_id: string | null;
+  responsible: { display_name: string; member_code: string; job_title: string } | null;
   project: { id: string; name: string } | null;
   assignee: { id: string; full_name: string; email: string | null } | null;
 };
@@ -138,7 +141,12 @@ function toTaskListItem(row: TaskListRow, titles: Map<string, string>): TaskList
     createdById: row.created_by,
     assignedToId: row.assigned_to,
     assignee: toUserRef(row.assignee),
-    assigneeTitle: row.team_id && row.assigned_to ? (titles.get(`${row.team_id}:${row.assigned_to}`) ?? null) : null,
+    assigneeTitle:
+      (row.team_id && row.assigned_to ? titles.get(`${row.team_id}:${row.assigned_to}`) : undefined) ??
+      (row.responsible?.job_title || null),
+    responsibleMemberId: row.responsible_member_id,
+    responsibleName: toUserRef(row.assignee)?.name ?? row.responsible?.display_name ?? null,
+    responsiblePending: !row.assigned_to && !!row.responsible,
     isOverdue: scheduleStatus === "overdue",
   };
 }
@@ -412,17 +420,33 @@ export async function listAssignableMembers(projectId: string): Promise<MemberOp
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Assignable members enriched with their member code and job title from the project's team roster. */
+/**
+ * Assignable members enriched with their member code and job title from the
+ * project's team roster, plus roster members who have no account yet (work
+ * can be planned for them; it is assigned when their account is linked).
+ */
 export async function listAssignableMembersWithRoster(
   projectId: string,
   teamId: string | null,
 ): Promise<MemberOption[]> {
-  const [members, roster] = await Promise.all([listAssignableMembers(projectId), getRosterIndex(teamId)]);
-  return members
-    .map((member) => ({
+  const [members, roster, pending] = await Promise.all([
+    listAssignableMembers(projectId),
+    getRosterIndex(teamId),
+    listPendingRoster(teamId),
+  ]);
+  return [
+    ...members.map((member) => ({
       ...member,
       code: roster.get(member.id)?.code ?? null,
       jobTitle: roster.get(member.id)?.jobTitle ?? null,
-    }))
-    .sort((a, b) => (a.code ?? "~").localeCompare(b.code ?? "~") || a.name.localeCompare(b.name));
+    })),
+    ...pending.map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      role: "member" as const,
+      code: entry.code,
+      jobTitle: entry.jobTitle,
+      pending: true,
+    })),
+  ].sort((a, b) => (a.code ?? "~").localeCompare(b.code ?? "~") || a.name.localeCompare(b.name));
 }

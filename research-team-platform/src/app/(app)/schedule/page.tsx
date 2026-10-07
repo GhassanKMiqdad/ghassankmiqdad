@@ -238,8 +238,8 @@ export default async function SchedulePage(props: PageProps<"/schedule">) {
                       <span dir="auto" className="mt-0.5 block truncate font-medium">
                         {event.task.title}
                       </span>
-                      {filters.view === "week" && event.task.assignee ? (
-                        <span className="block truncate text-muted-foreground">{event.task.assignee.name}</span>
+                      {filters.view === "week" && event.task.responsibleName ? (
+                        <span className="block truncate text-muted-foreground">{event.task.responsibleName}</span>
                       ) : null}
                     </Link>
                   );

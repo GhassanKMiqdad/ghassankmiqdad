@@ -162,8 +162,24 @@ member), result published (the team).
 1. Apply the migrations (`npx supabase db push`, or the SQL files in order).
 2. Run `scripts/sql/nesthire-team.sql` once in the SQL Editor: it creates the
    team with the nine roster entries and links GH to the Director's account.
-3. In the app: **Teams → NestHire Team → Link a project** (or create a
-   project first), then edit each member and add their e-mail. They are linked
-   as soon as they sign up and confirm that e-mail.
-4. Enter the real plan in **Tasks → Assign a task**. To keep IDs from an
-   existing plan, type them into _Task ID_ (e.g. `M01-AB-01-01`).
+3. Run `scripts/sql/nesthire-month-01.sql` once: it creates the project
+   **NestHire**, links it to the team and loads the 66 month-1 tasks with
+   their exact IDs, responsible members, planning weeks, priorities,
+   descriptions, expected outputs, completion criteria, predecessors and
+   schedule (Month 1 starts Sunday 11 October 2026, working days Sunday to
+   Thursday, start 09:00 Asia/Gaza). The script verifies that no task starts
+   before one of its predecessors is due. Both scripts are idempotent.
+4. In the app: **Teams → NestHire Team → Edit member** and add each person's
+   e-mail. They are linked as soon as they sign up and confirm that e-mail.
+
+### Planning for members without an account
+
+A task can be assigned to a **roster entry** (`tasks.responsible_member_id`)
+before the person has an account — the assignment form lists those members
+with the note _no account yet_. The task ID uses the roster code, the lists
+show the roster name, and the task is assigned to the account automatically
+(audited and notified) the moment the roster entry is linked. Choosing a
+roster member is an assignment decision (`tasks.assign`).
+
+Later months are added in the app (**Tasks → Assign a task**); type the
+planned ID (e.g. `M02-AB-01-01`) to keep the plan's numbering.

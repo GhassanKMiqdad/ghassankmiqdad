@@ -61,11 +61,20 @@ export function TaskTable({ tasks, showProject = false }: { tasks: TaskListItem[
                   </TableCell>
                 ) : null}
                 <TableCell>
-                  {task.assignee ? (
+                  {task.responsibleName ? (
                     <span className="flex items-center gap-2">
-                      <UserAvatar name={task.assignee.name} seed={task.assignee.id} className="size-6" />
+                      <UserAvatar
+                        name={task.responsibleName}
+                        seed={task.assignee?.id ?? task.responsibleMemberId ?? task.id}
+                        className="size-6"
+                      />
                       <span className="min-w-0">
-                        <span className="block max-w-36 truncate">{task.assignee.name}</span>
+                        <span className="block max-w-36 truncate">
+                          {task.responsibleName}
+                          {task.responsiblePending ? (
+                            <span className="ms-1 text-xs text-muted-foreground">({t.tasks.pendingAccount})</span>
+                          ) : null}
+                        </span>
                         {task.assigneeTitle ? (
                           <span className="block max-w-36 truncate text-xs text-muted-foreground">
                             {task.assigneeTitle}

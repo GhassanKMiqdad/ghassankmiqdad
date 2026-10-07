@@ -337,6 +337,8 @@ export const en = {
     scheduleNotDefined: "SCHEDULE NOT YET DEFINED",
     unassigned: "Unassigned",
     noJobTitle: "No role set",
+    pendingAccount: "no account yet",
+    pendingAccountHint: "Assigned automatically when this member's account is linked.",
     filters: {
       anyStatus: "Any status",
       anyPriority: "Any priority",

@@ -80,7 +80,7 @@ export function TaskListCard({
                   </Link>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                  {showAssignee ? <span className="me-1">{task.assignee?.name ?? t.tasks.unassigned}</span> : null}
+                  {showAssignee ? <span className="me-1">{task.responsibleName ?? t.tasks.unassigned}</span> : null}
                   <TaskStatusBadge status={task.status} />
                   <PriorityBadge priority={task.priority} />
                   <ScheduleStatusBadge status={task.scheduleStatus} />

@@ -94,7 +94,8 @@ export async function createTaskAction(
       schedule.planned_start_at !== null ||
       schedule.planned_duration !== null ||
       schedule.due_at !== null;
-    const decision = evaluateTaskCreate(access, { assignedTo: values.assignedTo, planned });
+    const responsibleMemberId = values.assignedTo ? null : values.responsibleMemberId;
+    const decision = evaluateTaskCreate(access, { assignedTo: values.assignedTo, planned, responsibleMemberId });
     if (!decision.ok) throw new AppError(decision.code);
 
     const supabase = await createSupabaseServerClient();
@@ -111,6 +112,7 @@ export async function createTaskAction(
           completion_criteria: values.completionCriteria,
           priority: values.priority,
           assigned_to: values.assignedTo,
+          responsible_member_id: responsibleMemberId,
           ...schedule,
         })
         .select("id, task_code")
@@ -133,7 +135,8 @@ export async function updateTaskAction(taskId: string, input: unknown): Promise<
         .from("tasks")
         .select(
           `${TASK_SNAPSHOT_FIELDS}, title, description, original_instructions, expected_output, completion_criteria, priority,
-           planning_month, planning_week, planned_start_at, planned_duration, duration_unit, due_at, due_at_overridden`,
+           planning_month, planning_week, planned_start_at, planned_duration, duration_unit, due_at, due_at_overridden,
+           responsible_member_id`,
         )
         .eq("id", id)
         .maybeSingle(),
@@ -163,7 +166,11 @@ export async function updateTaskAction(taskId: string, input: unknown): Promise<
       schedule.duration_unit !== current.duration_unit ||
       schedule.due_at_overridden !== current.due_at_overridden ||
       (schedule.due_at_overridden && !sameInstant(schedule.due_at, current.due_at));
-    const assigneeChanged = values.assignedTo !== current.assigned_to;
+    // Choosing a roster member without an account plans the task for them.
+    const responsibleMemberId = values.assignedTo ? null : values.responsibleMemberId;
+    const assigneeChanged =
+      values.assignedTo !== current.assigned_to ||
+      (!values.assignedTo && responsibleMemberId !== current.responsible_member_id);
 
     const snapshot: TaskSnapshot = {
       createdBy: current.created_by,
@@ -182,7 +189,13 @@ export async function updateTaskAction(taskId: string, input: unknown): Promise<
     const update = {
       ...(contentChanged ? content : {}),
       ...(scheduleChanged ? schedule : {}),
-      ...(assigneeChanged ? { assigned_to: values.assignedTo } : {}),
+      ...(assigneeChanged
+        ? responsibleMemberId
+          ? { responsible_member_id: responsibleMemberId }
+          : values.assignedTo
+            ? { assigned_to: values.assignedTo }
+            : { assigned_to: null, responsible_member_id: null }
+        : {}),
     };
     const updated = unwrap(await supabase.from("tasks").update(update).eq("id", id).select("id"));
     if (updated.length === 0) throw new AppError("TASK_EDIT_FORBIDDEN");

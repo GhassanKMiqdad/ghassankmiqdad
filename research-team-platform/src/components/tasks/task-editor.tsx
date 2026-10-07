@@ -38,6 +38,7 @@ import type { MemberOption, TaskDetails } from "@/types/app";
 
 const UNASSIGNED = "__unassigned__";
 const NO_WEEK = "__none__";
+const ROSTER_PREFIX = "roster:";
 
 function Section({
   icon: Icon,
@@ -112,6 +113,7 @@ export function TaskEditor({
       expectedOutput: task?.expectedOutput ?? "",
       completionCriteria: task?.completionCriteria ?? "",
       assignedTo: task?.assignedToId ?? "",
+      responsibleMemberId: task?.assignedToId ? "" : (task?.responsibleMemberId ?? ""),
       priority: task?.priority ?? "p2",
       planningMonth: task?.planningMonth ?? 1,
       planningWeek: task?.planningWeek ?? "",
@@ -124,7 +126,9 @@ export function TaskEditor({
   });
 
   const watched = useWatch({ control: form.control });
-  const selectedMember = members.find((member) => member.id === watched.assignedTo);
+  const selectedMember = members.find((member) =>
+    watched.assignedTo ? member.id === watched.assignedTo : member.pending && member.id === watched.responsibleMemberId,
+  );
   const durationNumber = Number(watched.plannedDuration);
   const startIso = watched.plannedStart ? zonedLocalToIso(watched.plannedStart, timeZone) : null;
   const calculatedDue =
@@ -195,7 +199,9 @@ export function TaskEditor({
       [
         t.tasks.fields.assignee,
         selectedMember
-          ? `${selectedMember.name}${selectedMember.jobTitle ? ` — ${selectedMember.jobTitle}` : ""}`
+          ? `${selectedMember.name}${selectedMember.jobTitle ? ` — ${selectedMember.jobTitle}` : ""}${
+              selectedMember.pending ? ` (${t.tasks.pendingAccount})` : ""
+            }`
           : t.tasks.unassigned,
       ],
       [
@@ -370,8 +376,23 @@ export function TaskEditor({
                 <FormItem>
                   <FormLabel>{t.tasks.fields.assignee}</FormLabel>
                   <Select
-                    value={field.value ? field.value : UNASSIGNED}
-                    onValueChange={(value) => field.onChange(value === UNASSIGNED ? "" : value)}
+                    value={
+                      field.value
+                        ? field.value
+                        : watched.responsibleMemberId
+                          ? `${ROSTER_PREFIX}${watched.responsibleMemberId}`
+                          : UNASSIGNED
+                    }
+                    onValueChange={(value) => {
+                      // A roster member without an account: plan the task for their roster entry.
+                      if (value.startsWith(ROSTER_PREFIX)) {
+                        field.onChange("");
+                        form.setValue("responsibleMemberId", value.slice(ROSTER_PREFIX.length));
+                      } else {
+                        field.onChange(value === UNASSIGNED ? "" : value);
+                        form.setValue("responsibleMemberId", "");
+                      }
+                    }}
                     disabled={!assignable}
                   >
                     <FormControl>
@@ -382,15 +403,19 @@ export function TaskEditor({
                     <SelectContent>
                       <SelectItem value={UNASSIGNED}>{t.tasks.unassigned}</SelectItem>
                       {assigneeOptions.map((member) => (
-                        <SelectItem key={member.id} value={member.id}>
+                        <SelectItem key={member.id} value={member.pending ? `${ROSTER_PREFIX}${member.id}` : member.id}>
                           {member.code ? `${member.code} · ` : ""}
                           {member.name}
                           {member.jobTitle ? ` — ${member.jobTitle}` : ""}
+                          {member.pending ? ` (${t.tasks.pendingAccount})` : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   {members.length === 0 ? <FormDescription>{t.tasks.hints.noMembers}</FormDescription> : null}
+                  {!field.value && watched.responsibleMemberId ? (
+                    <FormDescription>{t.tasks.pendingAccountHint}</FormDescription>
+                  ) : null}
                   <FormMessage localize={message} />
                 </FormItem>
               )}

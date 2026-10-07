@@ -333,6 +333,8 @@ export const ar: Dictionary = {
     scheduleNotDefined: "لم يتم تحديد الجدول بعد",
     unassigned: "غير مسندة",
     noJobTitle: "لم يُحدَّد الدور",
+    pendingAccount: "لم يُنشئ حسابه بعد",
+    pendingAccountHint: "تُسند إليه تلقائيًا عند ربط حسابه.",
     filters: {
       anyStatus: "كل الحالات",
       anyPriority: "كل الأولويات",

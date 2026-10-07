@@ -210,11 +210,20 @@ export default async function TaskPage(props: PageProps<"/projects/[projectId]/t
             <CardContent>
               <dl className="space-y-3 text-sm">
                 <DetailRow label={t.tasks.fields.assignee}>
-                  {task.assignee ? (
+                  {task.responsibleName ? (
                     <span className="inline-flex items-center gap-2">
-                      <UserAvatar name={task.assignee.name} seed={task.assignee.id} className="size-6" />
+                      <UserAvatar
+                        name={task.responsibleName}
+                        seed={task.assignee?.id ?? task.responsibleMemberId ?? task.id}
+                        className="size-6"
+                      />
                       <span className="text-start">
-                        <span className="block">{task.assignee.name}</span>
+                        <span className="block">
+                          {task.responsibleName}
+                          {task.responsiblePending ? (
+                            <span className="ms-1 text-xs text-muted-foreground">({t.tasks.pendingAccount})</span>
+                          ) : null}
+                        </span>
                         <span className="block text-xs text-muted-foreground">
                           {task.assigneeTitle ?? t.tasks.noJobTitle}
                         </span>

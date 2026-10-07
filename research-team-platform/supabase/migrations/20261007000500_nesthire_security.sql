@@ -75,12 +75,12 @@ create policy profiles_select on public.profiles
 revoke insert, update on table public.tasks from authenticated;
 grant insert (
   project_id, title, description, original_instructions, expected_output, completion_criteria,
-  status, priority, assigned_to, task_code, planning_month, planning_week,
+  status, priority, assigned_to, responsible_member_id, task_code, planning_month, planning_week,
   planned_start_at, planned_duration, duration_unit, due_at, due_at_overridden
 ) on table public.tasks to authenticated;
 grant update (
   title, description, original_instructions, expected_output, completion_criteria,
-  status, priority, assigned_to, planning_month, planning_week,
+  status, priority, assigned_to, responsible_member_id, planning_month, planning_week,
   planned_start_at, planned_duration, duration_unit, due_at, due_at_overridden,
   progress, work_notes
 ) on table public.tasks to authenticated;

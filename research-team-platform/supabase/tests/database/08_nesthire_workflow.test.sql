@@ -7,7 +7,7 @@
 --   Team Beta ......... member: outsider (C)                            → Project B
 begin;
 \ir _helpers.psql
-select plan(66);
+select plan(70);
 
 select tests.setup_world();
 -- The fixture's owner is the only Director inside this (rolled back) transaction.
@@ -397,6 +397,42 @@ select results_eq(
   $$ select title, public.schedule_status(t) from public.tasks t where title in ('Hours task', 'Weeks task') order by title $$,
   $$ values ('Hours task'::text, 'overdue'::text), ('Weeks task'::text, 'due_soon'::text) $$,
   'overdue and due-soon (< 24 h) are computed with the server clock'
+);
+
+-- ---------------------------------------------------------------------------
+-- Planning for a roster member who has no account yet
+-- ---------------------------------------------------------------------------
+select tests.authenticate_as('owner');
+insert into ids values ('pending', public.upsert_team_member((select id from ids where key = 'alpha'), null, 'Pending Person', 'PD', 'Data Analyst', 'team_member', null));
+select tests.authenticate_as('manager');
+insert into public.tasks (project_id, title, responsible_member_id, planning_week)
+values (tests.uid('project_a'), 'Planned before the account exists', (select id from ids where key = 'pending'), 2);
+select tests.authenticate_as('member');
+select throws_ok(
+  format(
+    $$ insert into public.tasks (project_id, title, responsible_member_id) values (%L, 'Sneaky', %L) $$,
+    tests.uid('project_a'), (select id from ids where key = 'pending')
+  ),
+  '42501', null,
+  'only supervisors plan work for roster members'
+);
+select tests.clear_authentication();
+select results_eq(
+  $$ select assigned_to is null, task_code ~ '^M01-PD-02-[0-9]{2}$' from public.tasks where title = 'Planned before the account exists' $$,
+  $$ values (true, true) $$,
+  'a task can belong to a roster entry without an account; its ID uses the roster code'
+);
+select tests.authenticate_as('owner');
+select public.link_team_member((select id from ids where key = 'pending'), 'newcomer@example.test');
+select tests.clear_authentication();
+select is(
+  (select assigned_to from public.tasks where title = 'Planned before the account exists'),
+  tests.uid('newcomer'),
+  'linking the account assigns the planned tasks to it'
+);
+select ok(
+  exists (select 1 from public.notifications where user_id = tests.uid('newcomer') and type = 'task_assigned'),
+  'the newly linked member is notified of the assignment'
 );
 
 -- Roster deactivation revokes project access.

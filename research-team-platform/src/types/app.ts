@@ -84,6 +84,12 @@ export type TaskListItem = {
   assignedToId: string | null;
   /** Job title of the responsible member in the task's team (when visible). */
   assigneeTitle: string | null;
+  /** Responsible roster entry (may exist before the person has an account). */
+  responsibleMemberId: string | null;
+  /** Assignee name, or the roster name while the person has no account yet. */
+  responsibleName: string | null;
+  /** True while the responsible roster member has no linked account. */
+  responsiblePending: boolean;
   isOverdue: boolean;
 };
 
@@ -204,6 +210,8 @@ export type MemberOption = {
   /** Member code and job title in the project's team, when the project has one. */
   code?: string | null;
   jobTitle?: string | null;
+  /** A roster entry without an account yet (id is the roster entry id). */
+  pending?: boolean;
 };
 
 export type DocumentItem = {

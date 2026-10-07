@@ -155,3 +155,21 @@ export async function getProjectTeam(projectId: string): Promise<{ id: string; n
   if (!data?.team_id) return null;
   return { id: data.team_id, name: data.team?.name ?? "" };
 }
+
+/** Roster entries of a team that have no account yet. */
+export async function listPendingRoster(teamId: string | null) {
+  if (!teamId) return [];
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("team_members")
+    .select("id, display_name, member_code, job_title")
+    .eq("team_id", teamId)
+    .is("user_id", null)
+    .neq("status", "inactive");
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    name: row.display_name,
+    code: row.member_code,
+    jobTitle: row.job_title,
+  }));
+}

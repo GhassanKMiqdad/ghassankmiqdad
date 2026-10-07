@@ -16,6 +16,21 @@
 -- semantic action name (task.submitted, task.approved, …).
 -- =============================================================================
 
+-- Name of whoever is responsible for a task: the assignee's profile, or the
+-- roster entry when the person has no account yet.
+create or replace function private.responsible_name(p_assigned_to uuid, p_member_id uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+    private.profile_name(p_assigned_to),
+    (select tm.display_name from public.team_members tm where tm.id = p_member_id)
+  );
+$$;
+
 -- Can the current user see this task row? (Same rule as the tasks RLS policy.)
 create or replace function private.can_see_task(p_project_id uuid, p_assigned_to uuid, p_created_by uuid)
 returns boolean
@@ -405,11 +420,12 @@ begin
       new.project_id, 'task.created', 'task', new.id, v_label, null,
       jsonb_build_object(
         'task_code', new.task_code, 'title', new.title, 'status', new.status, 'priority', new.priority,
-        'assigned_to', new.assigned_to, 'planning_month', new.planning_month, 'planning_week', new.planning_week,
+        'assigned_to', new.assigned_to, 'responsible_member_id', new.responsible_member_id,
+        'planning_month', new.planning_month, 'planning_week', new.planning_week,
         'planned_start_at', new.planned_start_at, 'planned_duration', new.planned_duration,
         'duration_unit', new.duration_unit, 'due_at', new.due_at
       ),
-      jsonb_build_object('assignee_name', private.profile_name(new.assigned_to))
+      jsonb_build_object('assignee_name', private.responsible_name(new.assigned_to, new.responsible_member_id))
     );
     perform private.notify(
       new.assigned_to, 'task_assigned', new.project_id, new.id,
@@ -488,7 +504,8 @@ begin
     );
   end if;
 
-  if new.assigned_to is distinct from old.assigned_to then
+  if new.assigned_to is distinct from old.assigned_to
+     or new.responsible_member_id is distinct from old.responsible_member_id then
     -- Un-assignment caused by removing the assignee from the project.
     if new.assigned_to is null and old.assigned_to is not null and not exists (
       select 1 from public.project_members pm
@@ -499,8 +516,10 @@ begin
 
     perform private.log_activity(
       new.project_id, 'task.assigned', 'task', new.id, v_label,
-      jsonb_build_object('assigned_to', old.assigned_to, 'assignee_name', private.profile_name(old.assigned_to)),
-      jsonb_build_object('assigned_to', new.assigned_to, 'assignee_name', private.profile_name(new.assigned_to)),
+      jsonb_build_object('assigned_to', old.assigned_to,
+                         'assignee_name', private.responsible_name(old.assigned_to, old.responsible_member_id)),
+      jsonb_build_object('assigned_to', new.assigned_to,
+                         'assignee_name', private.responsible_name(new.assigned_to, new.responsible_member_id)),
       v_metadata
     );
     perform private.notify(

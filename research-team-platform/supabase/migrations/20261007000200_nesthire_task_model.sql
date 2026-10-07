@@ -81,6 +81,7 @@ create type public.review_decision as enum ('approved', 'revision_required');
 alter table public.tasks
   add column task_code text,
   add column team_id uuid references public.teams (id) on delete set null,
+  add column responsible_member_id uuid references public.team_members (id) on delete set null,
   add column original_instructions text not null default '',
   add column expected_output text not null default '',
   add column completion_criteria text not null default '',
@@ -101,6 +102,8 @@ alter table public.tasks
   add column published_at timestamptz;
 
 comment on column public.tasks.task_code is 'Human task ID (e.g. M01-GH-01-01). Unique and immutable.';
+comment on column public.tasks.responsible_member_id is
+  'Roster entry responsible for the task. Lets a supervisor plan work for a member who has no account yet; assigned_to follows it.';
 comment on column public.tasks.original_instructions is 'Instructions as given by the supervisor (kept as the reference).';
 comment on column public.tasks.planning_month is 'Plan month (M01 = first month). Planning, not actual dates.';
 comment on column public.tasks.planning_week is 'Plan week inside the month (Week 1–5). Planning, not actual dates.';
@@ -131,6 +134,7 @@ alter table public.tasks
   add constraint tasks_progress_range check (progress between 0 and 100);
 
 create index tasks_team_idx on public.tasks (team_id) where team_id is not null;
+create index tasks_responsible_member_idx on public.tasks (responsible_member_id) where responsible_member_id is not null;
 create index tasks_project_due_at_idx on public.tasks (project_id, due_at) where due_at is not null;
 create index tasks_assigned_due_at_idx on public.tasks (assigned_to, due_at) where assigned_to is not null;
 create index tasks_planned_start_idx on public.tasks (planned_start_at) where planned_start_at is not null;
@@ -141,14 +145,9 @@ create index tasks_planning_idx on public.tasks (project_id, planning_month, pla
 -- -----------------------------------------------------------------------------
 
 -- M<month>-<member code>-<week>-<sequence>, e.g. M01-GH-01-01. The member code
--- comes from the assignee's roster entry in the task's team ("NA" when the
--- task is unassigned or the assignee has no code); week 00 = no week planned.
-create or replace function private.next_task_code(
-  p_team_id uuid,
-  p_assignee uuid,
-  p_month integer,
-  p_week integer
-)
+-- comes from the responsible roster entry (or the assignee's entry) in the
+-- task's team ("NA" when there is none); week 00 = no week planned.
+create or replace function private.next_task_code_for(p_member_code text, p_month integer, p_week integer)
 returns text
 language plpgsql
 volatile
@@ -156,11 +155,15 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_code text := coalesce(private.team_member_code(p_team_id, p_assignee), 'NA');
   v_prefix text;
   v_next integer;
 begin
-  v_prefix := format('M%s-%s-%s-', lpad(coalesce(p_month, 1)::text, 2, '0'), v_code, lpad(coalesce(p_week, 0)::text, 2, '0'));
+  v_prefix := format(
+    'M%s-%s-%s-',
+    lpad(coalesce(p_month, 1)::text, 2, '0'),
+    coalesce(nullif(p_member_code, ''), 'NA'),
+    lpad(coalesce(p_week, 0)::text, 2, '0')
+  );
   -- Serialize generators of the same prefix (concurrent inserts).
   perform pg_advisory_xact_lock(hashtext('task_code:' || v_prefix));
 
@@ -172,6 +175,21 @@ begin
 
   return v_prefix || lpad(v_next::text, 2, '0');
 end;
+$$;
+
+create or replace function private.next_task_code(
+  p_team_id uuid,
+  p_assignee uuid,
+  p_month integer,
+  p_week integer
+)
+returns text
+language sql
+volatile
+security definer
+set search_path = ''
+as $$
+  select private.next_task_code_for(private.team_member_code(p_team_id, p_assignee), p_month, p_week);
 $$;
 
 update public.tasks t

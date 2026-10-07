@@ -14,7 +14,9 @@
 --
 -- Teams are rosters: a roster entry carries the person's display name, member
 -- code (used in task IDs such as M01-GH-01-01) and job title, and is linked to
--- a user account once that person has one. Linking an account (or linking a
+-- a user account once that person has one. Tasks can be planned for a roster
+-- entry before the account exists (tasks.responsible_member_id); they are
+-- assigned to the account as soon as it is linked. Linking an account (or linking a
 -- project to a team) synchronizes project memberships, so the roster drives
 -- who works on the team's projects.
 --
@@ -427,6 +429,16 @@ begin
       );
     end if;
   end loop;
+
+  -- Tasks planned for this roster entry before the person had an account are
+  -- assigned to them now (audited and notified by the tasks triggers).
+  if v_member.status = 'active' then
+    update public.tasks t
+       set assigned_to = v_member.user_id
+     where t.responsible_member_id = v_member.id
+       and t.assigned_to is null
+       and private.is_active_member(t.project_id, v_member.user_id);
+  end if;
 end;
 $$;
 

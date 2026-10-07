@@ -78,6 +78,63 @@ begin
 end;
 $$;
 
+-- Keeps the responsible roster entry and the assignee consistent:
+--   * a changed responsible entry decides the assignee (its account when it is
+--     an active project member, otherwise none until the account is linked);
+--   * otherwise a changed assignee decides the responsible entry (their roster
+--     entry in the task's team, if any).
+-- SECURITY DEFINER: reads the roster independently of the caller's policies.
+create or replace function private.apply_task_responsible(p_task public.tasks, p_old public.tasks)
+returns public.tasks
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_task public.tasks := p_task;
+  v_member public.team_members;
+  v_insert boolean := p_old is null;
+begin
+  if v_task.responsible_member_id is not null
+     and (v_insert or v_task.responsible_member_id is distinct from p_old.responsible_member_id) then
+    select * into v_member from public.team_members tm where tm.id = v_task.responsible_member_id;
+    if not found or v_member.team_id is distinct from v_task.team_id then
+      raise exception using errcode = '22023', message = 'ASSIGNEE_NOT_MEMBER';
+    end if;
+    v_task.assigned_to := case
+      when v_member.user_id is not null and private.is_active_member(v_task.project_id, v_member.user_id)
+        then v_member.user_id
+    end;
+  elsif v_insert or v_task.assigned_to is distinct from p_old.assigned_to then
+    if v_task.assigned_to is null then
+      if not v_insert then
+        v_task.responsible_member_id := null;
+      end if;
+    else
+      select tm.id into v_task.responsible_member_id
+      from public.team_members tm
+      where tm.team_id = v_task.team_id and tm.user_id = v_task.assigned_to;
+    end if;
+  end if;
+  return v_task;
+end;
+$$;
+
+-- Member code used in a new task ID (responsible roster entry first).
+create or replace function private.task_member_code(p_task public.tasks)
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+    (select tm.member_code from public.team_members tm where tm.id = p_task.responsible_member_id),
+    private.team_member_code(p_task.team_id, p_task.assigned_to)
+  );
+$$;
+
 -- Unfinished predecessors (bypasses RLS: the caller may not see them).
 create or replace function private.task_has_open_dependencies(p_task_id uuid)
 returns boolean
@@ -142,6 +199,13 @@ begin
   -- The task follows the team of its project.
   new.team_id := (select p.team_id from public.projects p where p.id = new.project_id);
 
+  -- Planning for a roster entry is an assignment decision.
+  if private.is_direct_api_write() and new.responsible_member_id is not null
+     and not private.has_permission(new.project_id, 'tasks.assign') then
+    raise exception using errcode = '42501', message = 'TASK_ASSIGN_FORBIDDEN';
+  end if;
+  new := private.apply_task_responsible(new, null);
+
   if private.is_direct_api_write() then
     if v_uid is null then
       raise exception using errcode = '42501', message = 'NOT_AUTHENTICATED';
@@ -191,7 +255,7 @@ begin
 
   new.task_code := nullif(upper(btrim(coalesce(new.task_code, ''))), '');
   if new.task_code is null then
-    new.task_code := private.next_task_code(new.team_id, new.assigned_to, new.planning_month, new.planning_week);
+    new.task_code := private.next_task_code_for(private.task_member_code(new), new.planning_month, new.planning_week);
   end if;
 
   new := private.apply_task_schedule(new);
@@ -270,7 +334,8 @@ begin
       raise exception using errcode = '42501', message = 'TASK_EDIT_FORBIDDEN';
     end if;
 
-    if new.assigned_to is distinct from old.assigned_to then
+    if new.assigned_to is distinct from old.assigned_to
+       or new.responsible_member_id is distinct from old.responsible_member_id then
       if not private.has_permission(old.project_id, 'tasks.assign') then
         raise exception using errcode = '42501', message = 'TASK_ASSIGN_FORBIDDEN';
       end if;
@@ -288,6 +353,8 @@ begin
       end if;
     end if;
   end if;
+
+  new := private.apply_task_responsible(new, old);
 
   -- Actual start: recorded by the server the first time work starts.
   if new.status = 'in_progress' and old.status is distinct from 'in_progress' and new.actual_start_at is null then
