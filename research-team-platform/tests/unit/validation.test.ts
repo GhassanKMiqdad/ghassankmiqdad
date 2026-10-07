@@ -1,8 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import { loginSchema, newPasswordSchema, safeRedirectPath, signupSchema } from "@/lib/validation/auth";
+import {
+  changePasswordSchema,
+  loginSchema,
+  newPasswordSchema,
+  safeRedirectPath,
+  signupSchema,
+} from "@/lib/validation/auth";
 import { permissionsSchema } from "@/lib/validation/member";
 import { projectFormSchema } from "@/lib/validation/project";
+import {
+  milestoneFormSchema,
+  researcherProfileSchema,
+  taskReviewSchema,
+  taskSubmissionSchema,
+  teamFormSchema,
+} from "@/lib/validation/research";
 import { taskFormSchema, taskPatchSchema } from "@/lib/validation/task";
 
 describe("auth validation", () => {
@@ -31,6 +44,30 @@ describe("auth validation", () => {
     expect(newPasswordSchema.safeParse({ password: "Research2026", confirmPassword: "Research2026" }).success).toBe(
       true,
     );
+  });
+
+  it("requires current-password reauthentication before a password change", () => {
+    expect(
+      changePasswordSchema.safeParse({
+        currentPassword: "",
+        password: "Research2026",
+        confirmPassword: "Research2026",
+      }).success,
+    ).toBe(false);
+    expect(
+      changePasswordSchema.safeParse({
+        currentPassword: "Current2025",
+        password: "Research2026",
+        confirmPassword: "Different2026",
+      }).success,
+    ).toBe(false);
+    expect(
+      changePasswordSchema.safeParse({
+        currentPassword: "Current2025",
+        password: "Research2026",
+        confirmPassword: "Research2026",
+      }).success,
+    ).toBe(true);
   });
 
   it("normalises e-mails and reports dictionary keys", () => {
@@ -68,6 +105,8 @@ describe("domain validation", () => {
     const parsed = taskFormSchema.parse({
       title: "Literature review",
       description: "",
+      expectedOutput: "",
+      requiredDeliverables: "",
       status: "todo",
       priority: "medium",
       assignedTo: "",
@@ -82,5 +121,40 @@ describe("domain validation", () => {
     expect(taskPatchSchema.safeParse({ assignedTo: "not-a-uuid" }).success).toBe(false);
     expect(taskPatchSchema.safeParse({}).success).toBe(false);
     expect(permissionsSchema.safeParse({ permissions: ["tasks.edit", "root.everything"] }).success).toBe(false);
+  });
+
+  it("validates team and milestone ownership without permitting ambiguous assignments", () => {
+    expect(teamFormSchema.safeParse({ name: "Analysis team", description: "" }).success).toBe(true);
+    expect(teamFormSchema.safeParse({ name: "x", description: "" }).success).toBe(false);
+    const teamId = "123e4567-e89b-42d3-a456-426614174000";
+    expect(
+      milestoneFormSchema.safeParse({
+        name: "Pilot study",
+        description: "",
+        deadline: "2026-11-01",
+        responsibleTeamId: teamId,
+        responsibleResearcherId: teamId,
+        status: "pending",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("requires attached submission IDs to be valid UUIDs and review feedback for non-approval decisions", () => {
+    const taskId = "123e4567-e89b-42d3-a456-426614174000";
+    expect(taskSubmissionSchema.safeParse({ taskId, notes: "Version 1", documentIds: [taskId] }).success).toBe(true);
+    expect(taskSubmissionSchema.safeParse({ taskId, notes: "Version 1", documentIds: ["bad"] }).success).toBe(false);
+    expect(
+      taskReviewSchema.safeParse({ taskId, submissionId: taskId, decision: "revision_required", feedback: "" }).success,
+    ).toBe(false);
+    expect(
+      taskReviewSchema.safeParse({ taskId, submissionId: taskId, decision: "approved", feedback: "" }).success,
+    ).toBe(true);
+  });
+
+  it("validates Director-managed researcher profile status and fields", () => {
+    expect(
+      researcherProfileSchema.safeParse({ fullName: "Researcher One", status: "active", skills: ["Genomics"] }).success,
+    ).toBe(true);
+    expect(researcherProfileSchema.safeParse({ fullName: "R", status: "root" }).success).toBe(false);
   });
 });

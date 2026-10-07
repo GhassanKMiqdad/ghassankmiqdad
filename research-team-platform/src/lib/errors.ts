@@ -17,7 +17,7 @@ export class AppError extends Error {
   }
 }
 
-const KNOWN_DATABASE_CODES = new Set<string>([
+const KNOWN_APPLICATION_CODES = new Set<string>([
   "NOT_AUTHENTICATED",
   "PERMISSION_DENIED",
   "PROJECT_CREATE_FORBIDDEN",
@@ -42,41 +42,35 @@ const KNOWN_DATABASE_CODES = new Set<string>([
   "INVALID_INPUT",
 ]);
 
-export type DatabaseErrorLike = {
-  code?: string | null;
+export type FirebaseErrorLike = {
+  code?: string | number | null;
   message?: string | null;
-  details?: string | null;
-  hint?: string | null;
 };
 
-/**
- * Maps a PostgREST / Postgres error to an application error code. Raw database
- * messages are never shown to users.
- */
-export function mapDatabaseError(error: DatabaseErrorLike | null | undefined): ErrorCode {
+/** Maps Firebase SDK failures without leaking raw provider messages to users. */
+export function mapFirebaseError(error: FirebaseErrorLike | null | undefined): ErrorCode {
   if (!error) return "UNEXPECTED";
   const message = (error.message ?? "").trim();
-  if (KNOWN_DATABASE_CODES.has(message)) return message as ErrorCode;
+  if (KNOWN_APPLICATION_CODES.has(message)) return message as ErrorCode;
 
-  switch (error.code) {
-    case "42501": // insufficient_privilege / RLS violation
+  switch (String(error.code ?? "").toLowerCase()) {
+    case "permission-denied":
+    case "auth/insufficient-permission":
       return "PERMISSION_DENIED";
-    case "PGRST116": // .single() found no row the user can see
-    case "P0002":
+    case "not-found":
+    case "auth/user-not-found":
       return "NOT_FOUND";
-    case "23505":
+    case "already-exists":
+    case "auth/email-already-exists":
       return "CONFLICT";
-    case "23503":
-    case "22P02":
-    case "22023":
-    case "22007":
-    case "22008":
+    case "invalid-argument":
+    case "auth/invalid-email":
+    case "auth/invalid-password":
+    case "auth/weak-password":
       return "INVALID_INPUT";
-    case "23514":
-    case "23502":
-      return "VALIDATION_ERROR";
-    case "PGRST301":
-    case "PGRST302":
+    case "unauthenticated":
+    case "auth/id-token-expired":
+    case "auth/invalid-id-token":
       return "NOT_AUTHENTICATED";
     default:
       return "UNEXPECTED";
@@ -86,7 +80,7 @@ export function mapDatabaseError(error: DatabaseErrorLike | null | undefined): E
 export function toAppError(error: unknown): AppError {
   if (error instanceof AppError) return error;
   if (error && typeof error === "object" && ("code" in error || "message" in error)) {
-    return new AppError(mapDatabaseError(error as DatabaseErrorLike));
+    return new AppError(mapFirebaseError(error as FirebaseErrorLike));
   }
   return new AppError("UNEXPECTED");
 }

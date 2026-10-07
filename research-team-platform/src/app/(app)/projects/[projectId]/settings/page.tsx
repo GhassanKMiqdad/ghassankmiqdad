@@ -47,7 +47,12 @@ export default async function ProjectSettingsPage(props: PageProps<"/projects/[p
               name: project.name,
               description: project.description,
               researchGoal: project.researchGoal,
+              researchType: project.researchType,
+              researchObjectives: project.researchObjectives,
+              researchQuestions: project.researchQuestions,
+              methodology: project.methodology,
               status: project.status,
+              priority: project.priority,
               startDate: project.startDate,
               deadline: project.deadline,
             }}

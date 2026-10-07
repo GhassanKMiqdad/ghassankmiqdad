@@ -21,7 +21,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { MAX_UPLOAD_BYTES } from "@/lib/env";
 import { ACCEPT_ATTRIBUTE, resolveFileType } from "@/lib/files";
 import { useI18n } from "@/lib/i18n/provider";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { formatBytes } from "@/lib/utils";
 import {
   discardDocumentUploadAction,
@@ -36,7 +35,15 @@ type Phase = "idle" | "preparing" | "uploading" | "finalizing";
  * server-chosen path, the browser sends the file straight to Storage, then the
  * server registers the document (the database verifies the object exists).
  */
-export function UploadDocumentDialog({ projectId }: { projectId: string }) {
+export function UploadDocumentDialog({
+  projectId,
+  taskId,
+  onUploaded,
+}: {
+  projectId: string;
+  taskId?: string;
+  onUploaded?: (documentId: string) => void;
+}) {
   const { t, fmt, locale } = useI18n();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -78,7 +85,7 @@ export function UploadDocumentDialog({ projectId }: { projectId: string }) {
     setError(null);
 
     setPhase("preparing");
-    const prepared = await prepareDocumentUploadAction({ projectId, fileName: file.name, size: file.size });
+    const prepared = await prepareDocumentUploadAction({ projectId, taskId, fileName: file.name, size: file.size });
     if (!prepared.ok) {
       setError(prepared.error.message);
       setPhase("idle");
@@ -86,11 +93,15 @@ export function UploadDocumentDialog({ projectId }: { projectId: string }) {
     }
 
     setPhase("uploading");
-    const { documentId, storagePath, token, mimeType } = prepared.data;
-    const { error: uploadError } = await getSupabaseBrowserClient()
-      .storage.from("project-documents")
-      .uploadToSignedUrl(storagePath, token, file, { contentType: mimeType });
-    if (uploadError) {
+    const { documentId, storagePath, signedUrl, signedFields } = prepared.data;
+    const form = new FormData();
+    for (const [key, value] of Object.entries(signedFields)) form.append(key, value);
+    form.append("file", file);
+    const uploadResponse = await fetch(signedUrl, {
+      method: "POST",
+      body: form,
+    }).catch(() => null);
+    if (!uploadResponse?.ok) {
       setError(t.errors.UPLOAD_FAILED);
       setPhase("idle");
       return;
@@ -99,6 +110,7 @@ export function UploadDocumentDialog({ projectId }: { projectId: string }) {
     setPhase("finalizing");
     const finalized = await finalizeDocumentUploadAction({
       projectId,
+      taskId,
       documentId,
       storagePath,
       fileName: file.name,
@@ -106,13 +118,14 @@ export function UploadDocumentDialog({ projectId }: { projectId: string }) {
       description: description.trim(),
     });
     if (!finalized.ok) {
-      await discardDocumentUploadAction(projectId, storagePath);
+      await discardDocumentUploadAction(projectId, storagePath, taskId);
       setError(finalized.error.message);
       setPhase("idle");
       return;
     }
 
     toast.success(t.documents.uploaded);
+    onUploaded?.(finalized.data.documentId);
     setOpen(false);
     reset();
     router.refresh();

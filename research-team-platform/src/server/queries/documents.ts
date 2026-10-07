@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createFirebaseServerClient } from "@/lib/firebase/compat";
 import { unwrapMaybe } from "@/server/action";
 import { pageRange, PROFILE_FIELDS, sanitizeSearch, toUserRef } from "@/server/queries/shared";
 import type { DocumentItem, Paginated } from "@/types/app";
@@ -19,9 +19,9 @@ const DOCUMENT_SELECT = `id, project_id, title, description, file_name, mime_typ
 export async function listDocuments(filters: DocumentFilters): Promise<Paginated<DocumentItem>> {
   const pageSize = filters.pageSize ?? 25;
   const { page, from, to } = pageRange(filters.page ?? 1, pageSize);
-  const supabase = await createSupabaseServerClient();
+  const firebase = await createFirebaseServerClient();
 
-  let query = supabase.from("documents").select(DOCUMENT_SELECT, { count: "exact" });
+  let query = firebase.from("documents").select(DOCUMENT_SELECT, { count: "exact" });
   if (filters.projectId) query = query.eq("project_id", filters.projectId);
   const search = sanitizeSearch(filters.q);
   if (search) query = query.or(`title.ilike.%${search}%,file_name.ilike.%${search}%`);
@@ -50,9 +50,9 @@ export async function listDocuments(filters: DocumentFilters): Promise<Paginated
 }
 
 export async function getDocumentForAction(documentId: string) {
-  const supabase = await createSupabaseServerClient();
+  const firebase = await createFirebaseServerClient();
   return unwrapMaybe(
-    await supabase
+    await firebase
       .from("documents")
       .select("id, project_id, title, file_name, storage_path, mime_type")
       .eq("id", documentId)

@@ -23,6 +23,7 @@ export type ProjectListItem = {
   name: string;
   description: string;
   status: ProjectStatus;
+  priority: TaskPriority;
   startDate: string | null;
   deadline: string | null;
   updatedAt: string;
@@ -37,7 +38,12 @@ export type ProjectDetails = {
   name: string;
   description: string;
   researchGoal: string;
+  researchType: string;
+  researchObjectives: string;
+  researchQuestions: string;
+  methodology: string;
   status: ProjectStatus;
+  priority: TaskPriority;
   startDate: string | null;
   deadline: string | null;
   createdAt: string;
@@ -58,13 +64,20 @@ export type TaskListItem = {
   createdById: string | null;
   assignee: UserRef | null;
   assignedToId: string | null;
+  teamId: string | null;
   isOverdue: boolean;
 };
 
 export type TaskDetails = TaskListItem & {
   description: string;
+  expectedOutput: string;
+  requiredDeliverables: string;
   completedAt: string | null;
   createdBy: UserRef | null;
+  progress: number;
+  workNotes: string;
+  submissionVersion: number;
+  latestSubmissionId: string | null;
 };
 
 export type MemberOption = {
@@ -161,4 +174,25 @@ export type PlatformUser = {
   canCreateProjects: boolean;
   createdAt: string;
   lastSignInAt: string | null;
+};
+
+export type NotificationType =
+  | "task_assigned"
+  | "task_submitted"
+  | "revision_requested"
+  | "submission_approved"
+  | "submission_rejected"
+  | "team_assigned"
+  | "milestone_assigned"
+  | "task_due_soon"
+  | "task_overdue";
+
+export type NotificationItem = {
+  id: string;
+  type: NotificationType;
+  taskId: string;
+  taskTitle: string;
+  href: string;
+  createdAt: string;
+  readAt: string | null;
 };

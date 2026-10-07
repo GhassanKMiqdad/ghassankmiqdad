@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { AccessDenied } from "@/components/shared/access-denied";
 import { AddMemberDialog } from "@/components/team/add-member-dialog";
@@ -27,6 +28,20 @@ export default async function ProjectTeamPage(props: PageProps<"/projects/[proje
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        <Link
+          className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted"
+          href={`/projects/${projectId}/teams`}
+        >
+          {t.projects.tabs.teams}
+        </Link>
+        <Link
+          className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted"
+          href={`/projects/${projectId}/milestones`}
+        >
+          {t.projects.tabs.milestones}
+        </Link>
+      </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">{t.team.projectSubtitle}</p>
         {can(access, "members.add") && roles.length > 0 ? (

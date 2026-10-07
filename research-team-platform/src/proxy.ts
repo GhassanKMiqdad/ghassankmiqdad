@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import { updateSession } from "@/lib/supabase/proxy-session";
+import { updateSession } from "@/lib/firebase/proxy-session";
 
 export async function proxy(request: NextRequest) {
   return updateSession(request);

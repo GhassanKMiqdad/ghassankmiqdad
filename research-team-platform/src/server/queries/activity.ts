@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createFirebaseServerClient } from "@/lib/firebase/compat";
 import { getMyProjectsAccess } from "@/server/access";
 import { asRecord, pageRange } from "@/server/queries/shared";
 import type { ActivityItem, Paginated } from "@/types/app";
@@ -32,9 +32,9 @@ export const ACTIVITY_ENTITY_TYPES = [
 export async function listActivity(filters: ActivityFilters): Promise<Paginated<ActivityItem>> {
   const pageSize = filters.pageSize ?? 30;
   const { page, from, to } = pageRange(filters.page ?? 1, pageSize);
-  const supabase = await createSupabaseServerClient();
+  const firebase = await createFirebaseServerClient();
 
-  let query = supabase
+  let query = firebase
     .from("activity_logs")
     .select(
       "id, project_id, actor_id, actor_name, action, entity_type, entity_id, entity_label, old_values, new_values, metadata, ip_address, user_agent, created_at",

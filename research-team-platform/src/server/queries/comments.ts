@@ -1,14 +1,14 @@
 import "server-only";
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createFirebaseServerClient } from "@/lib/firebase/compat";
 import { unwrap } from "@/server/action";
 import { PROFILE_FIELDS, toUserRef } from "@/server/queries/shared";
 import type { CommentItem } from "@/types/app";
 
 /** Comments of a project (taskId null) or of one task, oldest first. */
 export async function listComments(projectId: string, taskId: string | null): Promise<CommentItem[]> {
-  const supabase = await createSupabaseServerClient();
-  let query = supabase
+  const firebase = await createFirebaseServerClient();
+  let query = firebase
     .from("comments")
     .select(
       `id, project_id, task_id, content, author_id, created_at, updated_at,

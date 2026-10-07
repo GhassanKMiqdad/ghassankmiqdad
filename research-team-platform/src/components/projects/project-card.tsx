@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CalendarDays, ListChecks, Users } from "lucide-react";
 
-import { ProjectStatusBadge, RoleBadge } from "@/components/shared/badges";
+import { PriorityBadge, ProjectStatusBadge, RoleBadge } from "@/components/shared/badges";
 import { DateText } from "@/components/shared/date-text";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -23,6 +23,7 @@ export function ProjectCard({ project, i18n }: { project: ProjectListItem; i18n:
           </h2>
           <div className="flex flex-wrap gap-1.5">
             <ProjectStatusBadge status={project.status} />
+            <PriorityBadge priority={project.priority} />
             <RoleBadge role={project.role} />
           </div>
         </div>

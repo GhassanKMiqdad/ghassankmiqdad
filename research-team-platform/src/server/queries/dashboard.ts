@@ -4,7 +4,7 @@ import { cache } from "react";
 import { z } from "zod";
 
 import { PROJECT_STATUSES, TASK_STATUSES, type TaskStatus } from "@/lib/permissions/catalog";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createFirebaseServerClient } from "@/lib/firebase/compat";
 import { unwrap } from "@/server/action";
 import { appToday } from "@/server/queries/shared";
 import type { DashboardStats } from "@/types/app";
@@ -47,8 +47,8 @@ const statsSchema = z.object({
 });
 
 export const getDashboardStats = cache(async (): Promise<DashboardStats> => {
-  const supabase = await createSupabaseServerClient();
-  const raw = unwrap(await supabase.rpc("get_dashboard_stats", { p_today: appToday() }));
+  const firebase = await createFirebaseServerClient();
+  const raw = unwrap(await firebase.rpc("get_dashboard_stats", { p_today: appToday() }));
   const stats = statsSchema.parse(raw ?? {});
 
   const tasksByStatus = Object.fromEntries(

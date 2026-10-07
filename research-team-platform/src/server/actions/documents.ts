@@ -6,10 +6,12 @@ import type { ActionResult } from "@/lib/action-result";
 import { MAX_UPLOAD_BYTES } from "@/lib/env";
 import { AppError } from "@/lib/errors";
 import { documentStoragePath, isDocumentPathFor, resolveFileType } from "@/lib/files";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createFirebaseServerClient } from "@/lib/firebase/compat";
 import { uuidField } from "@/lib/validation/common";
 import { documentDetailsSchema, finalizeUploadSchema, prepareUploadSchema } from "@/lib/validation/document";
 import { assertProjectPermission } from "@/server/access";
+import { can } from "@/lib/permissions/policy";
+import { requireTaskAccess } from "@/server/research-domain";
 import { parseInput, runAction, unwrap } from "@/server/action";
 import { getDocumentForAction } from "@/server/queries/documents";
 import { DOCUMENT_BUCKET, SIGNED_URL_TTL_SECONDS } from "@/server/storage";
@@ -24,12 +26,29 @@ function revalidateDocumentPaths(projectId: string) {
  * upload URL for a server-chosen path. The browser then uploads the file
  * straight to Storage (no size limits of serverless functions).
  */
-export async function prepareDocumentUploadAction(
-  input: unknown,
-): Promise<ActionResult<{ documentId: string; storagePath: string; token: string; mimeType: string }>> {
-  return runAction(async () => {
+export async function prepareDocumentUploadAction(input: unknown): Promise<
+  ActionResult<{
+    documentId: string;
+    storagePath: string;
+    signedUrl: string;
+    signedFields: Record<string, string>;
+    mimeType: string;
+  }>
+> {
+  return runAction(async (user) => {
     const values = parseInput(prepareUploadSchema, input);
-    await assertProjectPermission(values.projectId, "documents.upload");
+    if (values.taskId) {
+      const { projectId, task, access } = await requireTaskAccess(user.id, values.taskId);
+      if (
+        projectId !== values.projectId ||
+        task.assigned_to !== user.id ||
+        !can(access, "tasks.submit") ||
+        !["accepted", "in_progress", "revision_required"].includes(String(task.status))
+      )
+        throw new AppError("PERMISSION_DENIED");
+    } else {
+      await assertProjectPermission(values.projectId, "documents.upload");
+    }
 
     const fileType = resolveFileType(values.fileName);
     if (!fileType) throw new AppError("FILE_TYPE_NOT_ALLOWED");
@@ -38,24 +57,44 @@ export async function prepareDocumentUploadAction(
     const documentId = crypto.randomUUID();
     const storagePath = documentStoragePath(values.projectId, documentId, values.fileName);
 
-    // Created with the user's session: Storage checks the INSERT policy
-    // (documents.upload in this project) before issuing the URL.
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase.storage.from(DOCUMENT_BUCKET).createSignedUploadUrl(storagePath);
+    // The server authorizes the user's project upload permission and signs a
+    // bounded POST policy (content type + 50 MB cap) for this exact object path.
+    const firebase = await createFirebaseServerClient();
+    const { data, error } = await firebase.storage.from(DOCUMENT_BUCKET).createSignedUploadUrl(storagePath, {
+      contentType: fileType.mimeType,
+      maxBytes: MAX_UPLOAD_BYTES,
+    });
     if (error || !data) {
       console.error("[documents] signed upload URL failed", error?.message);
       throw new AppError("UPLOAD_FAILED");
     }
 
-    return { documentId, storagePath, token: data.token, mimeType: fileType.mimeType };
+    return {
+      documentId,
+      storagePath,
+      signedUrl: data.signedUrl,
+      signedFields: data.signedFields,
+      mimeType: fileType.mimeType,
+    };
   });
 }
 
 /** Step 2: register the uploaded file (the database verifies the object exists). */
 export async function finalizeDocumentUploadAction(input: unknown): Promise<ActionResult<{ documentId: string }>> {
-  return runAction(async () => {
+  return runAction(async (user) => {
     const values = parseInput(finalizeUploadSchema, input);
-    await assertProjectPermission(values.projectId, "documents.upload");
+    if (values.taskId) {
+      const { projectId, task, access } = await requireTaskAccess(user.id, values.taskId);
+      if (
+        projectId !== values.projectId ||
+        task.assigned_to !== user.id ||
+        !can(access, "tasks.submit") ||
+        !["accepted", "in_progress", "revision_required"].includes(String(task.status))
+      )
+        throw new AppError("PERMISSION_DENIED");
+    } else {
+      await assertProjectPermission(values.projectId, "documents.upload");
+    }
 
     if (!isDocumentPathFor(values.projectId, values.documentId, values.storagePath)) {
       throw new AppError("INVALID_INPUT");
@@ -63,11 +102,12 @@ export async function finalizeDocumentUploadAction(input: unknown): Promise<Acti
     const fileType = resolveFileType(values.fileName);
     if (!fileType) throw new AppError("FILE_TYPE_NOT_ALLOWED");
 
-    const supabase = await createSupabaseServerClient();
+    const firebase = await createFirebaseServerClient();
     unwrap(
-      await supabase.from("documents").insert({
+      await firebase.from("documents").insert({
         id: values.documentId,
         project_id: values.projectId,
+        task_id: values.taskId,
         title: values.title,
         description: values.description,
         file_name: values.fileName,
@@ -83,10 +123,21 @@ export async function finalizeDocumentUploadAction(input: unknown): Promise<Acti
 }
 
 /** Removes an uploaded object that could not be registered (failed step 2). */
-export async function discardDocumentUploadAction(projectId: string, storagePath: string): Promise<ActionResult<null>> {
-  return runAction(async () => {
+export async function discardDocumentUploadAction(
+  projectId: string,
+  storagePath: string,
+  taskId?: string,
+): Promise<ActionResult<null>> {
+  return runAction(async (user) => {
     const id = parseInput(uuidField, projectId);
-    await assertProjectPermission(id, "documents.upload");
+    const validatedTaskId = taskId ? parseInput(uuidField, taskId) : null;
+    if (validatedTaskId) {
+      const { projectId, task, access } = await requireTaskAccess(user.id, validatedTaskId);
+      if (projectId !== id || task.assigned_to !== user.id || !can(access, "tasks.submit"))
+        throw new AppError("PERMISSION_DENIED");
+    } else {
+      await assertProjectPermission(id, "documents.upload");
+    }
     const segments = storagePath.split("/");
     if (segments.length !== 3 || segments[0] !== id || !isDocumentPathFor(id, segments[1] ?? "", storagePath)) {
       throw new AppError("INVALID_INPUT");
@@ -94,8 +145,8 @@ export async function discardDocumentUploadAction(projectId: string, storagePath
 
     // The user's own session: the storage DELETE policy only lets the
     // uploader remove their object while no document row references it.
-    const supabase = await createSupabaseServerClient();
-    const { error } = await supabase.storage.from(DOCUMENT_BUCKET).remove([storagePath]);
+    const firebase = await createFirebaseServerClient();
+    const { error } = await firebase.storage.from(DOCUMENT_BUCKET).remove([storagePath]);
     if (error) console.warn("[documents] could not discard pending upload", error.message);
     return null;
   });
@@ -109,10 +160,9 @@ export async function getDocumentUrlAction(
     const id = parseInput(uuidField, documentId);
     const document = await getDocumentForAction(id);
     if (!document) throw new AppError("NOT_FOUND");
-    await assertProjectPermission(document.project_id, "documents.view");
 
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase.storage
+    const firebase = await createFirebaseServerClient();
+    const { data, error } = await firebase.storage
       .from(DOCUMENT_BUCKET)
       .createSignedUrl(document.storage_path, SIGNED_URL_TTL_SECONDS, {
         download: mode === "download" ? document.file_name : false,
@@ -130,9 +180,9 @@ export async function updateDocumentAction(documentId: string, input: unknown): 
     if (!document) throw new AppError("NOT_FOUND");
     await assertProjectPermission(document.project_id, "documents.edit");
 
-    const supabase = await createSupabaseServerClient();
+    const firebase = await createFirebaseServerClient();
     const updated = unwrap(
-      await supabase
+      await firebase
         .from("documents")
         .update({ title: values.title, description: values.description })
         .eq("id", id)
@@ -152,12 +202,12 @@ export async function deleteDocumentAction(documentId: string): Promise<ActionRe
     if (!document) throw new AppError("NOT_FOUND");
     await assertProjectPermission(document.project_id, "documents.delete");
 
-    const supabase = await createSupabaseServerClient();
-    const deleted = unwrap(await supabase.from("documents").delete().eq("id", id).select("id"));
+    const firebase = await createFirebaseServerClient();
+    const deleted = unwrap(await firebase.from("documents").delete().eq("id", id).select("id"));
     if (deleted.length === 0) throw new AppError("PERMISSION_DENIED");
 
     // Same user session: the storage DELETE policy requires documents.delete too.
-    const { error } = await supabase.storage.from(DOCUMENT_BUCKET).remove([document.storage_path]);
+    const { error } = await firebase.storage.from(DOCUMENT_BUCKET).remove([document.storage_path]);
     if (error) console.error("[documents] file removal failed", error.message);
 
     revalidateDocumentPaths(document.project_id);

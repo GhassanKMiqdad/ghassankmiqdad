@@ -1,243 +1,100 @@
 # Research Team Platform
 
-منصة لإدارة الفرق البحثية — a full-stack platform for research teams: projects,
-tasks, documents, discussions, a per-member permission system and an immutable
-activity log. Arabic-first (RTL) with English, light and dark themes.
+Research team management platform built on the existing Next.js application. It includes project and member management, project-scoped permissions, private documents, assigned tasks, researcher progress/work notes, a review/revision status flow, bilingual Arabic/English UI, and in-app task notifications.
 
-Built with Next.js 16, TypeScript, Tailwind CSS 4, shadcn/ui and Supabase
-(Auth, PostgreSQL, Storage). **Every permission is enforced by the database**
-(Row Level Security, column privileges, triggers and checked RPCs), so a request
-that bypasses the UI is rejected exactly like a hidden button.
+## Technology
 
-| Dashboard (Arabic)                              | Member permissions                                         | Dashboard (English, dark)                                 |
-| ----------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------- |
-| ![Dashboard](docs/screenshots/dashboard-ar.png) | ![Permissions](docs/screenshots/member-permissions-ar.png) | ![Dashboard dark](docs/screenshots/dashboard-en-dark.png) |
+- Next.js App Router, React, TypeScript, Tailwind CSS
+- Firebase Authentication (Identity Toolkit REST API and Admin-managed HTTP-only session cookies)
+- Cloud Firestore (Firebase Admin SDK for server reads/writes, with client Security Rules)
+- Firebase Cloud Storage (private bucket, signed upload/download URLs)
 
-## Features
+The former `supabase/` SQL migrations are retained as historical source material only; the running application uses Firebase. **No production data has been copied or deleted as part of this code migration.** See [Migration notes](#existing-supabase-data).
 
-- **Projects** — name, description, research goal, status, start date,
-  deadline, owner, members, tasks, documents, comments and activity; projects
-  are fully isolated from each other.
-- **Flexible permissions** — roles (Owner, Manager, Research Member, Reviewer)
-  are only templates; each member's 24 permissions can be adjusted per project
-  on _Team → Member → Permissions_. Anti-escalation rules: nobody can change
-  their own permissions or grant a permission they do not hold.
-- **Tasks** — statuses To Do / In Progress / Review / Completed / Rejected,
-  priorities Low → Critical, assignee, due dates, overdue detection, review
-  workflow, filters and search. _Edit own_ and _edit assigned_ are separate
-  permissions.
-- **Documents** — private Supabase Storage, direct signed uploads (50 MB,
-  allow-listed types), signed downloads, metadata editing.
-- **Comments** on projects and tasks; edits and deletions are audited.
-- **Activity log** — who did what, when, on which entity, with old/new values,
-  IP address and user agent; immutable; full log only with _View Activity
-  Log_.
-- **Dashboard** — projects, active/completed/overdue tasks, team size, recent
-  activity, progress per project, tasks by status and by member (charts with
-  an accessible table view); adapts to the user's permissions.
-- **Team** — add existing users or invite by e-mail, change roles, suspend,
-  remove, transfer ownership.
-- **Auth** — sign up with e-mail confirmation, login, forgot/reset password,
-  logout, invitations, protected routes, platform administrators.
-- **Export** — tasks as CSV (opens correctly in Excel, formula-injection
-  safe) or the whole project (details, tasks, documents, comments, team) as
-  JSON, limited to what the user may see; every export is audited.
+## Implemented foundations
 
-## Documentation
+- Email/password signup, email verification, sign-in, password reset, and sign-out using Firebase Authentication.
+- Server-verified Firebase session cookies; server actions re-validate input and project permissions.
+- Project memberships, roles, per-member permission templates, platform-admin bootstrap, and audit activity records in Firestore.
+- Assignment-limited task visibility; researchers can update progress/work notes and move assigned tasks through allowed execution/review states, but cannot edit manager-controlled task definitions or assignments.
+- Task instructions, expected output and required-deliverable fields; review, revision-required and completion transitions.
+- Private document uploads with allow-listed formats, an exact server-selected object path, a signed POST policy that constrains MIME type and the 50 MB maximum, and short-lived signed downloads.
+- User-scoped in-app notifications for task assignment, review, revision and approval.
+- Arabic RTL and English LTR, existing responsive shell, comments, CSV/JSON export and activity history.
 
-| Document                                     | Contents                                                                                     |
-| -------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | A. Architecture overview · B. Folder structure · C. Database ERD · F. Implementation roadmap |
-| [docs/PERMISSIONS.md](docs/PERMISSIONS.md)   | D. Permission model: catalog, templates, rules per area, where each rule is enforced         |
-| [docs/SECURITY.md](docs/SECURITY.md)         | E. Security model: layers, threat model, operating guidance                                  |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)     | Free deployment step by step — Supabase Free + Vercel Hobby (Arabic)                         |
+This branch completes the Firebase backend/security migration and these task-workflow foundations; it is not a claim that every item in the original master brief (for example a nested multi-team entity, calendar, report builder, and versioned deliverable-review records) is implemented.
 
-## Quick start (local)
+## Local setup
 
-Requirements: Node.js 20.9+ (22 recommended), npm, Docker (for the local
-Supabase stack).
+Requirements: Node.js 22 recommended, npm, Java 21+ for Firebase Emulator Suite.
 
 ```bash
-cd research-team-platform
-npm install
-
-# 1. Start Supabase locally (Postgres, Auth, Storage, Mailpit). The first start
-#    applies every migration in supabase/migrations.
-npx supabase start
-
-# 2. Configure the app with the values printed by the CLI
+npm ci
 cp .env.example .env.local
-npx supabase status -o env   # API_URL, ANON_KEY, SERVICE_ROLE_KEY
-#    NEXT_PUBLIC_SUPABASE_URL      = API_URL
-#    NEXT_PUBLIC_SUPABASE_ANON_KEY = ANON_KEY
-#    SUPABASE_SERVICE_ROLE_KEY     = SERVICE_ROLE_KEY
-
-# 3. Demo data (users, project, tasks, comments, documents, activity)
-npm run seed
-
-# 4. Run the app
+# Add Firebase Admin credentials to .env.local (see below)
 npm run dev
 ```
 
-Open <http://localhost:3000>. E-mails sent locally (confirmations, password
-resets, invitations) appear in Mailpit at <http://127.0.0.1:54324>.
+Open <http://localhost:3000>.
 
-### Demo accounts
+### Firebase project setup
 
-`npm run seed` creates (or updates) these users and the project
-_AI-Assisted Early Diagnosis Study_ with tasks, comments, documents and an
-authentic activity log (every step is performed through the API as the
-respective user):
+The Firebase web-app configuration in `.env.example` is the public config supplied for project `research-team-platform`. The Firebase API key is a public project identifier, not an Admin credential. Keep Admin credentials private.
 
-| User             | E-mail                 | Role                  |
-| ---------------- | ---------------------- | --------------------- |
-| Ghassan          | `ghassan@example.com`  | Owner, platform admin |
-| Research Manager | `manager@example.com`  | Manager               |
-| Research Member  | `member@example.com`   | Research Member       |
-| Reviewer         | `reviewer@example.com` | Reviewer              |
+In Firebase Console:
 
-The password is `SEED_USER_PASSWORD` from `.env.local`; when it is empty a
-random password is generated and printed. `SEED_EMAIL_DOMAIN` changes the
-domain. `npm run seed -- --reset` deletes and recreates the demo project.
+1. Enable **Authentication → Email/Password**. Set the production authorized domain and configure the verification/reset e-mail templates.
+2. Create/verify the Cloud Firestore database in production mode.
+3. Create the private default Cloud Storage bucket matching `FIREBASE_STORAGE_BUCKET`.
+4. Provision a server service account with the minimum required Auth, Firestore and Storage permissions. Set either `FIREBASE_SERVICE_ACCOUNT_JSON` or `FIREBASE_CLIENT_EMAIL` plus `FIREBASE_PRIVATE_KEY` in the server environment; on Google Cloud, Application Default Credentials may be used.
+5. Restrict the public Firebase API key to the required Identity Toolkit API where supported. Never expose a service-account JSON/private key to the browser or commit it.
+
+No default Firebase CLI project is configured intentionally. Always pass an explicit `--project` target and verify it is the intended staging or production project before deployment.
 
 ## Environment variables
 
-Copy `.env.example` to `.env.local` (local) or add the variables in Vercel →
-Project → Settings → Environment Variables. **Never commit real values** —
-`.env*.local` is git-ignored.
+| Variable                                        | Purpose                                                               | Exposure                   |
+| ----------------------------------------------- | --------------------------------------------------------------------- | -------------------------- |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`                  | Firebase Auth REST API key                                            | Public Firebase web config |
+| `FIREBASE_PROJECT_ID`                           | Firebase project ID                                                   | Server config              |
+| `FIREBASE_STORAGE_BUCKET`                       | Default Cloud Storage bucket                                          | Server config              |
+| `FIREBASE_SERVICE_ACCOUNT_JSON`                 | Service-account JSON, if not using ADC                                | Server secret only         |
+| `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | Alternative Admin SDK credentials                                     | Server secrets only        |
+| `NEXT_PUBLIC_SITE_URL`                          | Canonical origin for verification/reset links                         | Public URL                 |
+| `PLATFORM_ADMIN_EMAILS`                         | Comma-separated verified emails eligible for platform-admin bootstrap | Server config              |
+| `APP_TIMEZONE`                                  | Date/overdue calculations (IANA zone)                                 | Server config              |
+| `NEXT_PUBLIC_DEFAULT_LOCALE`                    | Default `ar` or `en`                                                  | Public config              |
+| `FIREBASE_AUTH_EMULATOR_HOST`                   | Optional Auth emulator, e.g. `127.0.0.1:9099`                         | Local only                 |
 
-| Variable                                                  | Required     | Where to find it                                                                                                                                                                                                              | Exposure                                           |
-| --------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`                                | Yes          | Supabase dashboard → _Project Settings → Data API_ (Project URL), or the _Connect_ dialog. Local: `API_URL`.                                                                                                                  | Browser (public)                                   |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY`                           | Yes          | _Project Settings → API Keys_: the **publishable** key (`sb_publishable_…`) or the legacy **anon** key. Local: `ANON_KEY`.                                                                                                    | Browser (public, protected by RLS)                 |
-| `SUPABASE_SERVICE_ROLE_KEY`                               | Recommended  | _Project Settings → API Keys_: a **secret** key (`sb_secret_…`) or the legacy **service_role** key. Local: `SERVICE_ROLE_KEY`. Needed for e-mail invitations, removing a deleted project's files and `PLATFORM_ADMIN_EMAILS`. | **Server only** — never prefix with `NEXT_PUBLIC_` |
-| `NEXT_PUBLIC_SITE_URL`                                    | Production   | Your public URL, e.g. `https://research.example.org` (used in e-mail links and to mark cookies `Secure`).                                                                                                                     | Browser                                            |
-| `PLATFORM_ADMIN_EMAILS`                                   | First deploy | Comma-separated e-mails promoted to platform admin after a confirmed sign-in.                                                                                                                                                 | Server                                             |
-| `APP_TIMEZONE`                                            | No           | IANA zone used for "overdue" and dates, e.g. `Asia/Gaza` (default `UTC`).                                                                                                                                                     | Server                                             |
-| `NEXT_PUBLIC_DEFAULT_LOCALE`                              | No           | `ar` (default) or `en`.                                                                                                                                                                                                       | Browser                                            |
-| `SEED_USER_PASSWORD`, `SEED_EMAIL_DOMAIN`, `DATABASE_URL` | Scripts only | Demo seed and `npm run db:types`; not needed on Vercel.                                                                                                                                                                       | Local                                              |
+## Security Rules and tests
 
-## Using a hosted Supabase project
+Security Rules are in `firestore.rules` and `storage.rules`; indexes are in `firestore.indexes.json`. Global Director access in Rules uses the Admin-SDK-managed `platform_admin` custom claim, never a client-writable profile field. Role changes revoke refresh tokens, and affected users must sign in again. Direct client access is otherwise restricted. The Admin SDK **bypasses Firebase Security Rules**, so every server query/action also applies explicit authorization in `src/lib/firebase/compat.ts` and the shared policy layer. Do not add a server route that uses Admin SDK without those checks.
 
-1. Create a project at [supabase.com](https://supabase.com) and copy the URL
-   and keys (table above) into `.env.local`.
-2. Apply the migrations:
-   ```bash
-   npx supabase login
-   npx supabase link --project-ref <your-project-ref>
-   npx supabase db push
-   ```
-   This creates the schema, permission catalog, policies, functions and the
-   private `project-documents` storage bucket. Without installing the CLI:
-   run `npm run db:bundle` and paste the generated `supabase-setup.sql` into
-   _Dashboard → SQL Editor_ once, on the new project (it records the
-   migrations, so `db push` keeps working for future ones).
-3. _Authentication → URL Configuration_: set **Site URL** to your domain and
-   add `https://<domain>/auth/confirm` and `https://<domain>/auth/callback`
-   (plus `http://localhost:3000/...` for development) to **Redirect URLs**.
-4. _Authentication → Emails → Templates_: paste the templates from
-   `supabase/templates/` (Confirm signup → `confirmation.html`, Invite user →
-   `invite.html`, Reset password → `recovery.html`, Change e-mail address →
-   `email_change.html`). They link to `/auth/confirm` with a `token_hash`, which
-   works across browsers and devices.
-5. Keep _Confirm email_ enabled and configure a custom SMTP server for
-   production e-mail.
-6. Become platform admin (allowed to create projects): sign up with an
-   address listed in `PLATFORM_ADMIN_EMAILS`, or run
-   `npm run admin:promote -- you@example.org`.
+```bash
+npm test
+npm run typecheck
+npm run test:firebase
+npm run lint
+npm run build
+```
 
-## Deploying to Vercel
+The Firebase rules tests use the Firestore and Storage emulators. The signed POST upload flow also requires bucket CORS to allow `POST` and `Content-Type` from the deployed app origin; do not enable public bucket access.
 
-A complete free-tier walkthrough (Supabase Free + Vercel Hobby + free SMTP)
-is in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+## Deployment
 
-1. Import the GitHub repository in Vercel and set **Root Directory** to
-   `research-team-platform` (framework preset: Next.js).
-2. Add the environment variables (Production and Preview).
-3. Deploy, then add the Vercel domain to the Supabase _Site URL_ /
-   _Redirect URLs_ (step 3 above) and set `NEXT_PUBLIC_SITE_URL`.
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for environment setup and deployment steps. Deploy rules and indexes only after reviewing the target Firebase project:
 
-Security headers (CSP, HSTS, frame protection) are configured in
-`next.config.ts`; HTTPS-only directives activate automatically when the
-Supabase URL uses HTTPS.
+```bash
+firebase deploy --project "$FIREBASE_DEPLOY_PROJECT_ID" --only firestore:rules,firestore:indexes,storage
+```
 
-## Scripts
+## Existing Supabase data
 
-| Command                                       | Purpose                                                         |
-| --------------------------------------------- | --------------------------------------------------------------- |
-| `npm run dev` / `build` / `start`             | Develop, build and serve the app                                |
-| `npm run lint` · `typecheck` · `format:check` | ESLint, TypeScript (with Next.js route types), Prettier         |
-| `npm test`                                    | Unit tests (Vitest)                                             |
-| `npm run test:db`                             | pgTAP database suite on the local Supabase stack                |
-| `npm run test:db:local`                       | Same suite on a throw-away plain PostgreSQL (no Docker)         |
-| `npm run test:integration`                    | API security suite against a running local stack                |
-| `npm run seed`                                | Demo data                                                       |
-| `npm run admin:promote -- <email>`            | Make a user platform admin                                      |
-| `npm run db:types`                            | Regenerate `src/types/database.types.ts` (needs `DATABASE_URL`) |
-| `npm run db:bundle`                           | One SQL file with every migration, for the Supabase SQL Editor  |
+This repository previously used Supabase. The migration in this branch replaces the application runtime; it does **not** migrate existing PostgreSQL rows, Supabase Auth password hashes, or Storage objects. Keep the old Supabase project and take a verified backup until a separately tested data migration has been run. Password hashes generally cannot be imported into Firebase Auth; plan an account verification/password-reset flow. Do not point production traffic at Firebase until data, rules, storage, email delivery, and rollback have been validated.
 
-## Tests
+## Key documentation
 
-| Suite                                             | What it proves                                                                                                                                                                                                                                                          |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `supabase/tests/database` (pgTAP, 185 assertions) | RLS on every table, column privileges, task/document/comment rules, membership and permission RPCs, anti-escalation, storage policies, audit log content and immutability, anonymous access.                                                                            |
-| `tests/integration/api-security.test.ts`          | Calls PostgREST, RPCs and Storage **directly** with real sessions of an isolated fixture (owner, manager, member, reviewer, outsider) — i.e. what an attacker who skips the UI would do. Refuses to run against non-local projects unless `INTEGRATION_ALLOW_REMOTE=1`. |
-| `tests/unit`                                      | Permission policy used by the server and UI, validation schemas, error mapping (exact Arabic messages), file rules, activity descriptions, catalog parity between SQL and TypeScript.                                                                                   |
-
-The required permission scenarios and where they are tested:
-
-| Scenario                                        | Tests                                                                  |
-| ----------------------------------------------- | ---------------------------------------------------------------------- |
-| The owner/admin can edit everything             | integration _owner (admin of the project)_, pgTAP 02–04                |
-| A member cannot delete tasks without permission | integration _research member › cannot delete a task…_, pgTAP 03        |
-| A member can edit an assigned task              | integration _…can edit a task assigned to them…_, pgTAP 03             |
-| A member cannot edit another user's task        | integration _…cannot edit a task that another user created…_, pgTAP 03 |
-| A user cannot access another project            | integration _project isolation_, pgTAP 02                              |
-| A user cannot modify permissions                | integration _…cannot change permissions…_, _manager…_, pgTAP 04        |
-| Unauthorized API requests are rejected          | integration _unauthenticated and forged requests_, pgTAP 07            |
-
-Continuous integration (`.github/workflows/research-team-platform.yml`) runs
-lint, format, typecheck, unit tests and the production build, then starts
-Supabase to run the pgTAP and API security suites and the seed script.
-
-## Troubleshooting
-
-- **"Supabase is not configured"** — `NEXT_PUBLIC_SUPABASE_URL` /
-  `NEXT_PUBLIC_SUPABASE_ANON_KEY` are missing; restart `npm run dev` after
-  editing `.env.local`.
-- **Invitations fail with "not available"** — set `SUPABASE_SERVICE_ROLE_KEY`
-  (server-side only). Adding users who already have an account works without
-  it.
-- **Confirmation / reset links open the login page with an error** — the
-  link was already used or expired, or the Supabase redirect URLs / e-mail
-  templates are not configured (see _Using a hosted Supabase project_).
-- **Nobody can create projects** — no platform admin yet: use
-  `PLATFORM_ADMIN_EMAILS` or `npm run admin:promote`.
-
----
-
-## بالعربية: التشغيل السريع
-
-1. ثبّت الحزم: `npm install` داخل مجلد `research-team-platform`.
-2. شغّل Supabase محليًا: `npx supabase start` (يطبّق جميع ملفات الترحيل).
-3. انسخ `.env.example` إلى `.env.local` وضع القيم التي يعرضها
-   `npx supabase status -o env`:
-   `API_URL` ← `NEXT_PUBLIC_SUPABASE_URL`، و`ANON_KEY` ←
-   `NEXT_PUBLIC_SUPABASE_ANON_KEY`، و`SERVICE_ROLE_KEY` ←
-   `SUPABASE_SERVICE_ROLE_KEY` (مفتاح سري للخادم فقط، لا تضعه أبدًا في متغير
-   يبدأ بـ `NEXT_PUBLIC_` ولا ترفعه إلى GitHub).
-4. أنشئ البيانات التجريبية: `npm run seed` (المستخدمون: Ghassan وResearch
-   Manager وResearch Member وReviewer مع مشروع ومهام وسجل نشاط).
-5. شغّل التطبيق: `npm run dev` ثم افتح <http://localhost:3000>. الرسائل
-   البريدية المحلية تظهر في <http://127.0.0.1:54324>.
-
-في بيئة الإنتاج: احصل على الرابط والمفاتيح من لوحة Supabase
-(_Project Settings → Data API_ و*API Keys*)، وطبّق الترحيلات عبر
-`npx supabase db push`، واضبط _Site URL_ و*Redirect URLs* وقوالب البريد من
-مجلد `supabase/templates`، ثم أضف المتغيرات نفسها في Vercel مع جعل
-**Root Directory** هو `research-team-platform`.
-
-دليل النشر المجاني خطوة بخطوة (Supabase + Vercel): [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
-
-جميع الصلاحيات مطبّقة في قاعدة البيانات (RLS والقيود والدوال)، لذلك يُرفض أي
-طلب غير مسموح حتى لو أُرسل مباشرةً إلى الـ API دون المرور بالواجهة.
+- [Architecture](docs/ARCHITECTURE.md)
+- [Permissions](docs/PERMISSIONS.md)
+- [Security](docs/SECURITY.md)
+- [Deployment](docs/DEPLOYMENT.md)

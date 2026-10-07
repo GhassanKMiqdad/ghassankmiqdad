@@ -21,9 +21,9 @@ export default async function ProjectLayout(props: LayoutProps<"/projects/[proje
   if (access.status === "suspended") return <AccessDenied message={t.projects.accessSuspended} />;
   if (!can(access, "project.view")) return <AccessDenied message={t.errors.PROJECT_ACCESS_DENIED} />;
 
-  const tabs: ProjectTabKey[] = ["overview", "tasks"];
-  if (can(access, "documents.view")) tabs.push("documents");
-  if (can(access, "team.view")) tabs.push("team");
+  const tabs: ProjectTabKey[] = ["overview", "tasks", "milestones"];
+  if (can(access, "documents.view") || can(access, "documents.upload")) tabs.push("documents");
+  if (can(access, "team.view") || can(access, "members.manage")) tabs.push("teams", "team");
   if (can(access, "activity.view")) tabs.push("activity");
   if (can(access, "project.edit") || can(access, "project.delete") || access.isOwner) tabs.push("settings");
 

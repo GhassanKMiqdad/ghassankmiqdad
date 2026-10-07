@@ -26,10 +26,10 @@ export function appToday(): string {
 }
 
 export function isOverdue(dueDate: string | null, status: string, today = appToday()): boolean {
-  return !!dueDate && dueDate < today && status !== "completed" && status !== "rejected";
+  return !!dueDate && dueDate < today && status !== "completed" && status !== "cancelled" && status !== "rejected";
 }
 
-/** Removes LIKE / PostgREST wildcard characters from free-text search. */
+/** Removes query-syntax and wildcard characters from free-text search. */
 export function sanitizeSearch(value: string | undefined | null): string | null {
   const cleaned = (value ?? "")
     .replace(/[%_*\\,()"':]/g, " ")
