@@ -6,7 +6,7 @@ import { ChartCard } from "@/components/charts/chart-card";
 import { ChartTooltip } from "@/components/charts/chart-tooltip";
 import { useI18n } from "@/lib/i18n/provider";
 
-type MemberRow = { userId: string; name: string; open: number; completed: number; total: number };
+type MemberRow = { userId: string; name: string; open: number; completed: number; total: number; overdue?: number };
 
 function shorten(name: string, max = 16) {
   return name.length > max ? `${name.slice(0, max - 1)}…` : name;
@@ -32,8 +32,14 @@ export function TasksByMemberChart({ data }: { data: MemberRow[] }) {
       description={t.dashboard.tasksByMemberDescription}
       empty={rows.length === 0}
       table={{
-        columns: [t.dashboard.member, t.dashboard.open, t.dashboard.completed, t.dashboard.total],
-        rows: rows.map((row) => [row.name, row.open, row.completed, row.total]),
+        columns: [
+          t.dashboard.member,
+          t.dashboard.open,
+          t.planner.overdueTasks,
+          t.dashboard.completed,
+          t.dashboard.total,
+        ],
+        rows: rows.map((row) => [row.name, row.open, row.overdue ?? 0, row.completed, row.total]),
       }}
     >
       <div className="mb-3 flex flex-wrap gap-4 text-xs text-muted-foreground" aria-hidden>

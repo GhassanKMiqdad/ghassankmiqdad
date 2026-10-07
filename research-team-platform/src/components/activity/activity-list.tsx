@@ -38,7 +38,12 @@ function ActivityRow({ item, showProject, compact }: { item: ActivityItem; showP
   const i18n = useI18n();
   const { t } = i18n;
   const [open, setOpen] = useState(false);
-  const changes = activityChanges(item, { t, date: (value) => i18n.date(value), locale: i18n.locale });
+  const changes = activityChanges(item, {
+    t,
+    date: (value) => i18n.date(value),
+    datetime: (value) => i18n.date(value, "datetime"),
+    locale: i18n.locale,
+  });
   const reason = activityReason(item, t);
   const hasDetails = !compact && (changes.length > 0 || !!item.ipAddress || !!item.userAgent);
 

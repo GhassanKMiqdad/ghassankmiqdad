@@ -16,20 +16,27 @@ const ANY = "__any__";
 /** One filter row above the list; every filter lives in the URL. */
 export function TaskFilters({
   projects,
+  teams,
   members,
+  months = 3,
 }: {
   projects?: { id: string; name: string }[];
+  teams?: { id: string; name: string }[];
   members?: { id: string; name: string }[];
+  /** Number of planning months offered in the month filter. */
+  months?: number;
 }) {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
+  const schedule = searchParams.get("schedule") ?? (searchParams.get("overdue") === "1" ? "overdue" : null);
 
   const update = (key: string, value: string | null) => {
     const params = new URLSearchParams(searchParams.toString());
+    if (key === "schedule") params.delete("overdue");
     if (value === null || value === "" || value === ANY) params.delete(key);
     else params.set(key, value);
     params.delete("page");
@@ -45,7 +52,20 @@ export function TaskFilters({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  const hasFilters = ["q", "status", "priority", "assignee", "project", "overdue"].some((key) => searchParams.has(key));
+  const hasFilters = [
+    "q",
+    "status",
+    "priority",
+    "assignee",
+    "project",
+    "team",
+    "month",
+    "week",
+    "schedule",
+    "from",
+    "to",
+    "overdue",
+  ].some((key) => searchParams.has(key));
 
   return (
     <div className={cn("flex flex-wrap items-center gap-2 transition-opacity", pending && "opacity-60")}>
@@ -72,6 +92,21 @@ export function TaskFilters({
             {projects.map((project) => (
               <SelectItem key={project.id} value={project.id}>
                 {project.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : null}
+      {teams && teams.length > 1 ? (
+        <Select value={searchParams.get("team") ?? ANY} onValueChange={(value) => update("team", value)}>
+          <SelectTrigger className="w-40" aria-label={t.tasks.fields.team}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ANY}>{t.tasks.filters.anyTeam}</SelectItem>
+            {teams.map((team) => (
+              <SelectItem key={team.id} value={team.id}>
+                {team.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -118,14 +153,63 @@ export function TaskFilters({
           ))}
         </SelectContent>
       </Select>
-      <Button
-        type="button"
-        variant={searchParams.get("overdue") === "1" ? "secondary" : "outline"}
-        aria-pressed={searchParams.get("overdue") === "1"}
-        onClick={() => update("overdue", searchParams.get("overdue") === "1" ? null : "1")}
-      >
-        {t.tasks.filters.overdue}
-      </Button>
+      <Select value={searchParams.get("month") ?? ANY} onValueChange={(value) => update("month", value)}>
+        <SelectTrigger className="w-32" aria-label={t.tasks.fields.planningMonth}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ANY}>{t.tasks.filters.anyMonth}</SelectItem>
+          {Array.from({ length: Math.max(1, months) }, (_, index) => index + 1).map((month) => (
+            <SelectItem key={month} value={String(month)}>
+              {`M${String(month).padStart(2, "0")}`}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={searchParams.get("week") ?? ANY} onValueChange={(value) => update("week", value)}>
+        <SelectTrigger className="w-32" aria-label={t.tasks.fields.planningWeek}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ANY}>{t.tasks.filters.anyWeek}</SelectItem>
+          {[1, 2, 3, 4, 5].map((week) => (
+            <SelectItem key={week} value={String(week)}>
+              {fmt(t.tasks.week, { week })}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={schedule ?? ANY} onValueChange={(value) => update("schedule", value)}>
+        <SelectTrigger className="w-40" aria-label={t.tasks.fields.schedule}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ANY}>{t.tasks.filters.anySchedule}</SelectItem>
+          <SelectItem value="overdue">{t.scheduleStatus.overdue}</SelectItem>
+          <SelectItem value="due_soon">{t.scheduleStatus.due_soon}</SelectItem>
+          <SelectItem value="unscheduled">{t.scheduleStatus.unscheduled}</SelectItem>
+        </SelectContent>
+      </Select>
+      <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        {t.tasks.filters.from}
+        <Input
+          type="date"
+          dir="ltr"
+          className="w-36"
+          value={searchParams.get("from") ?? ""}
+          onChange={(event) => update("from", event.target.value || null)}
+        />
+      </label>
+      <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        {t.tasks.filters.to}
+        <Input
+          type="date"
+          dir="ltr"
+          className="w-36"
+          value={searchParams.get("to") ?? ""}
+          onChange={(event) => update("to", event.target.value || null)}
+        />
+      </label>
       {hasFilters ? (
         <Button
           type="button"

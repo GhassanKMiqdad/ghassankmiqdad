@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { loginSchema, newPasswordSchema, safeRedirectPath, signupSchema } from "@/lib/validation/auth";
 import { permissionsSchema } from "@/lib/validation/member";
 import { projectFormSchema } from "@/lib/validation/project";
-import { taskFormSchema, taskPatchSchema } from "@/lib/validation/task";
+import { reviewTaskSchema, submitTaskSchema, taskFormSchema, taskStatusSchema } from "@/lib/validation/task";
 
 describe("auth validation", () => {
   it("only accepts same-origin relative redirects (no open redirect)", () => {
@@ -64,23 +64,85 @@ describe("domain validation", () => {
     expect(result.error!.issues[0]?.message).toBe("validation.deadlineBeforeStart");
   });
 
-  it("turns empty optional form values into null", () => {
-    const parsed = taskFormSchema.parse({
-      title: "Literature review",
-      description: "",
-      status: "todo",
-      priority: "medium",
-      assignedTo: "",
-      dueDate: "",
-    });
+  const baseTask = {
+    taskCode: "",
+    title: "Literature review",
+    description: "",
+    originalInstructions: "",
+    expectedOutput: "",
+    completionCriteria: "",
+    priority: "p2",
+    assignedTo: "",
+    planningMonth: "1",
+    planningWeek: "",
+    plannedStart: "",
+    plannedDuration: "",
+    durationUnit: "days",
+    dueOverride: false,
+    dueAt: "",
+  };
+
+  it("turns empty optional form values into null (no invented dates)", () => {
+    const parsed = taskFormSchema.parse(baseTask);
     expect(parsed.assignedTo).toBeNull();
-    expect(parsed.dueDate).toBeNull();
+    expect(parsed.taskCode).toBeNull();
+    expect(parsed.plannedStart).toBeNull();
+    expect(parsed.plannedDuration).toBeNull();
+    expect(parsed.planningWeek).toBeNull();
+    expect(parsed.dueAt).toBeNull();
+    expect(parsed.planningMonth).toBe(1);
   });
 
-  it("rejects unknown statuses, identifiers and permission keys", () => {
-    expect(taskPatchSchema.safeParse({ status: "done" }).success).toBe(false);
-    expect(taskPatchSchema.safeParse({ assignedTo: "not-a-uuid" }).success).toBe(false);
-    expect(taskPatchSchema.safeParse({}).success).toBe(false);
+  it("normalizes and validates task IDs", () => {
+    expect(taskFormSchema.parse({ ...baseTask, taskCode: " m01-gh-01-01 " }).taskCode).toBe("M01-GH-01-01");
+    expect(taskFormSchema.safeParse({ ...baseTask, taskCode: "M01 GH" }).success).toBe(false);
+    expect(taskFormSchema.safeParse({ ...baseTask, taskCode: "M01--GH" }).success).toBe(false);
+  });
+
+  it("requires a deadline when it is overridden, after the start", () => {
+    expect(taskFormSchema.safeParse({ ...baseTask, dueOverride: true }).success).toBe(false);
+    const early = taskFormSchema.safeParse({
+      ...baseTask,
+      plannedStart: "2026-11-02T09:00",
+      dueOverride: true,
+      dueAt: "2026-11-01T09:00",
+    });
+    expect(early.success).toBe(false);
+    expect(early.error!.issues[0]?.message).toBe("validation.deadlineBeforeStart");
+  });
+
+  it("rejects unknown priorities, statuses, identifiers and permission keys", () => {
+    expect(taskFormSchema.safeParse({ ...baseTask, priority: "high" }).success).toBe(false);
+    expect(taskStatusSchema.safeParse({ status: "done" }).success).toBe(false);
+    expect(taskFormSchema.safeParse({ ...baseTask, assignedTo: "not-a-uuid" }).success).toBe(false);
     expect(permissionsSchema.safeParse({ permissions: ["tasks.edit", "root.everything"] }).success).toBe(false);
+  });
+
+  it("parses deliverable links one per line and rejects non-http links", () => {
+    const parsed = submitTaskSchema.parse({
+      summary: "Done",
+      links: "https://a.example\n\n http://b.example ",
+      notes: "",
+    });
+    expect(parsed.links).toEqual(["https://a.example", "http://b.example"]);
+    expect(submitTaskSchema.safeParse({ summary: "Done", links: "javascript:alert(1)", notes: "" }).success).toBe(
+      false,
+    );
+    expect(submitTaskSchema.safeParse({ summary: " ", links: "", notes: "" }).success).toBe(false);
+  });
+
+  it("a revision request must say what to change", () => {
+    expect(
+      reviewTaskSchema.safeParse({
+        decision: "revision_required",
+        comment: "",
+        requiredChanges: "",
+        additionalInstructions: "",
+      }).success,
+    ).toBe(false);
+    expect(
+      reviewTaskSchema.safeParse({ decision: "approved", comment: "", requiredChanges: "", additionalInstructions: "" })
+        .success,
+    ).toBe(true);
   });
 });

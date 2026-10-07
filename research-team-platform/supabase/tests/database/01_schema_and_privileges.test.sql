@@ -1,13 +1,15 @@
 -- Schema, privileges and reference data.
 begin;
 \ir _helpers.psql
-select plan(27);
+select plan(36);
 
 select tables_are(
   'public',
   array[
     'profiles', 'projects', 'project_members', 'permissions', 'role_permissions',
-    'user_permissions', 'tasks', 'documents', 'comments', 'activity_logs'
+    'user_permissions', 'tasks', 'documents', 'comments', 'activity_logs',
+    'teams', 'team_members', 'team_member_invites', 'task_dependencies', 'task_submissions',
+    'task_reviews', 'task_publications', 'notifications'
   ],
   'public schema contains exactly the application tables'
 );
@@ -41,6 +43,15 @@ select ok(not has_column_privilege('authenticated', 'public.profiles', 'is_platf
 select ok(not has_column_privilege('authenticated', 'public.profiles', 'can_create_projects', 'UPDATE'), 'users cannot grant themselves project creation');
 select ok(not has_column_privilege('authenticated', 'public.tasks', 'project_id', 'UPDATE'), 'a task cannot be moved to another project');
 select ok(not has_column_privilege('authenticated', 'public.tasks', 'created_by', 'UPDATE'), 'the task creator cannot be rewritten');
+select ok(not has_column_privilege('authenticated', 'public.profiles', 'is_director', 'UPDATE'), 'users cannot promote themselves to Director');
+select ok(not has_column_privilege('authenticated', 'public.tasks', 'visibility', 'UPDATE'), 'task visibility is never client-controlled');
+select ok(not has_column_privilege('authenticated', 'public.tasks', 'visibility', 'INSERT'), 'task visibility cannot be set on creation');
+select ok(not has_column_privilege('authenticated', 'public.tasks', 'task_code', 'UPDATE'), 'the task ID is immutable');
+select ok(not has_column_privilege('authenticated', 'public.tasks', 'completed_at', 'UPDATE'), 'the completion date is server-controlled');
+select ok(not has_table_privilege('authenticated', 'public.task_submissions', 'INSERT'), 'submissions are written only through submit_task()');
+select ok(not has_table_privilege('authenticated', 'public.task_publications', 'INSERT'), 'publications are written only through complete_task()');
+select ok(not has_table_privilege('authenticated', 'public.team_members', 'INSERT'), 'team rosters are written only through Director RPCs');
+select ok(not has_table_privilege('authenticated', 'public.notifications', 'INSERT'), 'notifications are written only by the database');
 select ok(not has_column_privilege('authenticated', 'public.documents', 'storage_path', 'UPDATE'), 'a document cannot be re-pointed to another file');
 select ok(not has_column_privilege('authenticated', 'public.comments', 'author_id', 'UPDATE'), 'the comment author cannot be rewritten');
 

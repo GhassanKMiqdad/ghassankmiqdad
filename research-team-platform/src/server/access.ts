@@ -13,7 +13,7 @@ import {
 } from "@/lib/permissions/catalog";
 import { can } from "@/lib/permissions/policy";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getSessionUser } from "@/server/auth";
+import { getCurrentProfile, getSessionUser } from "@/server/auth";
 
 export type { ProjectAccess };
 
@@ -26,7 +26,7 @@ type AccessRow = {
   permissions: string[];
 };
 
-function toAccess(row: AccessRow, userId: string): ProjectAccess {
+function toAccess(row: AccessRow, userId: string, isDirector: boolean): ProjectAccess {
   return {
     projectId: row.project_id,
     projectName: row.project_name,
@@ -36,6 +36,7 @@ function toAccess(row: AccessRow, userId: string): ProjectAccess {
     status: row.member_status,
     isOwner: row.role === "owner",
     permissions: new Set((row.permissions ?? []).filter(isPermissionKey)),
+    isDirector,
   };
 }
 
@@ -47,9 +48,12 @@ export const getMyProjectsAccess = cache(async (): Promise<ProjectAccess[]> => {
   const user = await getSessionUser();
   if (!user) return [];
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("get_my_project_access", {});
+  const [{ data, error }, profile] = await Promise.all([
+    supabase.rpc("get_my_project_access", {}),
+    getCurrentProfile(),
+  ]);
   if (error) throw error;
-  return (data ?? []).map((row) => toAccess(row, user.id));
+  return (data ?? []).map((row) => toAccess(row, user.id, profile?.isDirector === true));
 });
 
 export const getProjectAccess = cache(async (projectId: string): Promise<ProjectAccess | null> => {

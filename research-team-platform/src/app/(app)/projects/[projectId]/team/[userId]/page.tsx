@@ -124,7 +124,12 @@ export default async function MemberPage(props: PageProps<"/projects/[projectId]
                         {task.title}
                       </Link>
                       <div className="flex shrink-0 items-center gap-2">
-                        <DateText value={task.dueDate} fallback="" className="text-xs text-muted-foreground" />
+                        <DateText
+                          value={task.dueAt}
+                          style="datetime"
+                          fallback=""
+                          className="text-xs text-muted-foreground"
+                        />
                         <TaskStatusBadge status={task.status} />
                       </div>
                     </li>

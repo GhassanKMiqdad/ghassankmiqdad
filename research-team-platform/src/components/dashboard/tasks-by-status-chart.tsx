@@ -41,7 +41,7 @@ export function TasksByStatusChart({ data }: { data: Record<TaskStatus, number> 
             <YAxis
               type="category"
               dataKey="label"
-              width={104}
+              width={128}
               orientation={rtl ? "right" : "left"}
               tickLine={false}
               axisLine={false}

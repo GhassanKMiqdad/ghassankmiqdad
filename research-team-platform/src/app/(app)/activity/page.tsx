@@ -22,7 +22,7 @@ export default async function ActivityPage(props: PageProps<"/activity">) {
   const profile = await requireCurrentProfile();
   const [{ t }, access] = await Promise.all([getI18n(), getMyProjectsAccess()]);
   const auditable = access.filter((item) => can(item, "activity.view"));
-  const fullAccess = auditable.length > 0 || profile.isPlatformAdmin;
+  const fullAccess = auditable.length > 0 || profile.isPlatformAdmin || profile.isDirector;
 
   const filters = parseActivitySearchParams(await props.searchParams, ACTIVITY_ENTITY_TYPES);
   // Without activity.view anywhere, RLS limits the log to the user's own actions.
@@ -33,9 +33,11 @@ export default async function ActivityPage(props: PageProps<"/activity">) {
     actorId: fullAccess ? undefined : profile.id,
   });
 
-  const entityTypes = profile.isPlatformAdmin
-    ? ACTIVITY_ENTITY_TYPES
-    : ACTIVITY_ENTITY_TYPES.filter((type) => type !== "platform_user");
+  // Organization-level entries (platform users, teams) are readable by platform admins and Directors.
+  const entityTypes =
+    profile.isPlatformAdmin || profile.isDirector
+      ? ACTIVITY_ENTITY_TYPES
+      : ACTIVITY_ENTITY_TYPES.filter((type) => type !== "platform_user" && type !== "team");
 
   return (
     <div className="space-y-6">

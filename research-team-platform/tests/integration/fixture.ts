@@ -14,11 +14,11 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 
 export type Client = SupabaseClient<Database>;
-export type Role = "owner" | "manager" | "member" | "reviewer" | "outsider";
+export type Role = "owner" | "manager" | "member" | "colleague" | "reviewer" | "outsider";
 export type FixtureUser = { id: string; email: string; client: Client };
 
 export const BUCKET = "project-documents";
-const ROLES: Role[] = ["owner", "manager", "member", "reviewer", "outsider"];
+const ROLES: Role[] = ["owner", "manager", "member", "colleague", "reviewer", "outsider"];
 const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]", "host.docker.internal", "kong"]);
 
 export type IntegrationEnv = { url: string; anonKey: string; serviceKey: string };
@@ -93,8 +93,10 @@ export async function createFixture(env: IntegrationEnv) {
     users[role] = { id: created.user.id, email, client };
   }
 
-  // The owner may create projects (platform flag), exactly like the seed.
+  // The owner may create projects (platform flag), exactly like the seed, and
+  // is made a Director by this trusted server process (service role).
   must("bootstrap owner", await admin.rpc("bootstrap_platform_admin", { p_user_id: users.owner.id }));
+  must("director", await admin.from("profiles").update({ is_director: true }).eq("id", users.owner.id).select("id"));
   const owner = users.owner.client;
   const projectA = must("project A", await owner.rpc("create_project", { p_name: `Integration ${run} A` }));
   const projectB = must("project B", await owner.rpc("create_project", { p_name: `Integration ${run} B` }));
@@ -102,6 +104,7 @@ export async function createFixture(env: IntegrationEnv) {
   for (const [role, project, projectRole] of [
     ["manager", projectA, "manager"],
     ["member", projectA, "member"],
+    ["colleague", projectA, "member"],
     ["reviewer", projectA, "reviewer"],
     ["outsider", projectB, "member"],
   ] as const) {
@@ -129,13 +132,27 @@ export async function createFixture(env: IntegrationEnv) {
     assignedToMember: await createTask(owner, "Assigned to member", { assigned_to: users.member.id }),
     assignedToManager: await createTask(owner, "Assigned to manager", { assigned_to: users.manager.id }),
     unassigned: await createTask(owner, "Unassigned"),
-    inReview: await createTask(owner, "Waiting for review", { assigned_to: users.member.id, status: "review" }),
-    ownedByMember: await createTask(users.member.client, "Created by member"),
+    inReview: await createTask(owner, "Waiting for review", { assigned_to: users.member.id }),
     inProjectB: must(
       "task in B",
       await owner.from("tasks").insert({ project_id: projectB, title: "Project B task" }).select("id").single(),
     ).id,
   };
+
+  // The member starts and submits the task that waits for review.
+  must(
+    "start",
+    await users.member.client.from("tasks").update({ status: "in_progress" }).eq("id", tasks.inReview).select("id"),
+  );
+  must(
+    "submit",
+    await users.member.client.rpc("submit_task", {
+      p_task_id: tasks.inReview,
+      p_summary: "Ready for review",
+      p_deliverable_links: [],
+      p_notes: "",
+    }),
+  );
 
   async function storagePaths(prefix: string): Promise<string[]> {
     const { data } = await admin.storage.from(BUCKET).list(prefix, { limit: 1000 });
@@ -154,6 +171,7 @@ export async function createFixture(env: IntegrationEnv) {
       if (paths.length > 0) await admin.storage.from(BUCKET).remove(paths);
       await owner.from("projects").delete().eq("id", project);
     }
+    await admin.from("teams").delete().like("name", `IT ${run}%`);
     for (const user of Object.values(users)) {
       await user.client.auth.signOut().catch(() => undefined);
       await admin.auth.admin.deleteUser(user.id);

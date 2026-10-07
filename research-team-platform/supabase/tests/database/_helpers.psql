@@ -144,11 +144,15 @@ begin
     and pm.role <> 'owner';
 
   insert into public.tasks (id, project_id, title, status, priority, assigned_to, created_by) values
-    (tests.uid('task_assigned_member'), a, 'Literature Review', 'in_progress', 'high', tests.uid('member'), tests.uid('owner')),
-    (tests.uid('task_member2'), a, 'Data Collection', 'todo', 'medium', tests.uid('member2'), tests.uid('member2')),
-    (tests.uid('task_own_member'), a, 'Draft Methodology', 'todo', 'low', null, tests.uid('member')),
-    (tests.uid('task_review'), a, 'Statistical Analysis', 'review', 'critical', tests.uid('member'), tests.uid('owner')),
-    (tests.uid('task_project_b'), b, 'Confidential B task', 'todo', 'medium', null, tests.uid('other_owner'));
+    (tests.uid('task_assigned_member'), a, 'Literature Review', 'in_progress', 'p1', tests.uid('member'), tests.uid('owner')),
+    (tests.uid('task_member2'), a, 'Data Collection', 'not_started', 'p2', tests.uid('member2'), tests.uid('member2')),
+    (tests.uid('task_own_member'), a, 'Draft Methodology', 'not_started', 'p3', null, tests.uid('member')),
+    (tests.uid('task_review'), a, 'Statistical Analysis', 'submitted', 'p0', tests.uid('member'), tests.uid('owner')),
+    (tests.uid('task_project_b'), b, 'Confidential B task', 'not_started', 'p2', null, tests.uid('other_owner'));
+
+  -- The task in review has its first submission.
+  insert into public.task_submissions (task_id, project_id, version, summary, submitted_by)
+  values (tests.uid('task_review'), a, 1, 'Analysis notebook and results', tests.uid('member'));
 end;
 $$;
 

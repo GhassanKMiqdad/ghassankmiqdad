@@ -18,6 +18,7 @@ export type ProjectAccessDTO = {
   role: ProjectRole;
   status: MemberStatus;
   permissions: PermissionKey[];
+  isDirector: boolean;
 };
 
 export function toAccessDTO(access: ProjectAccess): ProjectAccessDTO {
@@ -29,6 +30,7 @@ export function toAccessDTO(access: ProjectAccess): ProjectAccessDTO {
     role: access.role,
     status: access.status,
     permissions: [...access.permissions],
+    isDirector: access.isDirector === true,
   };
 }
 

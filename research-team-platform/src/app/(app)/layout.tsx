@@ -6,18 +6,29 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
 import { getI18n } from "@/lib/i18n/server";
 import { can } from "@/lib/permissions/policy";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import { getMyProjectsAccess } from "@/server/access";
 import { requireCurrentProfile } from "@/server/auth";
+import { countUnreadNotifications } from "@/server/queries/notifications";
+import { listMyTeamMemberships } from "@/server/queries/teams";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireCurrentProfile();
-  const [access, { t }] = await Promise.all([getMyProjectsAccess(), getI18n()]);
+  const [access, { t }, unread, teams] = await Promise.all([
+    getMyProjectsAccess(),
+    getI18n(),
+    countUnreadNotifications(),
+    listMyTeamMemberships(profile.id),
+  ]);
 
   // Navigation only lists pages the user can actually use. The pages and the
   // database re-check permissions independently.
   const anywhere = (permission: Parameters<typeof can>[1]) => access.some((item) => can(item, permission));
   const visible: NavKey[] = ["dashboard", "projects"];
-  if (anywhere("project.view")) visible.push("tasks");
+  if (anywhere("project.view")) visible.push("tasks", "schedule");
+  if (teams.length > 0 || anywhere("project.view")) visible.push("results");
+  if (profile.isDirector || teams.length > 0) visible.push("teams");
+  if (anywhere("tasks.view")) visible.push("reports");
   if (anywhere("documents.view")) visible.push("documents");
   if (anywhere("team.view")) visible.push("team");
   if (anywhere("activity.view") || profile.isPlatformAdmin) visible.push("activity");
@@ -36,10 +47,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b bg-background/85 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/70 lg:px-8">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-1 border-b bg-background/85 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/70 sm:gap-2 lg:px-8">
           <MobileNav visible={visible} />
-          <Brand name={t.app.name} className="lg:hidden" />
-          <div className="flex-1" />
+          <Brand name={t.app.name} className="min-w-0 flex-1 lg:hidden" />
+          <div className="flex-1 max-sm:hidden" />
+          <NotificationBell unread={unread} />
           <LocaleSwitcher />
           <ThemeToggle />
           <UserMenu

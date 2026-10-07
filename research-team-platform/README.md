@@ -22,10 +22,19 @@ that bypasses the UI is rejected exactly like a hidden button.
   are only templates; each member's 24 permissions can be adjusted per project
   on _Team → Member → Permissions_. Anti-escalation rules: nobody can change
   their own permissions or grant a permission they do not hold.
-- **Tasks** — statuses To Do / In Progress / Review / Completed / Rejected,
-  priorities Low → Critical, assignee, due dates, overdue detection, review
-  workflow, filters and search. _Edit own_ and _edit assigned_ are separate
-  permissions.
+- **NestHire scheduling & execution control** — Director / Team Lead / Team
+  Member role model with team rosters; task IDs such as `M01-GH-01-01`;
+  P0–P3 priorities; planned start + duration with a server-calculated
+  deadline; planning month/week; lifecycle Not started → Scheduled → In
+  progress → Submitted → Under review → Revision required / Approved →
+  Completed (+ Blocked, Cancelled); versioned submissions and review records;
+  dependencies; tasks stay **private** until a reviewer clicks _Mark as
+  completed_, which publishes a sanitized final result to the team. See
+  [docs/NESTHIRE.md](docs/NESTHIRE.md).
+- **Schedule, dashboards, reports** — month/week calendar, role-aware
+  dashboards (today, this week, overdue, due within 24 h, review queue,
+  priority and member overview; my tasks / schedule / progress), planned vs
+  actual reports, notifications.
 - **Documents** — private Supabase Storage, direct signed uploads (50 MB,
   allow-listed types), signed downloads, metadata editing.
 - **Comments** on projects and tasks; edits and deletions are audited.
@@ -51,6 +60,7 @@ that bypasses the UI is rejected exactly like a hidden button.
 | [docs/PERMISSIONS.md](docs/PERMISSIONS.md)   | D. Permission model: catalog, templates, rules per area, where each rule is enforced         |
 | [docs/SECURITY.md](docs/SECURITY.md)         | E. Security model: layers, threat model, operating guidance                                  |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)     | Free deployment step by step — Supabase Free + Vercel Hobby (Arabic)                         |
+| [docs/NESTHIRE.md](docs/NESTHIRE.md)         | G. NestHire roles, task IDs, scheduling, workflow, private → team publication                |
 
 ## Quick start (local)
 
@@ -84,17 +94,20 @@ resets, invitations) appear in Mailpit at <http://127.0.0.1:54324>.
 
 ### Demo accounts
 
-`npm run seed` creates (or updates) these users and the project
-_AI-Assisted Early Diagnosis Study_ with tasks, comments, documents and an
-authentic activity log (every step is performed through the API as the
-respective user):
+`npm run seed` creates (or updates) these users, the project
+_AI-Assisted Early Diagnosis Study_ and the **NestHire Team** (nine roster
+entries, the project _NestHire — Month 1 (demo)_ with demo tasks, a revision
+loop and a published result). Every step is performed through the API as the
+respective user, so the activity log is authentic. The NestHire members use
+`abdullah@`, `janna@`, `ammar@`, `baraa@`, `ashraf@`, `bashar@`, `israa@` and
+`ahmed@` on the same domain.
 
-| User             | E-mail                 | Role                  |
-| ---------------- | ---------------------- | --------------------- |
-| Ghassan          | `ghassan@example.com`  | Owner, platform admin |
-| Research Manager | `manager@example.com`  | Manager               |
-| Research Member  | `member@example.com`   | Research Member       |
-| Reviewer         | `reviewer@example.com` | Reviewer              |
+| User             | E-mail                 | Role                                         |
+| ---------------- | ---------------------- | -------------------------------------------- |
+| Ghassan Meqdad   | `ghassan@example.com`  | Director, platform admin, NestHire Team Lead |
+| Research Manager | `manager@example.com`  | Manager                                      |
+| Research Member  | `member@example.com`   | Research Member                              |
+| Reviewer         | `reviewer@example.com` | Reviewer                                     |
 
 The password is `SEED_USER_PASSWORD` from `.env.local`; when it is empty a
 random password is generated and printed. `SEED_EMAIL_DOMAIN` changes the
@@ -178,23 +191,28 @@ Supabase URL uses HTTPS.
 
 ## Tests
 
-| Suite                                             | What it proves                                                                                                                                                                                                                                                          |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `supabase/tests/database` (pgTAP, 185 assertions) | RLS on every table, column privileges, task/document/comment rules, membership and permission RPCs, anti-escalation, storage policies, audit log content and immutability, anonymous access.                                                                            |
-| `tests/integration/api-security.test.ts`          | Calls PostgREST, RPCs and Storage **directly** with real sessions of an isolated fixture (owner, manager, member, reviewer, outsider) — i.e. what an attacker who skips the UI would do. Refuses to run against non-local projects unless `INTEGRATION_ALLOW_REMOTE=1`. |
-| `tests/unit`                                      | Permission policy used by the server and UI, validation schemas, error mapping (exact Arabic messages), file rules, activity descriptions, catalog parity between SQL and TypeScript.                                                                                   |
+| Suite                                             | What it proves                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `supabase/tests/database` (pgTAP, 266 assertions) | RLS on every table, column privileges, task/document/comment rules, membership and permission RPCs, anti-escalation, storage policies, audit log content and immutability, anonymous access; NestHire roles, schedule calculation, workflow, versioned submissions and the private → team publication (`08_nesthire_workflow`). |
+| `tests/integration/api-security.test.ts`          | Calls PostgREST, RPCs and Storage **directly** with real sessions of an isolated fixture (owner, manager, member, reviewer, outsider) — i.e. what an attacker who skips the UI would do. Refuses to run against non-local projects unless `INTEGRATION_ALLOW_REMOTE=1`.                                                         |
+| `tests/unit`                                      | Permission policy used by the server and UI, validation schemas, error mapping (exact Arabic messages), file rules, activity descriptions, catalog parity between SQL and TypeScript.                                                                                                                                           |
 
 The required permission scenarios and where they are tested:
 
-| Scenario                                        | Tests                                                                  |
-| ----------------------------------------------- | ---------------------------------------------------------------------- |
-| The owner/admin can edit everything             | integration _owner (admin of the project)_, pgTAP 02–04                |
-| A member cannot delete tasks without permission | integration _research member › cannot delete a task…_, pgTAP 03        |
-| A member can edit an assigned task              | integration _…can edit a task assigned to them…_, pgTAP 03             |
-| A member cannot edit another user's task        | integration _…cannot edit a task that another user created…_, pgTAP 03 |
-| A user cannot access another project            | integration _project isolation_, pgTAP 02                              |
-| A user cannot modify permissions                | integration _…cannot change permissions…_, _manager…_, pgTAP 04        |
-| Unauthorized API requests are rejected          | integration _unauthenticated and forged requests_, pgTAP 07            |
+| Scenario                                                     | Tests                                                                  |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| The owner/admin can edit everything                          | integration _owner (admin of the project)_, pgTAP 02–04                |
+| A member cannot delete tasks without permission              | integration _research member › cannot delete a task…_, pgTAP 03        |
+| A member can edit an assigned task                           | integration _…can edit a task assigned to them…_, pgTAP 03             |
+| A member cannot edit another user's task                     | integration _…cannot edit a task that another user created…_, pgTAP 03 |
+| A user cannot access another project                         | integration _project isolation_, pgTAP 02                              |
+| A user cannot modify permissions                             | integration _…cannot change permissions…_, _manager…_, pgTAP 04        |
+| Unauthorized API requests are rejected                       | integration _unauthenticated and forged requests_, pgTAP 07            |
+| Due date = start + duration (server)                         | pgTAP 08 _audit 1_, unit `schedule.test.ts`                            |
+| Member cannot change start / duration / due                  | pgTAP 08 _audit 2_, pgTAP 03, integration _executes a task…_           |
+| Actual start / submission / revision / resubmission recorded | pgTAP 08 _audit 3–6_, integration _NestHire_                           |
+| Approval + Mark as completed → team-visible                  | pgTAP 08 _audit 7–8_, integration _NestHire_                           |
+| Unrelated team cannot see; member cannot publish             | pgTAP 08 _audit 9–10_, integration _NestHire_ (A / B / C)              |
 
 Continuous integration (`.github/workflows/research-team-platform.yml`) runs
 lint, format, typecheck, unit tests and the production build, then starts

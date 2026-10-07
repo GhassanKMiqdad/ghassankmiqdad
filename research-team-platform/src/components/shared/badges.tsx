@@ -1,18 +1,42 @@
 "use client";
 
-import { AlertTriangle, ArrowDown, ArrowUp, Equal, Flame } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  CalendarClock,
+  CalendarX2,
+  Clock3,
+  Equal,
+  Flame,
+  Globe2,
+  Lock,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n/provider";
-import type { MemberStatus, ProjectRole, ProjectStatus, TaskPriority, TaskStatus } from "@/lib/permissions/catalog";
+import type {
+  MemberStatus,
+  ProjectRole,
+  ProjectStatus,
+  ScheduleStatus,
+  TaskPriority,
+  TaskStatus,
+  TaskVisibility,
+} from "@/lib/permissions/catalog";
 import { cn } from "@/lib/utils";
 
-const TASK_STATUS_VARIANT: Record<TaskStatus, "muted" | "info" | "warning" | "success" | "destructive"> = {
-  todo: "muted",
+const TASK_STATUS_VARIANT: Record<TaskStatus, "muted" | "info" | "warning" | "success" | "destructive" | "outline"> = {
+  not_started: "muted",
+  scheduled: "outline",
   in_progress: "info",
-  review: "warning",
+  blocked: "destructive",
+  submitted: "warning",
+  under_review: "warning",
+  revision_required: "destructive",
+  approved: "success",
   completed: "success",
-  rejected: "destructive",
+  cancelled: "muted",
 };
 
 export function TaskStatusBadge({ status, className }: { status: TaskStatus; className?: string }) {
@@ -29,10 +53,10 @@ const PRIORITY_STYLE: Record<
   TaskPriority,
   { variant: "muted" | "info" | "warning" | "destructive"; icon: typeof ArrowDown }
 > = {
-  low: { variant: "muted", icon: ArrowDown },
-  medium: { variant: "info", icon: Equal },
-  high: { variant: "warning", icon: ArrowUp },
-  critical: { variant: "destructive", icon: Flame },
+  p0: { variant: "destructive", icon: Flame },
+  p1: { variant: "warning", icon: ArrowUp },
+  p2: { variant: "info", icon: Equal },
+  p3: { variant: "muted", icon: ArrowDown },
 };
 
 export function PriorityBadge({ priority, className }: { priority: TaskPriority; className?: string }) {
@@ -109,6 +133,74 @@ export function OverdueBadge({ className }: { className?: string }) {
     <Badge variant="destructive" className={cn("gap-1", className)}>
       <AlertTriangle aria-hidden />
       {t.common.overdue}
+    </Badge>
+  );
+}
+
+const SCHEDULE_STYLE: Partial<
+  Record<ScheduleStatus, { variant: "muted" | "info" | "warning" | "destructive" | "outline"; icon: typeof Clock3 }>
+> = {
+  unscheduled: { variant: "outline", icon: CalendarX2 },
+  scheduled: { variant: "outline", icon: CalendarClock },
+  not_started: { variant: "muted", icon: Clock3 },
+  due_soon: { variant: "warning", icon: Clock3 },
+  overdue: { variant: "destructive", icon: AlertTriangle },
+};
+
+/** Schedule signal computed by the database (shown only when it adds information). */
+export function ScheduleStatusBadge({ status, className }: { status: ScheduleStatus; className?: string }) {
+  const { t } = useI18n();
+  const style = SCHEDULE_STYLE[status];
+  if (!style) return null;
+  const Icon = style.icon;
+  return (
+    <Badge variant={style.variant} className={cn("gap-1", className)}>
+      <Icon aria-hidden />
+      {t.scheduleStatus[status]}
+    </Badge>
+  );
+}
+
+export function VisibilityBadge({ visibility, className }: { visibility: TaskVisibility; className?: string }) {
+  const { t } = useI18n();
+  const Icon = visibility === "team" ? Globe2 : Lock;
+  return (
+    <Badge
+      variant={visibility === "team" ? "success" : "secondary"}
+      className={cn("gap-1", className)}
+      title={t.tasks.visibilityHint[visibility]}
+    >
+      <Icon aria-hidden />
+      {t.tasks.visibility[visibility]}
+    </Badge>
+  );
+}
+
+/** Task ID chip (always left-to-right, monospaced). */
+export function TaskCode({ code, className }: { code: string; className?: string }) {
+  return (
+    <span
+      dir="ltr"
+      className={cn(
+        "inline-flex shrink-0 items-center rounded-md border bg-muted/60 px-1.5 py-0.5 font-mono text-[11px] font-medium tracking-tight text-foreground/80",
+        className,
+      )}
+    >
+      {code}
+    </span>
+  );
+}
+
+export type OrgRole = "director" | "team_lead" | "team_member";
+
+export function OrgRoleBadge({ role, className }: { role: OrgRole; className?: string }) {
+  const { t } = useI18n();
+  return (
+    <Badge
+      variant={role === "director" ? "default" : role === "team_lead" ? "info" : "secondary"}
+      className={className}
+    >
+      {t.orgRoles[role]}
     </Badge>
   );
 }

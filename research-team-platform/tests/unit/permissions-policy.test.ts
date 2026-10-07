@@ -2,14 +2,19 @@ import { describe, expect, it } from "vitest";
 
 import { PERMISSION_KEYS, type TaskStatus } from "@/lib/permissions/catalog";
 import {
-  allowedTaskStatuses,
   assignableRoles,
   can,
+  canChangeTaskStatus,
   canDeleteComment,
   canDeleteTasks,
   canEditComment,
   canEditTaskContent,
+  canEditTaskSchedule,
+  canExecuteTask,
+  canReviewTask,
+  canSubmitTask,
   canUpdateTask,
+  canUpdateTaskProgress,
   editablePermissionKeys,
   evaluateMemberAdd,
   evaluateMemberRemove,
@@ -18,11 +23,10 @@ import {
   evaluateTaskCreate,
   evaluateTaskUpdate,
   isActive,
+  isDirectTransitionAllowed,
 } from "@/lib/permissions/policy";
 
 import { accessFor, MANAGER, MEMBER, OTHER, OWNER, REVIEWER } from "./helpers";
-
-const current = { title: "Literature Review", description: "", priority: "high", dueDate: null };
 
 function task(createdBy: string | null, assignedTo: string | null, status: TaskStatus = "in_progress") {
   return { createdBy, assignedTo, status };
@@ -47,105 +51,132 @@ describe("project access", () => {
   });
 });
 
-describe("tasks: admin / owner", () => {
+describe("tasks: supervisor (owner / Director / Team Lead)", () => {
   const owner = accessFor("owner");
 
-  it("admin can edit everything", () => {
-    const foreign = task(OTHER, OTHER, "completed");
+  it("plans, schedules, assigns, cancels and deletes", () => {
+    const foreign = task(OTHER, OTHER, "scheduled");
     expect(canEditTaskContent(owner, foreign)).toBe(true);
-    expect(allowedTaskStatuses(owner, foreign)).toEqual(["todo", "in_progress", "review", "completed", "rejected"]);
+    expect(canEditTaskSchedule(owner, foreign)).toBe(true);
     expect(canDeleteTasks(owner)).toBe(true);
     expect(
-      evaluateTaskUpdate(
-        owner,
-        foreign,
-        { title: "New", status: "rejected", assignedTo: MEMBER, priority: "low" },
-        current,
-      ),
-    ).toEqual({ ok: true });
+      evaluateTaskUpdate(owner, foreign, { content: true, schedule: true, assignedTo: MEMBER, status: "cancelled" }),
+    ).toEqual({
+      ok: true,
+    });
+  });
+
+  it("cannot set workflow states directly (submission, approval and completion go through the workflow)", () => {
+    for (const status of ["submitted", "under_review", "revision_required", "approved", "completed"] as const) {
+      expect(canChangeTaskStatus(owner, task(OTHER, OTHER, "in_progress"), status)).toBe(false);
+    }
+  });
+
+  it("a completed task is a closed record", () => {
+    const closed = task(OTHER, OTHER, "completed");
+    expect(canEditTaskContent(owner, closed)).toBe(false);
+    expect(canEditTaskSchedule(owner, closed)).toBe(false);
+    expect(canUpdateTask(owner, closed)).toBe(false);
+  });
+
+  it("reviews others' work; only a Director may review their own", () => {
+    const own = task(OWNER, OWNER, "submitted");
+    expect(canReviewTask(owner, task(OWNER, MEMBER, "submitted"))).toBe(true);
+    expect(canReviewTask(owner, own)).toBe(false);
+    expect(canReviewTask({ ...owner, isDirector: true }, own)).toBe(true);
   });
 });
 
-describe("tasks: research member", () => {
+describe("tasks: team member", () => {
   const member = accessFor("member");
 
-  it("member cannot delete tasks without permission", () => {
+  it("member cannot delete, create or assign tasks", () => {
     expect(canDeleteTasks(member)).toBe(false);
+    expect(evaluateTaskCreate(member, { assignedTo: MEMBER, planned: false })).toEqual({
+      ok: false,
+      code: "PERMISSION_DENIED",
+    });
+    expect(evaluateTaskUpdate(member, task(OWNER, MEMBER), { assignedTo: OTHER })).toEqual({
+      ok: false,
+      code: "TASK_ASSIGN_FORBIDDEN",
+    });
   });
 
-  it("member can edit an assigned task", () => {
+  it("executes an assigned task: start, progress, submit", () => {
+    const assigned = task(OWNER, MEMBER, "scheduled");
+    expect(canExecuteTask(member, assigned)).toBe(true);
+    expect(canChangeTaskStatus(member, assigned, "in_progress")).toBe(true);
+    expect(canUpdateTaskProgress(member, assigned)).toBe(true);
+    expect(canSubmitTask(member, task(OWNER, MEMBER, "in_progress"))).toBe(true);
+    expect(canSubmitTask(member, task(OWNER, MEMBER, "revision_required"))).toBe(true);
+    expect(canSubmitTask(member, assigned)).toBe(false);
+  });
+
+  it("cannot change the definition, the plan or the schedule of an assigned task", () => {
     const assigned = task(OWNER, MEMBER);
-    expect(canEditTaskContent(member, assigned)).toBe(true);
-    expect(evaluateTaskUpdate(member, assigned, { title: "Updated", status: "review" }, current)).toEqual({ ok: true });
-  });
-
-  it("member cannot edit another user's task", () => {
-    const foreign = task(OTHER, OTHER);
-    expect(canEditTaskContent(member, foreign)).toBe(false);
-    expect(canUpdateTask(member, foreign)).toBe(false);
-    expect(evaluateTaskUpdate(member, foreign, { title: "Hacked" }, current)).toEqual({
+    expect(canEditTaskContent(member, assigned)).toBe(false);
+    expect(canEditTaskSchedule(member, assigned)).toBe(false);
+    expect(evaluateTaskUpdate(member, assigned, { schedule: true })).toEqual({
       ok: false,
       code: "TASK_EDIT_FORBIDDEN",
     });
+    expect(evaluateTaskUpdate(member, assigned, { content: true })).toEqual({ ok: false, code: "TASK_EDIT_FORBIDDEN" });
   });
 
-  it("member cannot approve (complete) their own work", () => {
-    const assigned = task(OWNER, MEMBER, "review");
-    expect(allowedTaskStatuses(member, assigned)).toEqual(["todo", "in_progress", "review"]);
-    expect(evaluateTaskUpdate(member, assigned, { status: "completed" }, current)).toEqual({
+  it("cannot approve, complete or cancel their own work", () => {
+    const assigned = task(OWNER, MEMBER, "submitted");
+    expect(canReviewTask(member, assigned)).toBe(false);
+    expect(evaluateTaskUpdate(member, assigned, { status: "completed" })).toEqual({
       ok: false,
       code: "TASK_STATUS_FORBIDDEN",
     });
+    expect(canChangeTaskStatus(member, task(OWNER, MEMBER, "in_progress"), "cancelled")).toBe(false);
   });
 
-  it("member cannot re-assign a task", () => {
-    expect(evaluateTaskUpdate(member, task(OWNER, MEMBER), { assignedTo: OTHER }, current)).toEqual({
+  it("cannot touch another member's task", () => {
+    const foreign = task(OTHER, OTHER);
+    expect(canExecuteTask(member, foreign)).toBe(false);
+    expect(canUpdateTask(member, foreign)).toBe(false);
+    expect(canUpdateTaskProgress(member, foreign)).toBe(false);
+  });
+
+  it("tasks.edit_own lets a creator edit the definition but never the schedule", () => {
+    const creator = accessFor("member", { permissions: ["project.view", "tasks.create", "tasks.edit_own"] });
+    expect(canEditTaskContent(creator, task(MEMBER, null))).toBe(true);
+    expect(canEditTaskSchedule(creator, task(MEMBER, null))).toBe(false);
+    expect(evaluateTaskCreate(creator, { assignedTo: MEMBER, planned: true })).toEqual({
       ok: false,
-      code: "TASK_ASSIGN_FORBIDDEN",
+      code: "TASK_EDIT_FORBIDDEN",
     });
-  });
-
-  it("tasks.edit_own only covers tasks the member created", () => {
-    const ownOnly = accessFor("member", { permissions: ["project.view", "tasks.view", "tasks.edit_own"] });
-    expect(canEditTaskContent(ownOnly, task(MEMBER, null))).toBe(true);
-    expect(canEditTaskContent(ownOnly, task(OWNER, MEMBER))).toBe(false);
-  });
-
-  it("tasks.edit_assigned only covers tasks assigned to the member", () => {
-    const assignedOnly = accessFor("member", { permissions: ["project.view", "tasks.view", "tasks.edit_assigned"] });
-    expect(canEditTaskContent(assignedOnly, task(OWNER, MEMBER))).toBe(true);
-    expect(canEditTaskContent(assignedOnly, task(MEMBER, null))).toBe(false);
-  });
-
-  it("member may create tasks for themselves but not for others", () => {
-    expect(evaluateTaskCreate(member, { assignedTo: MEMBER, status: "todo" })).toEqual({ ok: true });
-    expect(evaluateTaskCreate(member, { assignedTo: OTHER, status: "todo" })).toEqual({
-      ok: false,
-      code: "TASK_ASSIGN_FORBIDDEN",
-    });
-    expect(evaluateTaskCreate(member, { assignedTo: null, status: "completed" })).toEqual({
-      ok: false,
-      code: "TASK_STATUS_FORBIDDEN",
-    });
+    expect(evaluateTaskCreate(creator, { assignedTo: MEMBER, planned: false })).toEqual({ ok: true });
   });
 });
 
 describe("tasks: reviewer", () => {
   const reviewer = accessFor("reviewer");
 
-  it("reviewer can approve or reject a task in review", () => {
-    const inReview = task(OWNER, MEMBER, "review");
-    expect(allowedTaskStatuses(reviewer, inReview)).toContain("completed");
-    expect(allowedTaskStatuses(reviewer, inReview)).toContain("rejected");
-    expect(evaluateTaskUpdate(reviewer, inReview, { status: "completed" }, current)).toEqual({ ok: true });
-  });
-
-  it("reviewer cannot edit content or move tasks that are not under review", () => {
-    expect(evaluateTaskUpdate(reviewer, task(OWNER, MEMBER, "review"), { title: "Rewrite" }, current)).toEqual({
+  it("reviews submitted work but cannot edit or schedule it", () => {
+    const inReview = task(OWNER, MEMBER, "submitted");
+    expect(canReviewTask(reviewer, inReview)).toBe(true);
+    expect(evaluateTaskUpdate(reviewer, inReview, { content: true })).toEqual({
       ok: false,
       code: "TASK_EDIT_FORBIDDEN",
     });
-    expect(allowedTaskStatuses(reviewer, task(OWNER, MEMBER, "todo"))).toEqual(["todo"]);
+    expect(canChangeTaskStatus(reviewer, task(OWNER, MEMBER, "scheduled"), "in_progress")).toBe(false);
+  });
+});
+
+describe("direct status transitions (mirror of private.task_transition_allowed)", () => {
+  it("matches the database rules", () => {
+    expect(isDirectTransitionAllowed("scheduled", "in_progress", false, true)).toBe(true);
+    expect(isDirectTransitionAllowed("blocked", "in_progress", false, true)).toBe(false);
+    expect(isDirectTransitionAllowed("blocked", "in_progress", true, false)).toBe(true);
+    expect(isDirectTransitionAllowed("revision_required", "in_progress", false, true)).toBe(true);
+    expect(isDirectTransitionAllowed("in_progress", "submitted", true, true)).toBe(false);
+    expect(isDirectTransitionAllowed("approved", "completed", true, false)).toBe(false);
+    expect(isDirectTransitionAllowed("completed", "cancelled", true, false)).toBe(false);
+    expect(isDirectTransitionAllowed("cancelled", "not_started", true, false)).toBe(true);
+    expect(isDirectTransitionAllowed("cancelled", "not_started", false, true)).toBe(false);
   });
 });
 

@@ -11,6 +11,9 @@ function first(value: string | string[] | undefined): string | undefined {
 const pageSchema = z.coerce.number().int().min(1).max(10_000).catch(1);
 const uuidOrUndefined = z.uuid().optional().catch(undefined);
 
+const dateOrUndefined = z.iso.date().optional().catch(undefined);
+const scheduleFilter = z.enum(["overdue", "due_soon", "unscheduled"]).optional().catch(undefined);
+
 /** Untrusted URL filters -> validated task filters. */
 export function parseTaskSearchParams(params: RawParams) {
   const assignee = first(params.assignee);
@@ -20,9 +23,29 @@ export function parseTaskSearchParams(params: RawParams) {
     priority: z.enum(TASK_PRIORITIES).optional().catch(undefined).parse(first(params.priority)),
     assignee: assignee === "me" || assignee === "unassigned" ? assignee : uuidOrUndefined.parse(assignee),
     project: uuidOrUndefined.parse(first(params.project)),
-    overdue: first(params.overdue) === "1",
+    team: uuidOrUndefined.parse(first(params.team)),
+    month: z.coerce.number().int().min(1).max(99).optional().catch(undefined).parse(first(params.month)),
+    week: z.coerce.number().int().min(1).max(5).optional().catch(undefined).parse(first(params.week)),
+    from: dateOrUndefined.parse(first(params.from)),
+    to: dateOrUndefined.parse(first(params.to)),
+    // "overdue=1" is the link format used before the schedule filter existed.
+    schedule: scheduleFilter.parse(first(params.schedule) ?? (first(params.overdue) === "1" ? "overdue" : undefined)),
     page: pageSchema.parse(first(params.page) ?? 1),
-    openNew: first(params.new) === "1",
+  };
+}
+
+/** Calendar view state from the URL. */
+export function parseScheduleSearchParams(params: RawParams) {
+  const assignee = first(params.assignee);
+  return {
+    view: z
+      .enum(["month", "week"])
+      .catch("month")
+      .parse(first(params.view) ?? "month"),
+    date: dateOrUndefined.parse(first(params.date)),
+    project: uuidOrUndefined.parse(first(params.project)),
+    team: uuidOrUndefined.parse(first(params.team)),
+    assignee: assignee === "me" ? ("me" as const) : uuidOrUndefined.parse(assignee),
   };
 }
 

@@ -39,7 +39,7 @@ describe("activity descriptions", () => {
     expect(describeActivity(entry, ar)).toBe("عدّل Ghassan المهمة «Literature Review»");
     expect(describeIsolated(entry, ar)).toBe(`عدّل ${isolate("Ghassan")} المهمة «${isolate("Literature Review")}»`);
     expect(activityChanges(entry, formatters(en))).toEqual([
-      { field: "status", label: "Status", before: "In Progress", after: "Completed" },
+      { field: "status", label: "Status", before: "In progress", after: "Completed" },
     ]);
   });
 
@@ -53,7 +53,7 @@ describe("activity descriptions", () => {
     });
     expect(describeActivity(entry, en)).toBe("Ghassan changed the permissions of Ahmad");
     expect(activityChanges(entry, formatters(en))).toEqual([
-      { field: "tasks.edit", label: "Edit Tasks", before: "Revoked", after: "Granted" },
+      { field: "tasks.edit", label: "Plan & Edit Tasks", before: "Revoked", after: "Granted" },
     ]);
   });
 

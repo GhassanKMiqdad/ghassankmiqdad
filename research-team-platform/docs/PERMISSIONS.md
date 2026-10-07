@@ -33,13 +33,13 @@ Manager, Member and Reviewer.
 | `project.view`        | Project        | Open the project at all (gate)                                      |  ✓  |  ✓  |  ✓  |  ✓  |
 | `project.edit`        | Project        | Edit name, description, goal, status, dates                         |  ✓  |  ✓  |     |     |
 | `project.delete`      | Project        | Delete the project                                                  |  ✓  |     |     |     |
-| `tasks.view`          | Tasks          | See all tasks (without it: only own / assigned tasks)               |  ✓  |  ✓  |  ✓  |  ✓  |
-| `tasks.create`        | Tasks          | Create tasks                                                        |  ✓  |  ✓  |  ✓  |     |
-| `tasks.edit`          | Tasks          | Edit any task, any status transition                                |  ✓  |  ✓  |     |     |
-| `tasks.edit_own`      | Tasks          | Edit tasks **they created**                                         |  ✓  |  ✓  |  ✓  |     |
-| `tasks.edit_assigned` | Tasks          | Edit tasks **assigned to them**                                     |  ✓  |  ✓  |  ✓  |     |
+| `tasks.view`          | Tasks          | See every task incl. private work (without it: only own / assigned) |  ✓  |  ✓  |     |  ✓  |
+| `tasks.create`        | Tasks          | Create tasks                                                        |  ✓  |  ✓  |     |     |
+| `tasks.edit`          | Tasks          | Supervise: edit any task, plan, schedule, deadline, block/cancel    |  ✓  |  ✓  |     |     |
+| `tasks.edit_own`      | Tasks          | Edit the definition of tasks **they created** (never the schedule)  |  ✓  |  ✓  |     |     |
+| `tasks.edit_assigned` | Tasks          | Execute tasks **assigned to them**: start, progress, notes, submit  |  ✓  |  ✓  |  ✓  |     |
 | `tasks.assign`        | Tasks          | Set / change the assignee                                           |  ✓  |  ✓  |     |     |
-| `tasks.review`        | Tasks          | Approve / reject tasks in review                                    |  ✓  |  ✓  |     |  ✓  |
+| `tasks.review`        | Tasks          | Review, approve, request revisions, mark as completed (publish)     |  ✓  |  ✓  |     |  ✓  |
 | `tasks.delete`        | Tasks          | Delete tasks                                                        |  ✓  |  ✓  |     |     |
 | `documents.view`      | Documents      | List and download files                                             |  ✓  |  ✓  |  ✓  |  ✓  |
 | `documents.upload`    | Documents      | Upload files                                                        |  ✓  |  ✓  |  ✓  |     |
@@ -71,20 +71,35 @@ changes; existing members keep their effective permissions.
 - Ownership transfer (`transfer_project_ownership`): owner only, to an active
   member, who becomes owner; the former owner becomes a manager.
 
+### Organization roles (NestHire)
+
+Directors (`profiles.is_director`) hold every permission in every project;
+Team Leads get a fixed set in their team's projects; Team Members get the
+member template. Teams, rosters and roles are changed only by Directors. See
+[NESTHIRE.md](NESTHIRE.md) for the role model, scheduling, workflow and the
+private → team publication; the table below is the task-level summary.
+
 ### Tasks
 
 Row access is decided by RLS, field changes by the `tasks_before_update`
-trigger:
+trigger (rules of the NestHire upgrade):
 
-| Change                                                | Allowed when                                                                                                                                                                                                                    |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| See the task                                          | `tasks.view`, or the user created it / is assigned to it (with `project.view`)                                                                                                                                                  |
-| Create                                                | `tasks.create`; assigning it to someone else additionally needs `tasks.assign`; creating it directly as _completed/rejected_ needs `tasks.edit`                                                                                 |
-| Edit content (title, description, priority, due date) | `tasks.edit`, or `tasks.edit_own` **and** the user created it, or `tasks.edit_assigned` **and** it is assigned to the user                                                                                                      |
-| Change status                                         | `tasks.edit`: any transition · `tasks.review`: any transition of a task in _review/completed/rejected_ · content editors: only among _todo / in progress / review_ (they submit for review; they cannot approve their own work) |
-| Change assignee                                       | `tasks.assign` (the new assignee must be an active member)                                                                                                                                                                      |
-| Delete                                                | `tasks.delete`                                                                                                                                                                                                                  |
-| Change project / creator / id                         | Never (`IMMUTABLE_FIELD`, and no column grant)                                                                                                                                                                                  |
+| Change                                                                                  | Allowed when                                                                                                         |
+| --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| See the task row (and its submissions, reviews, comments)                               | `tasks.view` (supervisors), or the user created it / is responsible for it — other members' work is **private**      |
+| See the published result                                                                | members of the task's team (or of the project when it has no team), via `task_publications` only                     |
+| Create                                                                                  | `tasks.create`; assigning to someone else needs `tasks.assign`; plan, schedule or a manual task ID need `tasks.edit` |
+| Edit definition (title, description, instructions, expected output, criteria, priority) | `tasks.edit`, or `tasks.edit_own` on tasks the user created                                                          |
+| Plan & schedule (month, week, start, duration, deadline)                                | `tasks.edit` only — members never                                                                                    |
+| Progress / work notes                                                                   | the responsible member (`tasks.edit_assigned`) or `tasks.edit`                                                       |
+| Start / resume                                                                          | the responsible member or `tasks.edit` (not while predecessors are unfinished)                                       |
+| Block, unblock, cancel, re-open                                                         | `tasks.edit`                                                                                                         |
+| Submit / resubmit (new version)                                                         | the responsible member, through `submit_task()`                                                                      |
+| Review, approve, request revision, mark as completed                                    | `tasks.review` through the workflow functions; never on one's own task (Directors excepted)                          |
+| Change assignee                                                                         | `tasks.assign` (the new assignee must be an active member)                                                           |
+| Delete                                                                                  | `tasks.delete`                                                                                                       |
+| Task ID, project, team, creator, visibility, workflow dates                             | Never (no column privilege; `IMMUTABLE_FIELD`)                                                                       |
+| Edit a completed task                                                                   | Never (closed record)                                                                                                |
 
 Errors surface as «لا يمكنك تعديل هذه المهمة.» (`TASK_EDIT_FORBIDDEN`) or
 «ليس لديك صلاحية لتنفيذ هذه العملية.» for the other cases.
@@ -145,7 +160,7 @@ already have.
 | Files                    | Storage policies on `storage.objects`, `documents_before_insert`                                                                                             | Path built server-side; type/size validated                                | Upload button only with `documents.upload` |
 | Audit                    | Triggers + immutability trigger                                                                                                                              | —                                                                          | Activity pages                             |
 
-Tests: `supabase/tests/database/*.test.sql` (185 pgTAP assertions),
+Tests: `supabase/tests/database/*.test.sql` (266 pgTAP assertions),
 `tests/integration/api-security.test.ts` (direct API attacks with real user
 sessions) and `tests/unit/permissions-policy.test.ts` (server/UI policy).
 

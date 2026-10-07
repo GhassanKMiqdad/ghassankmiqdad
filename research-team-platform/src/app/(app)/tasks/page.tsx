@@ -15,12 +15,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getI18n } from "@/lib/i18n/server";
-import { toAccessDTO } from "@/lib/permissions/access";
 import { can } from "@/lib/permissions/policy";
 import { parseTaskSearchParams } from "@/lib/search-params";
 import { getMyProjectsAccess } from "@/server/access";
 import { requireSessionUser } from "@/server/auth";
 import { listTasks } from "@/server/queries/tasks";
+import { listTeams } from "@/server/queries/teams";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n();
@@ -34,8 +34,10 @@ export default async function AllTasksPage(props: PageProps<"/tasks">) {
   const projects = access.filter((item) => can(item, "project.view"));
   const creatable = projects.filter((item) => can(item, "tasks.create"));
 
-  const tasks = await listTasks(user.id, { ...filters, projectId: filters.project });
-  const accessByProject = Object.fromEntries(projects.map((item) => [item.projectId, toAccessDTO(item)]));
+  const [tasks, teams] = await Promise.all([
+    listTasks(user.id, { ...filters, projectId: filters.project, teamId: filters.team }),
+    listTeams(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -54,7 +56,7 @@ export default async function AllTasksPage(props: PageProps<"/tasks">) {
               <DropdownMenuContent align="end" className="max-w-72">
                 {creatable.map((item) => (
                   <DropdownMenuItem key={item.projectId} asChild>
-                    <Link href={`/projects/${item.projectId}/tasks?new=1`} className="truncate">
+                    <Link href={`/projects/${item.projectId}/tasks/new`} className="truncate">
                       {item.projectName}
                     </Link>
                   </DropdownMenuItem>
@@ -64,12 +66,15 @@ export default async function AllTasksPage(props: PageProps<"/tasks">) {
           ) : null
         }
       />
-      <TaskFilters projects={projects.map((item) => ({ id: item.projectId, name: item.projectName }))} />
+      <TaskFilters
+        projects={projects.map((item) => ({ id: item.projectId, name: item.projectName }))}
+        teams={teams.map((team) => ({ id: team.id, name: team.name }))}
+      />
       {tasks.items.length === 0 ? (
         <EmptyState icon={ListChecks} title={t.tasks.empty} description={t.tasks.emptyHint} />
       ) : (
         <>
-          <TaskTable tasks={tasks.items} accessByProject={accessByProject} showProject />
+          <TaskTable tasks={tasks.items} showProject />
           <Pagination page={tasks.page} pageSize={tasks.pageSize} total={tasks.total} />
         </>
       )}
