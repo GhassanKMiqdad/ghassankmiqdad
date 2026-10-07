@@ -103,7 +103,7 @@ select throws_ok(
 );
 select lives_ok(
   format(
-    $$ select public.set_member_permissions(%L, %L, array['project.view', 'tasks.view', 'tasks.create', 'tasks.edit_own', 'tasks.edit_assigned', 'documents.view', 'documents.upload', 'comments.create', 'team.view', 'tasks.edit']) $$,
+    $$ select public.set_member_permissions(%L, %L, array['project.view', 'tasks.view', 'tasks.edit_assigned', 'documents.view', 'documents.upload', 'comments.create', 'team.view', 'tasks.edit']) $$,
     tests.uid('project_a'), tests.uid('member2')
   ),
   'a manager can grant permissions they hold to a lower-ranked member'
@@ -172,7 +172,7 @@ select throws_ok(
 select tests.clear_authentication();
 select results_eq(
   format($$ select permission_key from public.user_permissions where project_id = %L and user_id = %L order by permission_key $$, tests.uid('project_a'), tests.uid('newcomer')),
-  $$ values ('project.view'), ('tasks.view'), ('team.view') $$,
+  $$ values ('project.view'), ('team.view') $$,
   'initial permissions are the role template limited to what the adding manager holds'
 );
 

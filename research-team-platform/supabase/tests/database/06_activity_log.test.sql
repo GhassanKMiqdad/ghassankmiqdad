@@ -12,11 +12,11 @@ select set_config(
   true
 );
 select tests.authenticate_as('member');
-update public.tasks set status = 'review' where id = tests.uid('task_assigned_member');
+update public.tasks set progress = 60 where id = tests.uid('task_assigned_member');
 select tests.authenticate_as('owner');
-update public.tasks set priority = 'critical' where id = tests.uid('task_member2');
+update public.tasks set priority = 'p0' where id = tests.uid('task_member2');
 select set_config('request.headers', '{"x-forwarded-for": "not-an-ip, 10.0.0.2"}', true);
-update public.tasks set priority = 'low' where id = tests.uid('task_member2');
+update public.tasks set priority = 'p3' where id = tests.uid('task_member2');
 
 -- ---------------------------------------------------------------------------
 -- Visibility
@@ -92,7 +92,7 @@ select throws_ok(
 -- ---------------------------------------------------------------------------
 select results_eq(
   format(
-    $$ select host(ip_address), user_agent from public.activity_logs where actor_id = %L and action = 'task.updated' $$,
+    $$ select host(ip_address), user_agent from public.activity_logs where actor_id = %L and action = 'task.progress_updated' $$,
     tests.uid('member')
   ),
   $$ values ('203.0.113.7'::text, 'Mozilla/5.0 (Test)'::text) $$,
@@ -101,7 +101,7 @@ select results_eq(
 select is(
   (
     select count(*)::int from public.activity_logs
-    where actor_id = tests.uid('owner') and action = 'task.updated' and new_values ->> 'priority' = 'low' and ip_address is null
+    where actor_id = tests.uid('owner') and action = 'task.updated' and new_values ->> 'priority' = 'p3' and ip_address is null
   ),
   1,
   'malformed IP addresses are ignored instead of failing the operation'
