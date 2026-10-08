@@ -2,7 +2,7 @@
   "name": "nesthire-workspace",
   "version": "1.0.0",
   "private": true,
-  "description": "Full-stack research team management platform: projects, tasks, documents, team permissions and audit log (Next.js + Supabase).",
+  "description": "NestHire Workspace: private research workflows, projects, tasks, documents, team permissions and audit logs (Next.js + Supabase).",
   "engines": {
     "node": ">=20.9.0"
   },
