@@ -203,9 +203,8 @@ Supabase، وبعدد محدود جدًا من الرسائل في الساعة.
 4. **Supabase Auth:** Authentication → URL Configuration: Site URL =
    `https://nesthire.vercel.app`، وأضف `https://nesthire.vercel.app/**` إلى Redirect URLs
    (أبقِ الرابط القديم مؤقتًا حتى يكتمل الانتقال).
-5. **اسم مستودع GitHub:** Settings → General → Repository name = `nesthire-workspace`.
-   ⚠️ المستودع الحالي `GhassanKMiqdad/ghassankmiqdad` يحمل اسم حسابك، فهو مستودع
-   «الملف الشخصي» الذي يظهر README الخاص به في صفحتك على GitHub؛ إعادة تسميته
-   تُخفي ذلك README. GitHub يحوّل الروابط القديمة تلقائيًا، وVercel يتابع المستودع
-   بعد إعادة التسمية (تحقق من Settings → Git). بعدها محليًا:
-   `git remote set-url origin https://github.com/GhassanKMiqdad/nesthire-workspace.git`.
+5. **اسم مستودع GitHub:** اترك `GhassanKMiqdad/ghassankmiqdad` كما هو؛ فهو مستودع
+   الملف الشخصي لحساب GitHub، ولا تعِد تسميته من أجل العلامة التجارية. احتفظ باسم
+   NestHire داخل التطبيق وحزمة `nesthire-workspace`. يمكن مستقبلًا نقل التطبيق اختياريًا
+   إلى مستودع NestHire مستقل بعد مراجعة الروابط وإعدادات Vercel، لكن ذلك ليس مطلوبًا لهذا
+   النشر ولا ينبغي تنفيذه كجزء من هذا التحديث.

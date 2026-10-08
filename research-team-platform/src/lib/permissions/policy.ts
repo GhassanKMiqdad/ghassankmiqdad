@@ -24,7 +24,7 @@ export type AccessSubject = {
   status: MemberStatus;
   /** Effective permissions (owners: all; inactive members or no project.view: none). */
   permissions: ReadonlySet<PermissionKey>;
-  /** Organization Director (may review their own work; holds every permission everywhere). */
+  /** Organization Director (holds every permission everywhere, but cannot review their own work). */
   isDirector?: boolean;
 };
 

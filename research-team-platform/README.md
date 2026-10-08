@@ -5,8 +5,9 @@ tasks, documents, discussions, a per-member permission system and an immutable
 activity log. Arabic-first (RTL) with English, light and dark themes.
 
 Production target: **https://nesthire.vercel.app** (route `/workspace`).
-Repository name target: `nesthire-workspace` (the application lives in the
-`research-team-platform/` folder, which is the Vercel Root Directory).
+Keep the GitHub profile repository name `GhassanKMiqdad/ghassankmiqdad`; the
+application remains in `research-team-platform/` (the Vercel Root Directory).
+A dedicated NestHire repository may be considered as an optional future migration.
 
 Built with Next.js 16, TypeScript, Tailwind CSS 4, shadcn/ui and Supabase
 (Auth, PostgreSQL, Storage). **Every permission is enforced by the database**

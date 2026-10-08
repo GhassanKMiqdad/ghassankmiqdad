@@ -13,6 +13,8 @@
 -- Apply it BEFORE deploying the matching application code.
 -- =============================================================================
 
+begin;
+
 do $$
 begin
   if not exists (select 1 from supabase_migrations.schema_migrations where version = '20261007000500') then
@@ -1061,5 +1063,6 @@ grant execute on function public.submit_task(uuid, text, text[], text, uuid[]) t
 
 insert into supabase_migrations.schema_migrations (version, name)
 values ('20261008000200', 'final_privacy_hardening');
-
 select version, name from supabase_migrations.schema_migrations where version like '20261008%' order by version;
+
+commit;
