@@ -20,16 +20,26 @@ import { DeleteTaskButton } from "@/components/tasks/delete-task-button";
 import { SubmissionHistory } from "@/components/tasks/submission-history";
 import { TaskDependencies } from "@/components/tasks/task-dependencies";
 import { TaskExecutionCard } from "@/components/tasks/task-execution-card";
+import { TaskFiles } from "@/components/tasks/task-files";
 import { TaskTimeline } from "@/components/tasks/task-timeline";
 import { TaskWorkflowPanel } from "@/components/tasks/task-workflow-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getI18n } from "@/lib/i18n/server";
 import { toAccessDTO } from "@/lib/permissions/access";
-import { can, canDeleteTasks, canSuperviseTasks, canUpdateTask, canUpdateTaskProgress } from "@/lib/permissions/policy";
+import {
+  can,
+  canAttachTaskFile,
+  canDeleteTasks,
+  canManageTaskFile,
+  canSuperviseTasks,
+  canUpdateTask,
+  canUpdateTaskProgress,
+} from "@/lib/permissions/policy";
 import { getProjectAccess } from "@/server/access";
 import { listActivity } from "@/server/queries/activity";
 import { listComments } from "@/server/queries/comments";
+import { listTaskFiles } from "@/server/queries/documents";
 import { getTask, listDependencies, listSubmissions, listTaskOptions } from "@/server/queries/tasks";
 
 export async function generateMetadata(props: PageProps<"/projects/[projectId]/tasks/[taskId]">): Promise<Metadata> {
@@ -76,10 +86,11 @@ export default async function TaskPage(props: PageProps<"/projects/[projectId]/t
   }
 
   const supervisor = canSuperviseTasks(access);
-  const [comments, submissions, dependencies, history] = await Promise.all([
+  const [comments, submissions, dependencies, files, history] = await Promise.all([
     listComments(projectId, taskId),
     listSubmissions(taskId),
     listDependencies(taskId),
+    listTaskFiles(taskId),
     // The task history is part of the audit log: only shown with activity.view.
     can(access, "activity.view") ? listActivity({ entityId: taskId, pageSize: 30 }) : Promise.resolve(null),
   ]);
@@ -91,6 +102,14 @@ export default async function TaskPage(props: PageProps<"/projects/[projectId]/t
   const snapshot = { createdBy: task.createdById, assignedTo: task.assignedToId, status: task.status };
   const editable = canUpdateTask(access, snapshot);
   const planned = task.plannedStartAt || task.dueAt;
+  // Files handed in with a version are locked (database: DOCUMENT_LOCKED).
+  const lockedIds = [...new Set(submissions.flatMap((submission) => submission.documentIds))];
+  const removableIds = files
+    .filter((file) => !lockedIds.includes(file.id) && canManageTaskFile(access, file.uploadedById))
+    .map((file) => file.id);
+  const ownFiles = canUpdateTaskProgress(access, snapshot)
+    ? files.filter((file) => file.uploadedById === access.userId)
+    : [];
 
   return (
     <div className="space-y-6">
@@ -147,8 +166,15 @@ export default async function TaskPage(props: PageProps<"/projects/[projectId]/t
             </CardHeader>
             <CardContent>
               <TaskWorkflowPanel
-                task={{ ...snapshot, id: task.id, isBlocked: task.isBlocked, hasSubmissions: submissions.length > 0 }}
+                task={{
+                  ...snapshot,
+                  id: task.id,
+                  isBlocked: task.isBlocked,
+                  hasSubmissions: submissions.length > 0,
+                  latestSubmitterId: submissions[0]?.submittedBy?.id ?? null,
+                }}
                 access={dto}
+                ownFiles={ownFiles.map((file) => ({ id: file.id, title: file.title, fileName: file.fileName }))}
               />
             </CardContent>
           </Card>
@@ -184,11 +210,28 @@ export default async function TaskPage(props: PageProps<"/projects/[projectId]/t
 
           <Card>
             <CardHeader>
+              <CardTitle>{t.taskFiles.title}</CardTitle>
+              <CardDescription>{t.taskFiles.description}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TaskFiles
+                projectId={projectId}
+                taskId={task.id}
+                files={files}
+                lockedIds={lockedIds}
+                removableIds={removableIds}
+                canUpload={canAttachTaskFile(access, snapshot)}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>{t.submissions.title}</CardTitle>
               <CardDescription>{t.tasks.visibilityHint[task.visibility]}</CardDescription>
             </CardHeader>
             <CardContent>
-              <SubmissionHistory submissions={submissions} />
+              <SubmissionHistory submissions={submissions} files={files} />
             </CardContent>
           </Card>
 

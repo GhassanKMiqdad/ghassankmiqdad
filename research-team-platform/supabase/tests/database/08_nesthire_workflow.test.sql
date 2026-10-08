@@ -267,6 +267,7 @@ select results_eq(
 -- Audit test 7 — approval, then MARK AS COMPLETED
 -- ---------------------------------------------------------------------------
 select tests.authenticate_as('manager');
+select public.start_task_review((select id from ids where key = 'task'));
 select lives_ok(
   format($$ select public.review_task(%L, 'approved', 'Meets the criteria') $$, (select id from ids where key = 'task')),
   'the Team Lead approves'
@@ -359,6 +360,7 @@ select throws_ok(
   '42501', 'SELF_REVIEW_FORBIDDEN', 'nobody below the Director approves their own work'
 );
 select tests.authenticate_as('owner');
+select public.start_task_review((select id from public.tasks where title = 'Lead own task'));
 select lives_ok(
   format($$ select public.review_task(%L, 'revision_required', 'Add the evaluation table') $$, (select id from public.tasks where title = 'Lead own task')),
   'the Director reviews the Team Lead''s work'
@@ -368,7 +370,8 @@ select tests.clear_authentication();
 select results_eq(
   format($$ select action from public.activity_logs where entity_id = %L and action like 'task.%%' order by created_at $$, (select id from ids where key = 'task')),
   $$ values ('task.created'), ('task.started'), ('task.submitted'), ('task.review_started'), ('task.schedule_changed'),
-            ('task.revision_requested'), ('task.resubmitted'), ('task.approved'), ('task.completed'), ('task.published') $$,
+            ('task.revision_requested'), ('task.resubmitted'), ('task.review_started'), ('task.approved'),
+            ('task.completed'), ('task.published') $$,
   'every step of the workflow is in the audit log'
 );
 select is(

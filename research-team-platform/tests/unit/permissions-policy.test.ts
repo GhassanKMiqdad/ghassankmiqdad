@@ -4,6 +4,7 @@ import { PERMISSION_KEYS, type TaskStatus } from "@/lib/permissions/catalog";
 import {
   assignableRoles,
   can,
+  canAttachTaskFile,
   canChangeTaskStatus,
   canDeleteComment,
   canDeleteTasks,
@@ -11,6 +12,7 @@ import {
   canEditTaskContent,
   canEditTaskSchedule,
   canExecuteTask,
+  canManageTaskFile,
   canReviewTask,
   canSubmitTask,
   canUpdateTask,
@@ -307,5 +309,41 @@ describe("comments", () => {
   it("reviewers without comments.delete cannot moderate", () => {
     expect(canDeleteComment(accessFor("reviewer"), OTHER)).toBe(false);
     expect(canEditComment(accessFor("reviewer"), REVIEWER)).toBe(true);
+  });
+});
+
+describe("NestHire hardening: self-approval and private task files", () => {
+  const manager = accessFor("manager");
+  const member = accessFor("member");
+
+  it("nobody reviews, approves or publishes a version they submitted, even after a reassignment", () => {
+    const reassigned = task(MANAGER, OTHER, "submitted");
+    expect(canReviewTask(manager, reassigned, MANAGER)).toBe(false);
+    expect(canReviewTask(manager, reassigned, OTHER)).toBe(true);
+    expect(canReviewTask({ ...manager, isDirector: true }, reassigned, MANAGER)).toBe(true);
+    expect(canReviewTask(member, task(MANAGER, MEMBER, "submitted"), MEMBER)).toBe(false);
+  });
+
+  it("the responsible member attaches files only while working on the task", () => {
+    expect(canAttachTaskFile(member, task(MANAGER, MEMBER, "in_progress"))).toBe(true);
+    expect(canAttachTaskFile(member, task(MANAGER, MEMBER, "revision_required"))).toBe(true);
+    for (const status of ["scheduled", "submitted", "under_review", "approved", "completed"] as const) {
+      expect(canAttachTaskFile(member, task(MANAGER, MEMBER, status))).toBe(false);
+    }
+    expect(canAttachTaskFile(member, task(MANAGER, OTHER, "in_progress"))).toBe(false);
+  });
+
+  it("supervisors attach files to open tasks only", () => {
+    expect(canAttachTaskFile(manager, task(MANAGER, OTHER, "approved"))).toBe(true);
+    expect(canAttachTaskFile(manager, task(MANAGER, OTHER, "completed"))).toBe(false);
+    expect(canAttachTaskFile(manager, task(MANAGER, OTHER, "cancelled"))).toBe(false);
+  });
+
+  it("a task file is removed by its uploader or a supervisor only", () => {
+    expect(canManageTaskFile(member, MEMBER)).toBe(true);
+    expect(canManageTaskFile(member, OTHER)).toBe(false);
+    expect(canManageTaskFile(member, null)).toBe(false);
+    expect(canManageTaskFile(manager, OTHER)).toBe(true);
+    expect(canManageTaskFile(null, MEMBER)).toBe(false);
   });
 });

@@ -14,7 +14,7 @@ export default async function NotFound() {
       <h1 className="text-2xl font-semibold">{t.pages.notFoundTitle}</h1>
       <p className="max-w-md text-sm text-muted-foreground">{t.pages.notFoundBody}</p>
       <Button asChild>
-        <Link href="/dashboard">{t.pages.goHome}</Link>
+        <Link href="/workspace">{t.pages.goHome}</Link>
       </Button>
     </main>
   );

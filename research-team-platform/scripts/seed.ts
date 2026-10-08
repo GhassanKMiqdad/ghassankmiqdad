@@ -395,6 +395,10 @@ async function seedResearchDemo(owner: Client, ids: Record<Role, string>) {
   await start(manager, "proposal");
   await submit(manager, "proposal", "Proposal draft v1 with aims, design and timeline.");
   check(
+    "reviewer starts the proposal review",
+    await reviewer.rpc("start_task_review", { p_task_id: taskIds.proposal }),
+  );
+  check(
     "reviewer approves proposal",
     await reviewer.rpc("review_task", {
       p_task_id: taskIds.proposal,
@@ -412,6 +416,10 @@ async function seedResearchDemo(owner: Client, ids: Record<Role, string>) {
 
   await start(member, "stats");
   await submit(member, "stats", "Analysis plan: primary endpoint, power calculation, sensitivity analyses.");
+  check(
+    "reviewer starts the analysis plan review",
+    await reviewer.rpc("start_task_review", { p_task_id: taskIds.stats }),
+  );
   check(
     "reviewer approves the analysis plan",
     await reviewer.rpc("review_task", {
@@ -648,6 +656,7 @@ async function seedNestHire(director: Client) {
       p_notes: "Benchmarks in the PR description.",
     }),
   );
+  check("GH reviews v2", await director.rpc("start_task_review", { p_task_id: abTask }));
   check(
     "GH approves",
     await director.rpc("review_task", { p_task_id: abTask, p_decision: "approved", p_comment: "Meets the criteria." }),

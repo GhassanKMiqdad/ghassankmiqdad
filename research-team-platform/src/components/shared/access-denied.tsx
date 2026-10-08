@@ -18,7 +18,7 @@ export async function AccessDenied({ message, title }: { message?: string; title
       <h1 className="text-xl font-semibold">{title ?? t.pages.accessDeniedTitle}</h1>
       <p className="text-sm text-muted-foreground">{message ?? t.errors.PERMISSION_DENIED}</p>
       <Button asChild variant="outline">
-        <Link href="/dashboard">{t.pages.goHome}</Link>
+        <Link href="/workspace">{t.pages.goHome}</Link>
       </Button>
     </div>
   );

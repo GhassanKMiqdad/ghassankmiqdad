@@ -34,7 +34,7 @@ export type NavKey =
   | "settings";
 
 const NAV_ITEMS: { key: NavKey; href: string; icon: LucideIcon }[] = [
-  { key: "dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { key: "dashboard", href: "/workspace", icon: LayoutDashboard },
   { key: "projects", href: "/projects", icon: FolderKanban },
   { key: "tasks", href: "/tasks", icon: ListChecks },
   { key: "schedule", href: "/schedule", icon: CalendarDays },

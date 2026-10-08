@@ -133,7 +133,7 @@ research-team-platform/
 │   ├── proxy.ts                  Session refresh + route protection (Next.js 16 proxy)
 │   ├── app/
 │   │   ├── (auth)/               login, signup, forgot-password, reset-password
-│   │   ├── (app)/                dashboard, projects/**, tasks, documents, team, activity, settings
+│   │   ├── (app)/                workspace, projects/**, tasks, documents, team, activity, settings
 │   │   ├── auth/confirm|callback e-mail link verification (token_hash / PKCE)
 │   │   └── api/projects/[projectId]/export   CSV / JSON export (audited)
 │   ├── components/

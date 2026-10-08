@@ -3,8 +3,8 @@ import type { Dictionary } from "./en";
 /** القاموس العربي — يجب أن يطابق بنية en.ts تمامًا. */
 export const ar: Dictionary = {
   app: {
-    name: "منصة الفريق البحثي",
-    tagline: "خطّط، نفّذ، ودقّق العمل البحثي الجماعي.",
+    name: "مساحة عمل NestHire",
+    tagline: "عمل خاص، مراجعة دقيقة، ونتائج معتمدة تُنشر لفريقك.",
   },
   common: {
     save: "حفظ",
@@ -53,11 +53,11 @@ export const ar: Dictionary = {
     created: "تاريخ الإنشاء",
     updated: "آخر تحديث",
     by: "بواسطة {name}",
-    copyright: "منصة الفريق البحثي",
+    copyright: "مساحة عمل NestHire",
   },
   nav: {
     mainNavigation: "التنقل الرئيسي",
-    dashboard: "لوحة التحكم",
+    dashboard: "مساحة العمل",
     projects: "المشاريع",
     tasks: "المهام",
     documents: "المستندات",
@@ -82,7 +82,7 @@ export const ar: Dictionary = {
   auth: {
     login: {
       title: "تسجيل الدخول",
-      subtitle: "مرحبًا بعودتك. سجّل الدخول إلى مساحة عملك البحثية.",
+      subtitle: "مرحبًا بعودتك. سجّل الدخول إلى مساحة عمل NestHire.",
       email: "البريد الإلكتروني",
       password: "كلمة المرور",
       submit: "تسجيل الدخول",
@@ -93,7 +93,7 @@ export const ar: Dictionary = {
     },
     signup: {
       title: "إنشاء حساب",
-      subtitle: "انضم إلى فريقك البحثي خلال دقيقة.",
+      subtitle: "انضم إلى فريق NestHire خلال دقيقة.",
       fullName: "الاسم الكامل",
       email: "البريد الإلكتروني",
       password: "كلمة المرور",
@@ -137,9 +137,9 @@ export const ar: Dictionary = {
     samePassword: "يجب أن تختلف كلمة المرور الجديدة عن الحالية.",
   },
   dashboard: {
-    title: "لوحة التحكم",
+    title: "مساحة عمل NestHire",
     greeting: "مرحبًا بعودتك، {name}",
-    subtitle: "نظرة عامة على ما يجري في مشاريعك البحثية.",
+    subtitle: "مهامك ومراجعاتك ونتائج فريقك في مكان واحد.",
     stats: {
       totalProjects: "المشاريع",
       activeTasks: "المهام النشطة",
@@ -628,6 +628,8 @@ export const ar: Dictionary = {
     emptyHint: "تظهر النتائج هنا عندما يعتمد المراجع مهمة معتمدة كمكتملة.",
     finalResult: "النتيجة النهائية",
     deliverables: "المخرجات",
+    files: "الملفات",
+    externalLinks: "روابط خارجية",
     teamComment: "تعليق",
     completedOn: "اكتملت {date}",
     responsible: "المسؤول",
@@ -672,7 +674,7 @@ export const ar: Dictionary = {
   },
   documents: {
     title: "المستندات",
-    subtitle: "الملفات المشتركة في مشاريعك البحثية.",
+    subtitle: "الملفات المشتركة في مشاريعك.",
     projectSubtitle: "الأوراق البحثية ومجموعات البيانات وملفات هذا المشروع.",
     upload: "رفع مستند",
     uploadTitle: "رفع مستند",
@@ -704,6 +706,23 @@ export const ar: Dictionary = {
     uploading: "جارٍ الرفع…",
     preparing: "جارٍ التحضير للرفع…",
     finalizing: "جارٍ الحفظ…",
+  },
+  taskFiles: {
+    title: "ملفات المهمة",
+    description: "خاصة: لا يراها إلا المراجعون والمسؤول عن المهمة حتى نشر النتيجة.",
+    upload: "إرفاق ملف",
+    empty: "لا توجد ملفات مرفقة بعد.",
+    locked: "مُسلَّم",
+    lockedHint: "سُلِّم ضمن نسخة: مقفل.",
+    view: "عرض",
+    download: "تنزيل",
+    remove: "إزالة الملف",
+    removed: "تمت إزالة الملف.",
+    removeTitle: "إزالة هذا الملف؟",
+    removeDescription: "سيُحذف الملف نهائيًا.",
+    include: "ملفات هذه النسخة",
+    includeHint: "اختر من الملفات التي أرفقتها بالمهمة.",
+    noOwnFiles: "أرفق ملفاتك أولًا من بطاقة «ملفات المهمة».",
   },
   comments: {
     title: "التعليقات",
@@ -1064,6 +1083,9 @@ export const ar: Dictionary = {
     MEMBER_NOT_FOUND: "لم يتم العثور على هذا العضو في المشروع.",
     NOT_FOUND: "العنصر المطلوب غير موجود أو لا يمكنك الوصول إليه.",
     DOCUMENT_FILE_MISSING: "تعذر العثور على الملف المرفوع. يرجى رفعه مجددًا.",
+    DOCUMENT_LOCKED: "هذا الملف مُسلَّم ضمن نسخة ولا يمكن تعديله أو حذفه.",
+    DELIVERABLE_LINK_FORBIDDEN: "لا يمكن استخدام رابط تخزين داخلي كرابط تسليم. أرفق الملف بالمهمة بدلًا من ذلك.",
+    TASK_FILE_INVALID: "يمكن تسليم ملفات هذه المهمة التي رفعتها أنت فقط.",
     FILE_TOO_LARGE: "حجم الملف كبير جدًا (الحد الأقصى {size}).",
     FILE_TYPE_NOT_ALLOWED: "نوع الملف غير مسموح به.",
     UPLOAD_FAILED: "فشل رفع الملف. يرجى المحاولة مجددًا.",

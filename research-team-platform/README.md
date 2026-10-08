@@ -1,6 +1,6 @@
-# Research Team Platform
+# NestHire Workspace
 
-منصة لإدارة الفرق البحثية — a full-stack platform for research teams: projects,
+**مساحة عمل NestHire** — a full-stack workspace for the NestHire team: projects,
 tasks, documents, discussions, a per-member permission system and an immutable
 activity log. Arabic-first (RTL) with English, light and dark themes.
 

@@ -6,9 +6,10 @@ PRIVATE → TEAM publication rule. Every rule below is enforced by the database
 (RLS, column privileges, `BEFORE` triggers and `SECURITY DEFINER` functions);
 the UI only hides what the database would reject anyway.
 
-Migrations: `supabase/migrations/20261007000100…000500_nesthire_*.sql`.
+Migrations: `supabase/migrations/20261007000100…000500_nesthire_*.sql` and
+`20261008000100_workflow_security_hardening.sql` (section 9).
 Tests: `supabase/tests/database/03_tasks_permissions.test.sql`,
-`08_nesthire_workflow.test.sql`, the _NestHire_ block of
+`08_nesthire_workflow.test.sql`, `09_security_hardening.test.sql`, the _NestHire_ block of
 `tests/integration/api-security.test.ts`, `tests/unit/schedule.test.ts`.
 
 ## 1. Organization structure and roles
@@ -102,7 +103,12 @@ NOT_STARTED ──(start planned)──► SCHEDULED ──(member starts)──
   nothing is overwritten. Every review is a row in `task_reviews` with its
   comment, required changes, additional instructions and optional new
   deadline.
-- Nobody reviews, approves or completes their own task, except a Director.
+- `review_task` decides only on a version that is UNDER_REVIEW (the latest
+  one); `complete_task` publishes only the latest version, which must be
+  APPROVED and carry an approving review.
+- Nobody reviews, approves or completes their own task, nor a version they
+  submitted themselves (also after a reassignment), except a Director
+  (organization-level override, audited).
 - A completed task is a closed record.
 
 ## 5. PRIVATE → TEAM publication
@@ -183,3 +189,40 @@ roster member is an assignment decision (`tasks.assign`).
 
 Later months are added in the app (**Tasks → Assign a task**); type the
 planned ID (e.g. `M02-AB-01-01`) to keep the plan's numbering.
+
+## 9. Security hardening (NestHire Workspace)
+
+Migration `20261008000100_workflow_security_hardening.sql`, tested by
+`09_security_hardening.test.sql` (IDOR scenarios A–F, strict state machine,
+self-approval, version privacy, private files and Storage) and by the
+_NestHire_ block of `tests/integration/api-security.test.ts` (real Auth,
+PostgREST and Storage API).
+
+| Rule                                 | Enforcement                                                                                                                         |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Private task files                   | `documents.task_id`; `documents_select` = can see the task, or the file is listed in a publication the caller can read              |
+| Storage objects follow the documents | `project_documents_select` reads `public.documents` with the caller's rights; unregistered objects only by their uploader           |
+| Files of a version are evidence      | `task_submissions.document_ids` validated by `submit_task` (same task, own upload); `documents_task_file_guard` → `DOCUMENT_LOCKED` |
+| Links are never a way to share files | `submit_task` refuses Storage API URLs (`DELIVERABLE_LINK_FORBIDDEN`); links are shown as unverified external links                 |
+| Publication = sanitized boundary     | `task_publications` (summary, external links, final files); never notes, reviews, comments or earlier versions                      |
+| Publication readers                  | active members of the task's project (`project.view`) and Directors                                                                 |
+| Immutable records                    | `task_submissions_immutable`, `task_reviews_immutable`, `task_publications_immutable` triggers                                      |
+| Former creators                      | a creator reads another member's task only while still holding `tasks.create`                                                       |
+| Private task comments                | edited / deleted only while the task is visible to the caller                                                                       |
+
+Lifecycle of a deliverable file:
+
+```text
+member uploads (signed upload URL, own folder) → documents row with task_id (task visible to: supervisors + responsible)
+  → submit_task(..., p_document_ids) → file locked
+  → start_task_review → review_task(approved) → complete_task
+  → task_publications.document_ids = files of the final version → the team reads them (60-second signed URLs)
+```
+
+Routes: `/workspace` is the canonical home (`/dashboard`, `/nesthire` and
+`/nesthire/*` redirect permanently with 308).
+
+Known, deliberate exceptions: a Director may approve and publish their own
+work (no higher authority exists in the organization; every step is audited).
+A reassigned task's new responsible member reads the task's earlier versions,
+since they continue the same work.

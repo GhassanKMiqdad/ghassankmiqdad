@@ -16,7 +16,7 @@ describe("auth validation", () => {
       "/login",
       null,
     ]) {
-      expect(safeRedirectPath(value)).toBe("/dashboard");
+      expect(safeRedirectPath(value)).toBe("/workspace");
     }
   });
 

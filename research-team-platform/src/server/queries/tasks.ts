@@ -318,7 +318,7 @@ export async function listSubmissions(taskId: string): Promise<SubmissionItem[]>
     supabase
       .from("task_submissions")
       .select(
-        `id, version, summary, deliverable_links, notes, status, is_final, submitted_at,
+        `id, version, summary, deliverable_links, notes, document_ids, status, is_final, submitted_at,
          submitter:profiles!task_submissions_submitted_by_fkey(${PROFILE_FIELDS})`,
       )
       .eq("task_id", taskId)
@@ -352,6 +352,7 @@ export async function listSubmissions(taskId: string): Promise<SubmissionItem[]>
     summary: submission.summary,
     links: submission.deliverable_links ?? [],
     notes: submission.notes,
+    documentIds: submission.document_ids ?? [],
     status: submission.status as SubmissionStatus,
     isFinal: submission.is_final,
     submittedBy: toUserRef(submission.submitter),

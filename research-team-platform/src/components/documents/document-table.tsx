@@ -16,8 +16,8 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import { toast } from "sonner";
 
+import { useOpenDocument } from "@/components/documents/use-open-document";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DateText } from "@/components/shared/date-text";
 import { useServerAction } from "@/components/shared/use-action";
@@ -39,7 +39,7 @@ import { useI18n } from "@/lib/i18n/provider";
 import { fromAccessDTO, type ProjectAccessDTO } from "@/lib/permissions/access";
 import { can } from "@/lib/permissions/policy";
 import { formatBytes } from "@/lib/utils";
-import { deleteDocumentAction, getDocumentUrlAction, updateDocumentAction } from "@/server/actions/documents";
+import { deleteDocumentAction, updateDocumentAction } from "@/server/actions/documents";
 import type { DocumentItem } from "@/types/app";
 
 const KIND_ICON: Record<FileKind, typeof File> = {
@@ -62,29 +62,8 @@ export function DocumentTable({
 }) {
   const { t, locale } = useI18n();
   const [editing, setEditing] = useState<DocumentItem | null>(null);
-  const [opening, setOpening] = useState<string | null>(null);
-
-  const openDocument = async (document: DocumentItem, mode: "view" | "download") => {
-    // Open the tab synchronously (popup blockers), then point it at the signed URL.
-    const tab = mode === "view" ? window.open("about:blank", "_blank") : null;
-    setOpening(document.id);
-    const result = await getDocumentUrlAction(document.id, mode);
-    setOpening(null);
-    if (!result.ok) {
-      tab?.close();
-      toast.error(result.error.message);
-      return;
-    }
-    if (tab) {
-      tab.opener = null;
-      tab.location.href = result.data.url;
-    } else {
-      const anchor = window.document.createElement("a");
-      anchor.href = result.data.url;
-      anchor.rel = "noopener";
-      anchor.click();
-    }
-  };
+  const { open, opening } = useOpenDocument();
+  const openDocument = (document: DocumentItem, mode: "view" | "download") => open(document.id, mode);
 
   return (
     <>

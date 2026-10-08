@@ -93,9 +93,29 @@ export function canUpdateTaskProgress(access: AccessSubject | null | undefined, 
 }
 
 /** Review, approve, request revisions and mark as completed. Nobody but a Director reviews their own task. */
-export function canReviewTask(access: AccessSubject | null | undefined, task: TaskSnapshot): boolean {
+export function canReviewTask(
+  access: AccessSubject | null | undefined,
+  task: TaskSnapshot,
+  latestSubmitterId?: string | null,
+): boolean {
   if (!access || !can(access, "tasks.review")) return false;
-  return task.assignedTo !== access.userId || access.isDirector === true;
+  if (access.isDirector === true) return true;
+  // Nobody reviews, approves or publishes work they handed in (SQL: assert_not_own_submission).
+  return task.assignedTo !== access.userId && latestSubmitterId !== access.userId;
+}
+
+/** Attach a private file to a task (SQL: private.can_attach_task_file). */
+export function canAttachTaskFile(access: AccessSubject | null | undefined, task: TaskSnapshot): boolean {
+  if (!access || !can(access, "documents.upload")) return false;
+  if (task.status === "completed" || task.status === "cancelled") return false;
+  if (canSuperviseTasks(access)) return true;
+  return canExecuteTask(access, task) && (task.status === "in_progress" || task.status === "revision_required");
+}
+
+/** Rename or remove a task file that was not handed in (documents RLS for task files). */
+export function canManageTaskFile(access: AccessSubject | null | undefined, uploadedBy: string | null): boolean {
+  if (!access) return false;
+  return canSuperviseTasks(access) || (uploadedBy !== null && uploadedBy === access.userId);
 }
 
 /** Status changes allowed through a direct update (SQL: private.task_transition_allowed). */

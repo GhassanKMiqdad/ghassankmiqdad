@@ -165,6 +165,7 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/proj
           .from("documents")
           .select("id, title, description, file_name, mime_type, size_bytes, created_at, uploaded_by")
           .eq("project_id", projectId)
+          .is("task_id", null)
       : Promise.resolve({ data: null, error: null }),
     supabase
       .from("comments")

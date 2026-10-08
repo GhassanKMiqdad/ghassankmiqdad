@@ -122,6 +122,7 @@ export type SubmissionItem = {
   summary: string;
   links: string[];
   notes: string;
+  documentIds: string[];
   status: SubmissionStatus;
   isFinal: boolean;
   submittedBy: UserRef | null;
@@ -151,6 +152,7 @@ export type PublicationItem = {
   responsibleTitle: string | null;
   finalResult: string;
   links: string[];
+  files: TaskFileItem[];
   teamComment: string;
   version: number;
   completedAt: string;
@@ -226,6 +228,19 @@ export type DocumentItem = {
   uploadedBy: UserRef | null;
   createdAt: string;
   updatedAt: string;
+};
+
+/** A private task file (documents.task_id), or a published one. */
+export type TaskFileItem = {
+  id: string;
+  taskId: string;
+  title: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedById: string | null;
+  uploadedBy: UserRef | null;
+  createdAt: string;
 };
 
 export type CommentItem = {

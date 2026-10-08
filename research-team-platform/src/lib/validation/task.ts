@@ -105,6 +105,8 @@ export const submitTaskSchema = z.object({
   summary: z.string().trim().min(1, "validation.required").max(10000, "validation.tooLong"),
   links: linksField,
   notes: text(5000),
+  /** Task files handed in with the version (validated again by submit_task). */
+  documentIds: z.array(uuidField).max(20, "validation.tooLong").default([]),
 });
 export type SubmitTaskInput = z.input<typeof submitTaskSchema>;
 export type SubmitTaskValues = z.output<typeof submitTaskSchema>;

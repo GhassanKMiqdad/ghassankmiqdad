@@ -4,6 +4,7 @@ import { ExternalLink, Megaphone } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { TaskCode } from "@/components/shared/badges";
+import { TaskFileList } from "@/components/tasks/task-file-list";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { getI18n } from "@/lib/i18n/server";
 import { requireSessionUser } from "@/server/auth";
@@ -56,9 +57,15 @@ export default async function ResultsPage() {
                     {item.finalResult}
                   </p>
                 </div>
+                {item.files.length > 0 ? (
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-medium">{t.results.files}</h3>
+                    <TaskFileList files={item.files} />
+                  </div>
+                ) : null}
                 {item.links.length > 0 ? (
                   <div className="space-y-1">
-                    <h3 className="text-sm font-medium">{t.results.deliverables}</h3>
+                    <h3 className="text-sm font-medium">{t.results.externalLinks}</h3>
                     <ul className="space-y-1">
                       {item.links.map((link) => (
                         <li key={link}>
