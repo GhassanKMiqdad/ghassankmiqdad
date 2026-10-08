@@ -755,5 +755,66 @@ describe.skipIf(!env)("API security — direct requests that bypass the UI", () 
       expect((await rows(a.client.from("task_submissions").select("version").eq("task_id", task.id))).length).toBe(2);
       expect((await rows(a.client.from("task_reviews").select("decision").eq("task_id", task.id))).length).toBe(2);
     });
+
+    it("nobody approves their own work — the Director included — and reassignment does not leak earlier private work", async () => {
+      const { owner, member: a, colleague: b } = f.users;
+      const director = owner.client;
+      const create = async (title: string, assignee: string) =>
+        must(
+          title,
+          await director
+            .from("tasks")
+            .insert({ project_id: f.projectA, title, assigned_to: assignee })
+            .select("id")
+            .single(),
+        ).id;
+
+      // The Director submits their own work and cannot review, approve or publish it.
+      const own = await create("Director own work", owner.id);
+      must("start", await director.from("tasks").update({ status: "in_progress" }).eq("id", own).select("id"));
+      must("submit", await director.rpc("submit_task", { p_task_id: own, p_summary: "Director result" }));
+      expect((await failure(director.rpc("start_task_review", { p_task_id: own }))).message).toBe(
+        "SELF_REVIEW_FORBIDDEN",
+      );
+      expect((await failure(director.rpc("review_task", { p_task_id: own, p_decision: "approved" }))).message).toBe(
+        "SELF_REVIEW_FORBIDDEN",
+      );
+
+      // Reassignment: the previous assignee loses the task, the new one gets the instructions only.
+      const handover = await create("Handover", a.id);
+      must(
+        "A works",
+        await a.client
+          .from("tasks")
+          .update({ status: "in_progress", work_notes: "A private notes", progress: 50 })
+          .eq("id", handover)
+          .select("id"),
+      );
+      must("A submits", await a.client.rpc("submit_task", { p_task_id: handover, p_summary: "A draft" }));
+      must("review", await director.rpc("start_task_review", { p_task_id: handover }));
+      must(
+        "revision",
+        await director.rpc("review_task", {
+          p_task_id: handover,
+          p_decision: "revision_required",
+          p_comment: "Private feedback for A",
+        }),
+      );
+      must("reassign", await director.from("tasks").update({ assigned_to: b.id }).eq("id", handover).select("id"));
+
+      expect(await rows(a.client.from("tasks").select("id").eq("id", handover))).toEqual([]);
+      expect(await rows(a.client.from("task_submissions").select("id").eq("task_id", handover))).toEqual([]);
+      expect(await rows(a.client.from("task_reviews").select("id").eq("task_id", handover))).toEqual([]);
+
+      expect(await rows(b.client.from("tasks").select("work_notes, progress").eq("id", handover))).toEqual([
+        { work_notes: "", progress: 0 },
+      ]);
+      expect(await rows(b.client.from("task_submissions").select("id").eq("task_id", handover))).toEqual([]);
+      expect(await rows(b.client.from("task_reviews").select("id").eq("task_id", handover))).toEqual([]);
+
+      // Supervisors keep the full history.
+      expect((await rows(director.from("task_submissions").select("id").eq("task_id", handover))).length).toBe(1);
+      expect((await rows(director.from("task_reviews").select("id").eq("task_id", handover))).length).toBe(1);
+    });
   });
 });

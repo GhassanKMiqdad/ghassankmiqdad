@@ -186,3 +186,26 @@ Supabase، وبعدد محدود جدًا من الرسائل في الساعة.
 | «دعوة مستخدمين جدد غير مهيأة على الخادم»                            | أضف `SUPABASE_SERVICE_ROLE_KEY` في Vercel ثم أعد النشر.                                                                                                                    |
 | لا يظهر زر «مشروع جديد»                                             | لست مدير منصة: تأكد أن بريدك مكتوب كما هو في `PLATFORM_ADMIN_EMAILS` وأنك أكّدته، ثم حدّث الصفحة.                                                                          |
 | التطبيق متوقف بعد فترة                                              | مشروع Supabase المجاني توقف لعدم الاستخدام؛ أعد تشغيله من لوحة Supabase.                                                                                                   |
+
+## الانتقال إلى الهوية النهائية: NestHire Workspace
+
+الترتيب مهم — قاعدة البيانات أولًا ثم الكود:
+
+1. **قاعدة البيانات:** Supabase → SQL Editor → الصق محتوى
+   `scripts/sql/nesthire-security-upgrade.sql` كاملًا ثم Run. يطبّق الترحيلين
+   `20261008000100` و`20261008000200` فقط ويسجّلهما، ويرفض التشغيل مرة ثانية.
+   لا تستخدم `scripts/sql/nesthire-finish-live-upgrade.sql` (تاريخي، طُبّق في 2026-10-07).
+2. **الكود:** ادمج الفرع في `main` بعد الخطوة 1 (Vercel ينشر `main` تلقائيًا).
+3. **اسم مشروع Vercel:** Vercel → Project → Settings → General → Project Name =
+   `nesthire` (إن كان متاحًا يصبح الرابط `https://nesthire.vercel.app`)، ثم
+   Settings → Environment Variables: `NEXT_PUBLIC_SITE_URL=https://nesthire.vercel.app`
+   وأعد النشر. اترك **Root Directory** = `research-team-platform`.
+4. **Supabase Auth:** Authentication → URL Configuration: Site URL =
+   `https://nesthire.vercel.app`، وأضف `https://nesthire.vercel.app/**` إلى Redirect URLs
+   (أبقِ الرابط القديم مؤقتًا حتى يكتمل الانتقال).
+5. **اسم مستودع GitHub:** Settings → General → Repository name = `nesthire-workspace`.
+   ⚠️ المستودع الحالي `GhassanKMiqdad/ghassankmiqdad` يحمل اسم حسابك، فهو مستودع
+   «الملف الشخصي» الذي يظهر README الخاص به في صفحتك على GitHub؛ إعادة تسميته
+   تُخفي ذلك README. GitHub يحوّل الروابط القديمة تلقائيًا، وVercel يتابع المستودع
+   بعد إعادة التسمية (تحقق من Settings → Git). بعدها محليًا:
+   `git remote set-url origin https://github.com/GhassanKMiqdad/nesthire-workspace.git`.

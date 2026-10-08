@@ -85,7 +85,11 @@ export const taskProgressSchema = z.object({
 });
 export type TaskProgressInput = z.input<typeof taskProgressSchema>;
 
-/** One deliverable link per line (http/https), at most 10. */
+/**
+ * One external reference per line, at most 10: https only, without embedded
+ * credentials and never a Storage URL (submit_task enforces the same rule).
+ * A link is a reference, not proof of ownership or approval.
+ */
 const linksField = z
   .string()
   .max(25000, "validation.tooLong")
@@ -97,7 +101,14 @@ const linksField = z
   )
   .pipe(
     z
-      .array(z.url({ protocol: /^https?$/, error: "validation.invalidUrl" }).max(2048, "validation.tooLong"))
+      .array(
+        z
+          .url({ protocol: /^https$/, error: "validation.invalidUrl" })
+          .max(2048, "validation.tooLong")
+          .refine((link) => !/^https:\/\/[^/?#]*@/.test(link) && !/^https:\/\/[^/]+\/storage\/v1\//i.test(link), {
+            error: "validation.invalidUrl",
+          }),
+      )
       .max(10, "validation.tooManyLinks"),
   );
 

@@ -1,4 +1,13 @@
 -- =============================================================================
+-- HISTORICAL — already applied to the hosted database on 2026-10-07.
+-- Do NOT run it again (its first check refuses to). It contains base NestHire
+-- migrations 20261007000100…000500 (including data-transforming steps: enum
+-- replacement, due_date → due_at with DROP COLUMN due_date, tasks.view revoked
+-- from members, Director bootstrap) plus the roster and month-1 data.
+-- The current security upgrade is scripts/sql/nesthire-security-upgrade.sql.
+-- =============================================================================
+
+-- =============================================================================
 -- NestHire — finish the live database upgrade (Supabase project vqorfahkecswjrqgizhy)
 --
 -- Paste ALL of this file in Supabase Dashboard → SQL Editor → New query → Run.

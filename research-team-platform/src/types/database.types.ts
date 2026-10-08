@@ -698,6 +698,7 @@ export type Database = {
         Row: {
           actual_start_at: string | null;
           approved_at: string | null;
+          assigned_at: string | null;
           assigned_to: string | null;
           completed_at: string | null;
           completion_criteria: string;
@@ -735,6 +736,7 @@ export type Database = {
         Insert: {
           actual_start_at?: string | null;
           approved_at?: string | null;
+          assigned_at?: string | null;
           assigned_to?: string | null;
           completed_at?: string | null;
           completion_criteria?: string;
@@ -769,6 +771,7 @@ export type Database = {
         Update: {
           actual_start_at?: string | null;
           approved_at?: string | null;
+          assigned_at?: string | null;
           assigned_to?: string | null;
           completed_at?: string | null;
           completion_criteria?: string;

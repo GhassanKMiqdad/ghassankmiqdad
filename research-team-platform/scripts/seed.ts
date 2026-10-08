@@ -1,5 +1,5 @@
 /**
- * Demo data for the Research Team Platform.
+ * Demo data for NestHire Workspace.
  *
  *   npm run seed            # create demo users + demo projects (idempotent)
  *   npm run seed -- --reset # delete the demo projects first and recreate them

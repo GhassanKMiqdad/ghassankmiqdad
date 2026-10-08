@@ -23,11 +23,11 @@ Organization
         └── Projects linked to the team (projects.team_id) → Tasks
 ```
 
-| Role            | Authority                                                                                                                                                                                       | Where it is enforced                                                                                                  |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| **Director**    | Every permission in every project (like an owner), all data and the full audit log, teams, rosters, project ↔ team links, Director role, review/approve/publish any task (including their own). | `private.member_has_permission`, `project_ids_with_permission`, `member_role`, `get_my_project_access`, Director RPCs |
-| **Team Lead**   | In the projects of their team only: create, assign, schedule, edit, review, approve, request revisions, MARK AS COMPLETED. No member, role or permission management, no other teams.            | Fixed permission set `private.team_lead_permissions()` synchronized into the team's projects                          |
-| **Team Member** | Their own tasks only: start, progress, work notes, submit / resubmit, read their feedback; read the team's published results.                                                                   | Member template (`project.view`, `tasks.edit_assigned`, documents, comments, `team.view`) + RLS                       |
+| Role            | Authority                                                                                                                                                                                              | Where it is enforced                                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| **Director**    | Every permission in every project (like an owner), all data and the full audit log, teams, rosters, project ↔ team links, Director role, review/approve/publish other people's work (never their own). | `private.member_has_permission`, `project_ids_with_permission`, `member_role`, `get_my_project_access`, Director RPCs |
+| **Team Lead**   | In the projects of their team only: create, assign, schedule, edit, review, approve, request revisions, MARK AS COMPLETED. No member, role or permission management, no other teams.                   | Fixed permission set `private.team_lead_permissions()` synchronized into the team's projects                          |
+| **Team Member** | Their own tasks only: start, progress, work notes, submit / resubmit, read their feedback; read the team's published results.                                                                          | Member template (`project.view`, `tasks.edit_assigned`, documents, comments, `team.view`) + RLS                       |
 
 - Role transitions happen only through Director functions
   (`set_user_director`, `upsert_team_member`, `set_team_member_status`,
@@ -107,8 +107,9 @@ NOT_STARTED ──(start planned)──► SCHEDULED ──(member starts)──
   one); `complete_task` publishes only the latest version, which must be
   APPROVED and carry an approving review.
 - Nobody reviews, approves or completes their own task, nor a version they
-  submitted themselves (also after a reassignment), except a Director
-  (organization-level override, audited).
+  submitted themselves (also after a reassignment) — **Directors included**
+  (`SELF_REVIEW_FORBIDDEN`). A Director's own work needs another reviewer
+  (a Team Lead, a reviewer or another Director).
 - A completed task is a closed record.
 
 ## 5. PRIVATE → TEAM publication
@@ -222,7 +223,19 @@ member uploads (signed upload URL, own folder) → documents row with task_id (t
 Routes: `/workspace` is the canonical home (`/dashboard`, `/nesthire` and
 `/nesthire/*` redirect permanently with 308).
 
-Known, deliberate exceptions: a Director may approve and publish their own
-work (no higher authority exists in the organization; every step is audited).
-A reassigned task's new responsible member reads the task's earlier versions,
-since they continue the same work.
+### Final privacy rules (migration `20261008000200_final_privacy_hardening.sql`, tests `10_final_privacy.test.sql`)
+
+| Rule                             | Behaviour                                                                                                                                                                                                                                                               |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Self-review                      | Whoever is responsible for the task or submitted the version under review cannot start the review, decide on it or publish it — **every role, the Director included**.                                                                                                  |
+| Reassignment — previous assignee | Loses the task entirely: row, versions, reviews, comments, files and Storage objects.                                                                                                                                                                                   |
+| Reassignment — new assignee      | Reads the task instructions, the supervisors' reference files, comments written since their assignment started (`tasks.assigned_at`), and only the versions they submit themselves with the reviews of those versions. Earlier private work stays with the supervisors. |
+| Previous notes                   | `work_notes` and `progress` of the previous assignee are cleared on reassignment; their values remain in the audit log (supervisors).                                                                                                                                   |
+| Supervisors                      | `tasks.view` keeps the complete history.                                                                                                                                                                                                                                |
+| External links                   | https only, no embedded credentials, never a Storage URL. Shown as "External links": a reference, never proof of ownership, approval, privacy or safety. Internal deliverables are Storage files with a task, an uploader and RLS.                                      |
+| Concurrency                      | `submit_task`, `start_task_review`, `review_task` and `complete_task` lock the task row (`SELECT … FOR UPDATE`) and re-check status and the latest version inside the transaction, so a stale version cannot be approved or published.                                  |
+
+Production database path: `scripts/sql/nesthire-security-upgrade.sql`
+applies exactly `20261008000100` and `20261008000200` (equivalent to
+`supabase db push`). `scripts/sql/nesthire-finish-live-upgrade.sql` is
+historical (applied on 2026-10-07) and refuses to run again.

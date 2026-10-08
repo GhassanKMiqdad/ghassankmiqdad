@@ -87,7 +87,10 @@ Private task files (NestHire Workspace) live in the same bucket but carry a
 `task_id`: the object SELECT policy defers to the `documents` RLS, so a task
 file is readable only by the task's supervisors and responsible member, and by
 the team only once it is part of a publication. Files handed in with a version
-are locked. See [NESTHIRE.md §9](NESTHIRE.md#9-security-hardening-nesthire-workspace).
+are locked. A new assignee does not inherit a previous assignee's files,
+versions, reviews or conversation. Nobody — Directors included — reviews,
+approves or publishes work they submitted. See
+[NESTHIRE.md §9](NESTHIRE.md#9-security-hardening-nesthire-workspace).
 
 ### 5. Audit log
 

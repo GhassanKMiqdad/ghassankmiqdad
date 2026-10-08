@@ -92,15 +92,16 @@ export function canUpdateTaskProgress(access: AccessSubject | null | undefined, 
   return task.status !== "completed" && (canExecuteTask(access, task) || canSuperviseTasks(access));
 }
 
-/** Review, approve, request revisions and mark as completed. Nobody but a Director reviews their own task. */
+/** Review, approve, request revisions and mark as completed. Nobody reviews their own work. */
 export function canReviewTask(
   access: AccessSubject | null | undefined,
   task: TaskSnapshot,
   latestSubmitterId?: string | null,
 ): boolean {
   if (!access || !can(access, "tasks.review")) return false;
-  if (access.isDirector === true) return true;
-  // Nobody reviews, approves or publishes work they handed in (SQL: assert_not_own_submission).
+  // Nobody — Directors included — reviews, approves or publishes a task they are
+  // responsible for or a version they handed in (SQL: assert_task_reviewer,
+  // assert_not_own_submission).
   return task.assignedTo !== access.userId && latestSubmitterId !== access.userId;
 }
 
