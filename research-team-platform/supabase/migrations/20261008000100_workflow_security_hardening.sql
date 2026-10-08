@@ -18,9 +18,10 @@
 --                  → APPROVED | REVISION_REQUIRED (review_task)
 --        APPROVED  → COMPLETED + publication (complete_task)
 --     Only the latest version can be reviewed, approved and published.
---  4. Nobody reviews, approves or publishes work they submitted themselves
---     (also after a reassignment), except a Director (organization-level,
---     audited override).
+--  4. This intermediate migration retains the existing audited Director
+--     self-review override. Migration 20261008000200_final_privacy_hardening
+--     removes it: in the final policy, no user may review, approve or publish
+--     their own work, including after a reassignment.
 --  5. Versions, reviews and publications are immutable records.
 --  6. Visibility is based on actual authorization: a task's creator keeps
 --     reading another member's task only while they can still create tasks; publications are

@@ -16,7 +16,7 @@
 
 1. ادخل إلى [supabase.com](https://supabase.com) وسجّل بحساب GitHub.
 2. اضغط **New project** واختر:
-   - **Name:** مثل `research-team`.
+   - **Name:** مثل `nesthire-workspace`.
    - **Database Password:** كلمة مرور قوية، واحفظها في مكان آمن.
    - **Region:** أقرب منطقة لمستخدميك (مثل Central EU – Frankfurt).
    - **Plan:** Free.
@@ -100,16 +100,19 @@ npx supabase db push
 
 1. **URL Configuration**
    - **Site URL:** رابط تطبيقك على Vercel.
-   - **Redirect URLs:** أضف `https://<رابطك>.vercel.app/**`.
+   - **Redirect URLs:** أضف المسارين الفعليين `https://<رابطك>.vercel.app/auth/callback`
+     و`https://<رابطك>.vercel.app/auth/confirm`. التسجيل وإعادة تعيين كلمة المرور
+     يستخدمان `/auth/callback`، وقالب تأكيد البريد يستخدم `/auth/confirm`؛ لا تعتمد
+     على wildcard بدلًا من إدراج المسارين صراحةً.
 2. **Emails ← Templates:** لكل قالب الصق الموضوع والمحتوى من المجلد
    `supabase/templates`:
 
-   | القالب في Supabase   | الملف               | الموضوع (Subject)                                                         |
-   | -------------------- | ------------------- | ------------------------------------------------------------------------- |
-   | Confirm sign up      | `confirmation.html` | `Confirm your account \| تأكيد الحساب`                                    |
-   | Invite user          | `invite.html`       | `You have been invited to a research team \| دعوة للانضمام إلى فريق بحثي` |
-   | Reset password       | `recovery.html`     | `Reset your password \| إعادة تعيين كلمة المرور`                          |
-   | Change email address | `email_change.html` | `Confirm your new e-mail \| تأكيد البريد الإلكتروني الجديد`               |
+   | القالب في Supabase   | الملف               | الموضوع (Subject)                                                                         |
+   | -------------------- | ------------------- | ----------------------------------------------------------------------------------------- |
+   | Confirm sign up      | `confirmation.html` | `Confirm your account \| تأكيد الحساب`                                                    |
+   | Invite user          | `invite.html`       | `You have been invited to the NestHire Workspace \| دعوة للانضمام إلى مساحة عمل NestHire` |
+   | Reset password       | `recovery.html`     | `Reset your password \| إعادة تعيين كلمة المرور`                                          |
+   | Change email address | `email_change.html` | `Confirm your new e-mail \| تأكيد البريد الإلكتروني الجديد`                               |
 
 ## 6. إرسال البريد مجانًا (SMTP)
 
@@ -121,14 +124,14 @@ Supabase، وبعدد محدود جدًا من الرسائل في الساعة.
    كلمة مرور تطبيق (16 حرفًا).
 2. في Supabase ← **Authentication ← Emails ← SMTP Settings** ← **Enable Custom SMTP**:
 
-   | الحقل        | القيمة            |
-   | ------------ | ----------------- |
-   | Sender email | بريدك على Gmail   |
-   | Sender name  | `Research Team`   |
-   | Host         | `smtp.gmail.com`  |
-   | Port         | `465`             |
-   | Username     | بريدك على Gmail   |
-   | Password     | كلمة مرور التطبيق |
+   | الحقل        | القيمة               |
+   | ------------ | -------------------- |
+   | Sender email | بريدك على Gmail      |
+   | Sender name  | `NestHire Workspace` |
+   | Host         | `smtp.gmail.com`     |
+   | Port         | `465`                |
+   | Username     | بريدك على Gmail      |
+   | Password     | كلمة مرور التطبيق    |
 
 3. يمكنك رفع حد الرسائل من **Authentication ← Rate Limits** (Gmail يسمح بنحو 500 رسالة يوميًا).
 
@@ -193,16 +196,20 @@ Supabase، وبعدد محدود جدًا من الرسائل في الساعة.
 
 1. **قاعدة البيانات:** Supabase → SQL Editor → الصق محتوى
    `scripts/sql/nesthire-security-upgrade.sql` كاملًا ثم Run. يطبّق الترحيلين
-   `20261008000100` و`20261008000200` فقط ويسجّلهما، ويرفض التشغيل مرة ثانية.
-   لا تستخدم `scripts/sql/nesthire-finish-live-upgrade.sql` (تاريخي، طُبّق في 2026-10-07).
+   `20261008000100` و`20261008000200` و`20261008000300` بالترتيب ويسجّلها، ويرفض
+   التشغيل إذا كان أحدها مطبقًا مسبقًا. إذا كان سجل الترحيلات جزئيًا، لا تشغّل الحزمة؛
+   افحص الحالة واستخدم Supabase CLI لتطبيق الترحيلات الناقصة بعد مراجعتها.
+   لا تستخدم `scripts/sql/nesthire-finish-live-upgrade.sql`؛ إنه سكربت تاريخي غير صالح
+   لهذا النشر، ولا يعني هذا الدليل أنه طُبّق على قاعدة الإنتاج.
 2. **الكود:** ادمج الفرع في `main` بعد الخطوة 1 (Vercel ينشر `main` تلقائيًا).
 3. **اسم مشروع Vercel:** Vercel → Project → Settings → General → Project Name =
    `nesthire` (إن كان متاحًا يصبح الرابط `https://nesthire.vercel.app`)، ثم
    Settings → Environment Variables: `NEXT_PUBLIC_SITE_URL=https://nesthire.vercel.app`
    وأعد النشر. اترك **Root Directory** = `research-team-platform`.
 4. **Supabase Auth:** Authentication → URL Configuration: Site URL =
-   `https://nesthire.vercel.app`، وأضف `https://nesthire.vercel.app/**` إلى Redirect URLs
-   (أبقِ الرابط القديم مؤقتًا حتى يكتمل الانتقال).
+   `https://nesthire.vercel.app`، وأضف `https://nesthire.vercel.app/auth/callback` و
+   `https://nesthire.vercel.app/auth/confirm` إلى Redirect URLs. لا تحذف أي مسارات قديمة
+   قبل اكتمال الانتقال والتحقق من الروابط المستخدمة.
 5. **اسم مستودع GitHub:** اترك `GhassanKMiqdad/ghassankmiqdad` كما هو؛ فهو مستودع
    الملف الشخصي لحساب GitHub، ولا تعِد تسميته من أجل العلامة التجارية. احتفظ باسم
    NestHire داخل التطبيق وحزمة `nesthire-workspace`. يمكن مستقبلًا نقل التطبيق اختياريًا

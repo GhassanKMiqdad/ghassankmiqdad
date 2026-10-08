@@ -10,7 +10,7 @@
 --   reviewer ..... independent reviewer (tasks.view + tasks.review)
 begin;
 \ir _helpers.psql
-select plan(45);
+select plan(47);
 
 select tests.setup_world();
 update public.profiles set is_director = (id = tests.uid('owner'));
@@ -244,6 +244,10 @@ select throws_ok(format($$ select public.submit_task(%L, 's', array['http://exam
   '22023', 'DELIVERABLE_LINK_FORBIDDEN', 'plain http links are refused');
 select throws_ok(format($$ select public.submit_task(%L, 's', array['https://user:secret@example.com/x'], '', '{}') $$, pg_temp.id('links')),
   '22023', 'DELIVERABLE_LINK_FORBIDDEN', 'links with embedded credentials are refused');
+select throws_ok(format($$ select public.submit_task(%L, 's', array['https://example.com:bad/x'], '', '{}') $$, pg_temp.id('links')),
+  '22023', 'DELIVERABLE_LINK_FORBIDDEN', 'a non-numeric URL port is refused');
+select throws_ok(format($$ select public.submit_task(%L, 's', array['https://example.com:99999/x'], '', '{}') $$, pg_temp.id('links')),
+  '22023', 'DELIVERABLE_LINK_FORBIDDEN', 'a port outside the valid range is refused');
 select throws_ok(format($$ select public.submit_task(%L, 's', array['https://abc.supabase.co/storage/v1/object/sign/x?token=y'], '', '{}') $$, pg_temp.id('links')),
   '22023', 'DELIVERABLE_LINK_FORBIDDEN', 'Storage URLs are refused');
 select lives_ok(format($$ select public.submit_task(%L, 's', array['https://github.com/org/repo/pull/1'], '', '{}') $$, pg_temp.id('links')),

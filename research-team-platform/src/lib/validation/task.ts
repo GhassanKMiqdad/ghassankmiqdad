@@ -85,6 +85,42 @@ export const taskProgressSchema = z.object({
 });
 export type TaskProgressInput = z.input<typeof taskProgressSchema>;
 
+function isSafeExternalReference(link: string): boolean {
+  if (/\s/.test(link)) return false;
+
+  let url: URL;
+  try {
+    url = new URL(link);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "https:" || url.username || url.password) return false;
+
+  const authority = link.match(/^https:\/\/([^/?#]*)/i)?.[1];
+  if (!authority || authority.includes("%") || authority.includes("@")) return false;
+
+  if (authority.startsWith("[")) {
+    const closingBracket = authority.indexOf("]");
+    const portSuffix = authority.slice(closingBracket + 1);
+    if (closingBracket < 0 || (portSuffix && !/^:\d+$/.test(portSuffix))) return false;
+  } else if (authority.includes(":")) {
+    const portSeparator = authority.indexOf(":");
+    if (portSeparator !== authority.lastIndexOf(":") || !/^\d+$/.test(authority.slice(portSeparator + 1))) {
+      return false;
+    }
+  }
+
+  const hostname = url.hostname.toLowerCase();
+  if (hostname.startsWith("[") && hostname.endsWith("]")) return true; // URL has already validated the IPv6 literal.
+
+  const dnsName = hostname.endsWith(".") ? hostname.slice(0, -1) : hostname;
+  if (!dnsName || dnsName.length > 253) return false;
+  return (
+    dnsName.split(".").every((label) => label.length <= 63 && /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label)) &&
+    !url.pathname.toLowerCase().startsWith("/storage/v1/")
+  );
+}
+
 /**
  * One external reference per line, at most 10: https only, without embedded
  * credentials and never a Storage URL (submit_task enforces the same rule).
@@ -105,9 +141,7 @@ const linksField = z
         z
           .url({ protocol: /^https$/, error: "validation.invalidUrl" })
           .max(2048, "validation.tooLong")
-          .refine((link) => !/^https:\/\/[^/?#]*@/.test(link) && !/^https:\/\/[^/]+\/storage\/v1\//i.test(link), {
-            error: "validation.invalidUrl",
-          }),
+          .refine(isSafeExternalReference, { error: "validation.invalidUrl" }),
       )
       .max(10, "validation.tooManyLinks"),
   );

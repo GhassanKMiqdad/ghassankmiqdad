@@ -128,6 +128,9 @@ describe("domain validation", () => {
     for (const link of [
       "http://b.example",
       "https://user:secret@b.example/x",
+      "https://example.com:bad/x",
+      "https://example.com:99999/x",
+      "https://example..com/x",
       "https://abc.supabase.co/storage/v1/object/sign/project-documents/a?token=1",
     ]) {
       expect(submitTaskSchema.safeParse({ summary: "Done", links: link, notes: "" }).success).toBe(false);

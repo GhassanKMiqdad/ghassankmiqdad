@@ -232,10 +232,13 @@ Routes: `/workspace` is the canonical home (`/dashboard`, `/nesthire` and
 | Reassignment — new assignee      | Reads the task instructions, the supervisors' reference files, comments written since their assignment started (`tasks.assigned_at`), and only the versions they submit themselves with the reviews of those versions. Earlier private work stays with the supervisors. |
 | Previous notes                   | `work_notes` and `progress` of the previous assignee are cleared on reassignment; their values remain in the audit log (supervisors).                                                                                                                                   |
 | Supervisors                      | `tasks.view` keeps the complete history.                                                                                                                                                                                                                                |
-| External links                   | https only, no embedded credentials, never a Storage URL. Shown as "External links": a reference, never proof of ownership, approval, privacy or safety. Internal deliverables are Storage files with a task, an uploader and RLS.                                      |
+| External links                   | Well-formed https only, valid host/port, no embedded credentials, never a Storage URL. Shown as "External links": a reference, never proof of ownership, approval, privacy or safety. Internal deliverables are Storage files with a task, an uploader and RLS.         |
 | Concurrency                      | `submit_task`, `start_task_review`, `review_task` and `complete_task` lock the task row (`SELECT … FOR UPDATE`) and re-check status and the latest version inside the transaction, so a stale version cannot be approved or published.                                  |
 
 Production database path: `scripts/sql/nesthire-security-upgrade.sql`
-applies exactly `20261008000100` and `20261008000200` (equivalent to
-`supabase db push`). `scripts/sql/nesthire-finish-live-upgrade.sql` is
-historical (applied on 2026-10-07) and refuses to run again.
+applies `20261008000100`, `20261008000200`, and `20261008000300` in order
+(equivalent to `supabase db push`) in one transaction. The `00300` migration
+aligns direct-RPC link validation with the frontend and rejects malformed hosts
+and out-of-range ports. `scripts/sql/nesthire-finish-live-upgrade.sql` is a
+historical, obsolete script; this document does not assert whether it was run
+against the current production database.
