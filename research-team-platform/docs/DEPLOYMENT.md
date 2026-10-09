@@ -203,12 +203,12 @@ Supabase، وبعدد محدود جدًا من الرسائل في الساعة.
    لهذا النشر، ولا يعني هذا الدليل أنه طُبّق على قاعدة الإنتاج.
 2. **الكود:** ادمج الفرع في `main` بعد الخطوة 1 (Vercel ينشر `main` تلقائيًا).
 3. **اسم مشروع Vercel:** Vercel → Project → Settings → General → Project Name =
-   `nesthire` (إن كان متاحًا يصبح الرابط `https://nesthire.vercel.app`)، ثم
-   Settings → Environment Variables: `NEXT_PUBLIC_SITE_URL=https://nesthire.vercel.app`
+   `nesthire` (إن كان متاحًا يصبح الرابط `https://ghassankmiqdad.vercel.app`)، ثم
+   Settings → Environment Variables: `NEXT_PUBLIC_SITE_URL=https://ghassankmiqdad.vercel.app`
    وأعد النشر. اترك **Root Directory** = `research-team-platform`.
 4. **Supabase Auth:** Authentication → URL Configuration: Site URL =
-   `https://nesthire.vercel.app`، وأضف `https://nesthire.vercel.app/auth/callback` و
-   `https://nesthire.vercel.app/auth/confirm` إلى Redirect URLs. لا تحذف أي مسارات قديمة
+   `https://ghassankmiqdad.vercel.app`، وأضف `https://ghassankmiqdad.vercel.app/auth/callback` و
+   `https://ghassankmiqdad.vercel.app/auth/confirm` إلى Redirect URLs. لا تحذف أي مسارات قديمة
    قبل اكتمال الانتقال والتحقق من الروابط المستخدمة.
 5. **اسم مستودع GitHub:** اترك `GhassanKMiqdad/ghassankmiqdad` كما هو؛ فهو مستودع
    الملف الشخصي لحساب GitHub، ولا تعِد تسميته من أجل العلامة التجارية. احتفظ باسم

@@ -4,7 +4,7 @@
 tasks, documents, discussions, a per-member permission system and an immutable
 activity log. Arabic-first (RTL) with English, light and dark themes.
 
-Production target: **https://nesthire.vercel.app** (route `/workspace`).
+Production target: **https://ghassankmiqdad.vercel.app** (route `/workspace`).
 Keep the GitHub profile repository name `GhassanKMiqdad/ghassankmiqdad`; the
 application remains in `research-team-platform/` (the Vercel Root Directory).
 A dedicated NestHire repository may be considered as an optional future migration.

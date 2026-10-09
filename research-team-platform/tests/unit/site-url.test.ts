@@ -17,10 +17,10 @@ afterEach(() => {
 describe("getSiteUrl", () => {
   it("uses the configured production URL instead of a forged forwarded host", () => {
     vi.stubEnv("NODE_ENV", "production");
-    process.env.NEXT_PUBLIC_SITE_URL = "https://nesthire.vercel.app/";
-    process.env.VERCEL_PROJECT_PRODUCTION_URL = "nesthire.vercel.app";
+    process.env.NEXT_PUBLIC_SITE_URL = "https://ghassankmiqdad.vercel.app/";
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = "ghassankmiqdad.vercel.app";
 
-    expect(getSiteUrl("https://attacker.example")).toBe("https://nesthire.vercel.app");
+    expect(getSiteUrl("https://attacker.example")).toBe("https://ghassankmiqdad.vercel.app");
   });
 
   it("fails closed in production when the trusted URL is missing", () => {
