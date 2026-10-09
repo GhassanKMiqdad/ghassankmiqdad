@@ -55,7 +55,11 @@
   (no existence oracle for IDs).
 - The export endpoint (`/api/projects/:id/export`) requires `data.export`,
   writes the audit entry **before** streaming data, and neutralizes
-  spreadsheet formula injection in CSV cells.
+  spreadsheet formula injection in CSV cells. Before the audit entry, it calls
+  the PostgreSQL-backed `check_project_export_rate_limit` RPC. The default is
+  five exports per user/project per 60 seconds (`EXPORT_RATE_LIMIT` and
+  `EXPORT_RATE_WINDOW_SECONDS`); rejected requests return HTTP 429 with
+  `Retry-After`. The counter is atomic and shared across application instances.
 - The service-role client (`src/lib/supabase/admin.ts`) is guarded by
   `server-only` and used only to: send invitations (Auth admin API), remove a
   deleted project's files after the user's own RLS-checked deletion
@@ -145,3 +149,14 @@ header is disabled.
 - Service-role scripts and the SQL editor bypass RLS and business-rule
   triggers by design (`private.is_system_context()`); restrict who can use
   them.
+
+## Dependency audit note
+
+`npm audit --omit=dev` is clean. The full audit currently reports five high
+severity development-only advisories through the ESLint chain (`braces` →
+`micromatch` → `fast-glob` → `@next/eslint-plugin-next`). The available fix is
+an incompatible downgrade to `eslint-config-next@14.2.35`; `braces` currently
+has no newer npm release. The project therefore does not apply
+`npm audit fix --force`; this remains a development-tooling blocker to a clean
+full audit and should be revisited when the upstream dependency publishes a
+compatible fix.

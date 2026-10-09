@@ -46,6 +46,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
 
   database:
     name: Database and API security tests (Supabase)
