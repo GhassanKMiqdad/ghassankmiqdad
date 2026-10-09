@@ -4,8 +4,8 @@
 
 ## Result
 
-The live catalog contains **23 `public` SECURITY DEFINER RPCs** intended to be
-called by the application and private SECURITY DEFINER helper/trigger functions.
+The live catalog contains **24 `public` SECURITY DEFINER RPCs** intended to be
+called by the application and 47 private SECURITY DEFINER helper/trigger functions.
 The public RPCs are the supported API surface; the `private` schema is not an
 API-exposed schema in this application configuration.
 
@@ -49,7 +49,7 @@ No blanket revocation or invoker conversion was performed.
 | `update_team`                | Team update path governed by director authorization.                        | Retained; intentional RPC.          |
 | `upsert_team_member`         | Team roster mutation path governed by director authorization.               | Retained; intentional RPC.          |
 
-The catalog query returned 23 public rows; the table lists the application RPC
+The catalog query returned 24 public rows; the table lists the application RPC
 surface reviewed. The private functions are helpers, triggers, RLS predicates,
 notification/audit routines, and storage-path checks. They are not direct API
 RPCs. Their live grants should be revisited if the project ever exposes the
