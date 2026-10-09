@@ -15,21 +15,21 @@
 
 ## B. مصفوفة إغلاق النتائج
 
-| البند | الحالة | الدليل / القرار |
-|---|---|---|
-| NH-001 — migrations وبيئة Supabase | **BLOCKED** | لا توجد صلاحيات/بيانات اعتماد Supabase في الجلسة، ولا يمكن إثبات حالة الإنتاج. أضيفت migration جديدة ويجب تطبيقها بعد اختبارها في staging. |
-| NH-002 — Service Role Key | **FIXED IN CODE — DEPLOYMENT PENDING** | العميل الإداري server-only، والمفتاح لا يُطبع ولا يدخل `NEXT_PUBLIC_*`. أصبح حذف المشروع يرفض البدء عند غياب المفتاح المطلوب لتنظيف Storage. يلزم تحقق Vercel خارجي. |
-| NH-003 — اختبارات DB والأمان | **FIXED IN CODE — DEPLOYMENT PENDING** | اختبارات pgTAP موجودة ومُدّدت بـ`09_export_rate_limit.test.sql`، وCI يشغّل `supabase test db`، لكن Supabase CLI وDocker غير متاحين محليًا. |
-| NH-004 — Rate Limiting للتصدير | **FIXED IN CODE — DEPLOYMENT PENDING** | أضيفت دالة PostgreSQL ذرية وموزعة حسب المستخدم/المشروع، وحدود افتراضية 5/60 ثانية، واستجابة 429 مع `Retry-After`، واختبارات pgTAP. يلزم تطبيق migration والتحقق في staging. |
-| NH-005 — ثغرات dev dependencies | **OPEN / DOCUMENTED** | `npm audit --omit=dev` نظيف. التدقيق الكامل ما زال يعرض 5 High في سلسلة ESLint؛ الإصلاح المقترح downgrade غير متوافق، ولم يُستخدم `--force`. |
-| NH-006 — Prettier وLF/CRLF | **FIXED & VERIFIED** | أضيف `.gitattributes` مع `text=auto eol=lf`، و`npm run format:check` ناجح. |
-| NH-007 — CSP | **NOT APPLICABLE / DOCUMENTED** | السياسة الحالية متعمدة وتستخدم `unsafe-inline` بسبب Server Components/البناء الحالي؛ لم يُجرَ تغيير عشوائي قد يكسر Next.js. يلزم تقييم nonce منفصل إذا تغيّرت البنية. |
-| NH-008 — مفاتيح Git التاريخية | **NOT APPLICABLE for current tree** | فُحصت الملفات الحالية دون العثور على مفاتيح سرية فعلية. ظهرت فقط أسماء/أمثلة عامة مثل `service_role` و`sb_secret_` في الوثائق. لم يُعاد كتابة التاريخ. |
-| NH-009 — Backup/PITR/DR | **BLOCKED** | لا وصول إلى لوحة Supabase أو خطة المشروع؛ لم تُنفذ استعادة تجريبية ولم يُدّعَ نجاحها. يلزم تحقق المالك من PITR واحتفاظ النسخ ونسخ Storage واختبار restore معزول. |
-| NH-010 — خصوصية NestHire/RLS/RPC/Storage | **FIXED IN CODE — DEPLOYMENT PENDING** | الاختبارات الحالية تغطي A/B/C والخصوصية وسحب الصلاحيات، وأضيفت اختبارات محدد التصدير. لم يمكن تشغيل pgTAP أو تكامل API في هذه الجلسة. |
-| NH-011 — CI وRequired Checks | **FIXED IN CODE — DEPLOYMENT PENDING** | workflow يحتوي lint/format/typecheck/unit/build وSupabase/pgTAP/integration، وأضيف فحص `npm audit --omit=dev`. حالة CI على PR #6 كانت Pending وقت التقرير. حماية `main` تحتاج تحقق صلاحيات GitHub. |
-| E2E وإتاحة الاستخدام | **OPEN / CONFIGURATION REQUIRED** | لم يوجد إعداد Playwright مكتمل في المستودع، ولم تُضف اختبارات E2E بسبب غياب بيئة Supabase وحسابات الاختبار. |
-| المراقبة والتسجيل | **FIXED IN CODE — DEPLOYMENT PENDING** | لا تغيير تجاري إلزامي؛ التسجيل الحالي لا يطبع أسرارًا، ورسائل الدعوات/التنظيف عامة. يلزم ربط التنبيهات الخارجية اختياريًا والتحقق من سجلات Vercel/Supabase. |
+| البند                                    | الحالة                                 | الدليل / القرار                                                                                                                                                                                    |
+| ---------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| NH-001 — migrations وبيئة Supabase       | **BLOCKED**                            | لا توجد صلاحيات/بيانات اعتماد Supabase في الجلسة، ولا يمكن إثبات حالة الإنتاج. أضيفت migration جديدة ويجب تطبيقها بعد اختبارها في staging.                                                         |
+| NH-002 — Service Role Key                | **FIXED IN CODE — DEPLOYMENT PENDING** | العميل الإداري server-only، والمفتاح لا يُطبع ولا يدخل `NEXT_PUBLIC_*`. أصبح حذف المشروع يرفض البدء عند غياب المفتاح المطلوب لتنظيف Storage. يلزم تحقق Vercel خارجي.                               |
+| NH-003 — اختبارات DB والأمان             | **FIXED IN CODE — DEPLOYMENT PENDING** | اختبارات pgTAP موجودة ومُدّدت بـ`09_export_rate_limit.test.sql`، وCI يشغّل `supabase test db`، لكن Supabase CLI وDocker غير متاحين محليًا.                                                         |
+| NH-004 — Rate Limiting للتصدير           | **FIXED IN CODE — DEPLOYMENT PENDING** | أضيفت دالة PostgreSQL ذرية وموزعة حسب المستخدم/المشروع، وحدود افتراضية 5/60 ثانية، واستجابة 429 مع `Retry-After`، واختبارات pgTAP. يلزم تطبيق migration والتحقق في staging.                        |
+| NH-005 — ثغرات dev dependencies          | **OPEN / DOCUMENTED**                  | `npm audit --omit=dev` نظيف. التدقيق الكامل ما زال يعرض 5 High في سلسلة ESLint؛ الإصلاح المقترح downgrade غير متوافق، ولم يُستخدم `--force`.                                                       |
+| NH-006 — Prettier وLF/CRLF               | **FIXED & VERIFIED**                   | أضيف `.gitattributes` مع `text=auto eol=lf`، و`npm run format:check` ناجح.                                                                                                                         |
+| NH-007 — CSP                             | **NOT APPLICABLE / DOCUMENTED**        | السياسة الحالية متعمدة وتستخدم `unsafe-inline` بسبب Server Components/البناء الحالي؛ لم يُجرَ تغيير عشوائي قد يكسر Next.js. يلزم تقييم nonce منفصل إذا تغيّرت البنية.                              |
+| NH-008 — مفاتيح Git التاريخية            | **NOT APPLICABLE for current tree**    | فُحصت الملفات الحالية دون العثور على مفاتيح سرية فعلية. ظهرت فقط أسماء/أمثلة عامة مثل `service_role` و`sb_secret_` في الوثائق. لم يُعاد كتابة التاريخ.                                             |
+| NH-009 — Backup/PITR/DR                  | **BLOCKED**                            | لا وصول إلى لوحة Supabase أو خطة المشروع؛ لم تُنفذ استعادة تجريبية ولم يُدّعَ نجاحها. يلزم تحقق المالك من PITR واحتفاظ النسخ ونسخ Storage واختبار restore معزول.                                   |
+| NH-010 — خصوصية NestHire/RLS/RPC/Storage | **FIXED IN CODE — DEPLOYMENT PENDING** | الاختبارات الحالية تغطي A/B/C والخصوصية وسحب الصلاحيات، وأضيفت اختبارات محدد التصدير. لم يمكن تشغيل pgTAP أو تكامل API في هذه الجلسة.                                                              |
+| NH-011 — CI وRequired Checks             | **FIXED IN CODE — DEPLOYMENT PENDING** | workflow يحتوي lint/format/typecheck/unit/build وSupabase/pgTAP/integration، وأضيف فحص `npm audit --omit=dev`. حالة CI على PR #6 كانت Pending وقت التقرير. حماية `main` تحتاج تحقق صلاحيات GitHub. |
+| E2E وإتاحة الاستخدام                     | **OPEN / CONFIGURATION REQUIRED**      | لم يوجد إعداد Playwright مكتمل في المستودع، ولم تُضف اختبارات E2E بسبب غياب بيئة Supabase وحسابات الاختبار.                                                                                        |
+| المراقبة والتسجيل                        | **FIXED IN CODE — DEPLOYMENT PENDING** | لا تغيير تجاري إلزامي؛ التسجيل الحالي لا يطبع أسرارًا، ورسائل الدعوات/التنظيف عامة. يلزم ربط التنبيهات الخارجية اختياريًا والتحقق من سجلات Vercel/Supabase.                                        |
 
 ## C. الملفات المعدلة أو المنشأة
 
