@@ -2,7 +2,7 @@
 
 **تاريخ التنفيذ:** 2026-10-09  
 **الفرع:** `fix/nesthire-production-readiness`  
-**Commit:** `1be2d24`  
+**Commit:** `3c42bcb`  
 **Pull Request:** [#6](https://github.com/GhassanKMiqdad/ghassankmiqdad/pull/6)
 
 ## A. الملخص التنفيذي
@@ -85,7 +85,7 @@
 ## G. حالة Git والإصدار
 
 - الفرع: `fix/nesthire-production-readiness`
-- commit: `1be2d24`
+- commit: `3c42bcb`
 - working tree: نظيف بعد commit.
 - Pull Request: [#6](https://github.com/GhassanKMiqdad/ghassankmiqdad/pull/6)
 - النشر الإنتاجي: لم يُنفذ ولم يُدّعَ نجاحه.
