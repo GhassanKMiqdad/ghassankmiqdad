@@ -17,7 +17,7 @@ Tests: `supabase/tests/database/03_tasks_permissions.test.sql`,
 ```text
 Organization
 └── Director (profiles.is_director)          — organization-wide authority
-    └── Team (teams)                         — e.g. "NestHire Team"
+    └── Team (teams)                         — e.g. "NestHire Demo Team"
         ├── Team Lead  (team_members.role = team_lead)
         ├── Team Members (team_members.role = team_member)
         └── Projects linked to the team (projects.team_id) → Tasks
@@ -164,32 +164,21 @@ member), result published (the team).
 | Reports       | supervisors                     | Planned vs actual per member: completed, on time, overdue, revisions, submissions, average start / delivery delay.                                                                                                                    |
 | Notifications | everyone                        | Bell with unread count and the notification list.                                                                                                                                                                                     |
 
-## 8. Bringing the real NestHire team in
+## 8. Bringing a real NestHire team in
 
-1. Apply the migrations (`npx supabase db push`, or the SQL files in order).
-2. Run `scripts/sql/nesthire-team.sql` once in the SQL Editor: it creates the
-   team with the nine roster entries and links GH to the Director's account.
-3. Run `scripts/sql/nesthire-month-01.sql` once: it creates the project
-   **NestHire**, links it to the team and loads the 66 month-1 tasks with
-   their exact IDs, responsible members, planning weeks, priorities,
-   descriptions, expected outputs, completion criteria, predecessors and
-   schedule (Month 1 starts Sunday 11 October 2026, working days Sunday to
-   Thursday, start 09:00 Asia/Gaza). The script verifies that no task starts
-   before one of its predecessors is due. Both scripts are idempotent.
-4. In the app: **Teams → NestHire Team → Edit member** and add each person's
-   e-mail. They are linked as soon as they sign up and confirm that e-mail.
+The public SQL files are fictional development samples only:
 
-### Planning for members without an account
+1. `scripts/sql/nesthire-team.sql` creates a **NestHire Demo Team** with four
+   clearly labeled demo roster entries.
+2. `scripts/sql/nesthire-month-01.sql` creates a **NestHire Demo Project**
+   with six fictional tasks and sample dependencies.
+3. Neither script contains the real roster, task descriptions, schedules,
+   e-mail addresses, or Production assignments. Do not run either script
+   against Production.
 
-A task can be assigned to a **roster entry** (`tasks.responsible_member_id`)
-before the person has an account — the assignment form lists those members
-with the note _no account yet_. The task ID uses the roster code, the lists
-show the roster name, and the task is assigned to the account automatically
-(audited and notified) the moment the roster entry is linked. Choosing a
-roster member is an assignment decision (`tasks.assign`).
-
-Later months are added in the app (**Tasks → Assign a task**); type the
-planned ID (e.g. `M02-AB-01-01`) to keep the plan's numbering.
+For a real deployment, keep the roster and operational plan in a private,
+access-controlled bootstrap process. Apply the reviewed migrations first, then
+load only owner-approved Production data through that private process.
 
 ## 9. Security hardening (NestHire Workspace)
 
