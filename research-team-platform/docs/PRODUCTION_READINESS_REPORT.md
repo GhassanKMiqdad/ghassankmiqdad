@@ -2,7 +2,7 @@
 
 **تاريخ التنفيذ:** 2026-10-09  
 **الفرع:** `fix/nesthire-production-readiness`  
-**Commit:** `3c42bcb`  
+**Commit:** `b784bc6`  
 **Pull Request:** [#6](https://github.com/GhassanKMiqdad/ghassankmiqdad/pull/6)
 
 ## A. الملخص التنفيذي
@@ -19,7 +19,7 @@
 | ---------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | NH-001 — migrations وبيئة Supabase       | **BLOCKED**                            | لا توجد صلاحيات/بيانات اعتماد Supabase في الجلسة، ولا يمكن إثبات حالة الإنتاج. أضيفت migration جديدة ويجب تطبيقها بعد اختبارها في staging.                            |
 | NH-002 — Service Role Key                | **FIXED IN CODE — DEPLOYMENT PENDING** | العميل الإداري server-only، والمفتاح لا يُطبع ولا يدخل `NEXT_PUBLIC_*`. أصبح حذف المشروع يرفض البدء عند غياب المفتاح المطلوب لتنظيف Storage. يلزم تحقق Vercel خارجي.  |
-| NH-003 — اختبارات DB والأمان             | **FIXED & VERIFIED**                   | تشغيل GitHub Actions `37968320449` نجح: Supabase المحلي بدأ، وpgTAP واختبارات أمان API والتكامل وSeed نجحت.                                                           |
+| NH-003 — اختبارات DB والأمان             | **FIXED & VERIFIED**                   | تشغيل GitHub Actions `37969459261` نجح: Supabase المحلي بدأ، وpgTAP واختبارات أمان API والتكامل وSeed نجحت.                                                           |
 | NH-004 — Rate Limiting للتصدير           | **FIXED & VERIFIED**                   | migration واختبارات pgTAP مرّت داخل Job قاعدة البيانات في GitHub Actions؛ يبقى التحقق من تطبيقها على Supabase الإنتاجي خارج نطاق الصلاحيات الحالية.                   |
 | NH-005 — ثغرات dev dependencies          | **OPEN / DOCUMENTED**                  | `npm audit --omit=dev` نظيف. التدقيق الكامل ما زال يعرض 5 High في سلسلة ESLint؛ الإصلاح المقترح downgrade غير متوافق، ولم يُستخدم `--force`.                          |
 | NH-006 — Prettier وLF/CRLF               | **FIXED & VERIFIED**                   | أضيف `.gitattributes` مع `text=auto eol=lf`، و`npm run format:check` ناجح.                                                                                            |
@@ -27,7 +27,7 @@
 | NH-008 — مفاتيح Git التاريخية            | **NOT APPLICABLE for current tree**    | فُحصت الملفات الحالية دون العثور على مفاتيح سرية فعلية. ظهرت فقط أسماء/أمثلة عامة مثل `service_role` و`sb_secret_` في الوثائق. لم يُعاد كتابة التاريخ.                |
 | NH-009 — Backup/PITR/DR                  | **BLOCKED**                            | لا وصول إلى لوحة Supabase أو خطة المشروع؛ لم تُنفذ استعادة تجريبية ولم يُدّعَ نجاحها. يلزم تحقق المالك من PITR واحتفاظ النسخ ونسخ Storage واختبار restore معزول.      |
 | NH-010 — خصوصية NestHire/RLS/RPC/Storage | **FIXED & VERIFIED**                   | Job قاعدة البيانات والتكامل في GitHub Actions نجح، بما في ذلك سيناريو خصوصية NestHire A/B/C واختبارات RLS/RPC/Storage المباشرة.                                       |
-| NH-011 — CI وRequired Checks             | **FIXED & VERIFIED**                   | آخر تشغيل `37968653957` نجح بالكامل. تم تفعيل حماية `main` فعليًا مع strict required checks لفحصي البناء والأمان، وفرض حل المحادثات، ومنع force-push والحذف.          |
+| NH-011 — CI وRequired Checks             | **FIXED & VERIFIED**                   | آخر تشغيل `37969459261` نجح بالكامل. تم تفعيل حماية `main` فعليًا مع strict required checks لفحصي البناء والأمان، وفرض حل المحادثات، ومنع force-push والحذف.          |
 | E2E وإتاحة الاستخدام                     | **OPEN / CONFIGURATION REQUIRED**      | لم يوجد إعداد Playwright مكتمل في المستودع، ولم تُضف اختبارات E2E بسبب غياب بيئة Supabase وحسابات الاختبار.                                                           |
 | المراقبة والتسجيل                        | **FIXED IN CODE — DEPLOYMENT PENDING** | لا تغيير تجاري إلزامي؛ التسجيل الحالي لا يطبع أسرارًا، ورسائل الدعوات/التنظيف عامة. يلزم ربط التنبيهات الخارجية اختياريًا والتحقق من سجلات Vercel/Supabase.           |
 
@@ -64,7 +64,7 @@
 - `npm run test:integration` محليًا — تخطى 18 اختبارًا لأن متغيرات Supabase غير متاحة؛ **لكن تشغيل GitHub Actions نجح فعليًا** في اختبار التكامل.
 - `supabase test db` محليًا — غير منفذ؛ Supabase CLI وDocker غير متاحين، بينما نفذه CI بنجاح على Supabase المحلي.
 - `npm audit` الكامل — يفشل بسبب 5 ثغرات High dev موثقة أعلاه.
-- GitHub Actions للـPR — **نجحت** في التشغيل `37968320449` على commit `1be2d24`؛ ظهرت فقط تحذيرات مستقبلية عن Node 20 وubuntu-latest.
+- GitHub Actions للـPR — **نجحت** في التشغيل `37969459261` على commit `b784bc6`؛ ظهرت فقط تحذيرات مستقبلية عن Node 20 وubuntu-latest.
 
 ## E. ملاحظات أمنية
 
@@ -85,7 +85,7 @@
 ## G. حالة Git والإصدار
 
 - الفرع: `fix/nesthire-production-readiness`
-- commit: `3c42bcb`
+- commit: `b784bc6`
 - working tree: نظيف بعد commit.
 - Pull Request: [#6](https://github.com/GhassanKMiqdad/ghassankmiqdad/pull/6)
 - النشر الإنتاجي: لم يُنفذ ولم يُدّعَ نجاحه.
