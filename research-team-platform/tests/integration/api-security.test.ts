@@ -261,6 +261,12 @@ describe.skipIf(!env)("API security — direct requests that bypass the UI", () 
       );
       expect(shortcut.message).toBe("TASK_STATUS_FORBIDDEN");
 
+      // SUBMITTED → UNDER_REVIEW → decision: no decision before the review starts.
+      const early = await failure(
+        reviewer.client.rpc("review_task", { p_task_id: f.tasks.inReview, p_decision: "approved" }),
+      );
+      expect(early.message).toBe("TASK_STATUS_FORBIDDEN");
+      must("start review", await reviewer.client.rpc("start_task_review", { p_task_id: f.tasks.inReview }));
       must("review", await reviewer.client.rpc("review_task", { p_task_id: f.tasks.inReview, p_decision: "approved" }));
       const reviewed = must(
         "read",
@@ -610,8 +616,39 @@ describe.skipIf(!env)("API security — direct requests that bypass the UI", () 
       expect(task.task_code).toMatch(/^M01-AA-00-\d{2}$/);
       expect(new Date(task.due_at!).getTime() - new Date(task.planned_start_at!).getTime()).toBe(2 * 864e5);
 
-      // Researcher A works and submits.
+      // Researcher A works, attaches a private file through the Storage API and submits.
       must("start", await a.client.from("tasks").update({ status: "in_progress" }).eq("id", task.id).select("id"));
+      const attach = async (name: string) => {
+        const id = crypto.randomUUID();
+        const path = `${f.projectA}/${id}/${name}`;
+        const upload = await a.client.storage
+          .from("project-documents")
+          .upload(path, new Blob([`content of ${name}`], { type: "text/plain" }), { contentType: "text/plain" });
+        expect(upload.error).toBeNull();
+        must(
+          `register ${name}`,
+          await a.client
+            .from("documents")
+            .insert({ id, project_id: f.projectA, task_id: task.id, title: name, file_name: name, storage_path: path })
+            .select("id"),
+        );
+        return { id, path };
+      };
+      const draft = await attach("draft.txt");
+      // A storage URL is never accepted as a deliverable link.
+      expect(
+        (
+          await failure(
+            a.client.rpc("submit_task", {
+              p_task_id: task.id,
+              p_summary: "Smuggled",
+              p_deliverable_links: [
+                `https://example.supabase.co/storage/v1/object/public/project-documents/${draft.path}`,
+              ],
+            }),
+          )
+        ).message,
+      ).toBe("DELIVERABLE_LINK_FORBIDDEN");
       must(
         "submit v1",
         await a.client.rpc("submit_task", {
@@ -619,13 +656,19 @@ describe.skipIf(!env)("API security — direct requests that bypass the UI", () 
           p_summary: "Draft result",
           p_deliverable_links: [],
           p_notes: "",
+          p_document_ids: [draft.id],
         }),
       );
 
-      // B and C see nothing of the private work.
+      // B and C see nothing of the private work — not even with every UUID and path.
       for (const viewer of [b, c]) {
         expect(await rows(viewer.client.from("tasks").select("id").eq("id", task.id))).toEqual([]);
         expect(await rows(viewer.client.from("task_submissions").select("id").eq("task_id", task.id))).toEqual([]);
+        expect(await rows(viewer.client.from("documents").select("id").eq("id", draft.id))).toEqual([]);
+        const signed = await viewer.client.storage.from("project-documents").createSignedUrl(draft.path, 60);
+        expect(signed.data).toBeNull();
+        const download = await viewer.client.storage.from("project-documents").download(draft.path);
+        expect(download.data).toBeNull();
         expect(await rows(viewer.client.from("task_publications").select("task_id").eq("task_id", task.id))).toEqual(
           [],
         );
@@ -643,6 +686,7 @@ describe.skipIf(!env)("API security — direct requests that bypass the UI", () 
       );
 
       // Revision loop, approval and MARK AS COMPLETED by the Director.
+      must("start review v1", await director.rpc("start_task_review", { p_task_id: task.id }));
       must(
         "revision",
         await director.rpc("review_task", {
@@ -651,6 +695,8 @@ describe.skipIf(!env)("API security — direct requests that bypass the UI", () 
           p_required_changes: "Add the evaluation table",
         }),
       );
+      must("resume", await a.client.from("tasks").update({ status: "in_progress" }).eq("id", task.id).select("id"));
+      const final = await attach("final.txt");
       must(
         "submit v2",
         await a.client.rpc("submit_task", {
@@ -658,8 +704,15 @@ describe.skipIf(!env)("API security — direct requests that bypass the UI", () 
           p_summary: "Final result with evaluation",
           p_deliverable_links: ["https://example.com/final"],
           p_notes: "",
+          p_document_ids: [final.id],
         }),
       );
+      // A handed-in file is locked; A cannot approve or publish.
+      expect((await failure(a.client.from("documents").delete().eq("id", final.id))).message).toBe("DOCUMENT_LOCKED");
+      expect((await failure(a.client.rpc("start_task_review", { p_task_id: task.id }))).message).toBe(
+        "PERMISSION_DENIED",
+      );
+      must("start review v2", await director.rpc("start_task_review", { p_task_id: task.id }));
       must("approve", await director.rpc("review_task", { p_task_id: task.id, p_decision: "approved" }));
       must(
         "complete",
@@ -686,12 +739,82 @@ describe.skipIf(!env)("API security — direct requests that bypass the UI", () 
       expect(await rows(b.client.from("task_submissions").select("id").eq("task_id", task.id))).toEqual([]);
       expect(await rows(b.client.from("task_reviews").select("id").eq("task_id", task.id))).toEqual([]);
 
+      // The team downloads the published file of the final version — never the draft.
+      const published = await b.client.storage.from("project-documents").createSignedUrl(final.path, 60);
+      expect(published.error).toBeNull();
+      expect(await (await b.client.storage.from("project-documents").download(final.path)).data?.text()).toBe(
+        "content of final.txt",
+      );
+      expect((await b.client.storage.from("project-documents").createSignedUrl(draft.path, 60)).data).toBeNull();
+      expect(await rows(b.client.from("documents").select("id").eq("task_id", task.id))).toEqual([{ id: final.id }]);
+
       // C, in another team, still sees nothing.
       expect(await rows(c.client.from("task_publications").select("task_id").eq("task_id", task.id))).toEqual([]);
 
       // A keeps both versions and the review history.
       expect((await rows(a.client.from("task_submissions").select("version").eq("task_id", task.id))).length).toBe(2);
       expect((await rows(a.client.from("task_reviews").select("decision").eq("task_id", task.id))).length).toBe(2);
+    });
+
+    it("nobody approves their own work — the Director included — and reassignment does not leak earlier private work", async () => {
+      const { owner, member: a, colleague: b } = f.users;
+      const director = owner.client;
+      const create = async (title: string, assignee: string) =>
+        must(
+          title,
+          await director
+            .from("tasks")
+            .insert({ project_id: f.projectA, title, assigned_to: assignee })
+            .select("id")
+            .single(),
+        ).id;
+
+      // The Director submits their own work and cannot review, approve or publish it.
+      const own = await create("Director own work", owner.id);
+      must("start", await director.from("tasks").update({ status: "in_progress" }).eq("id", own).select("id"));
+      must("submit", await director.rpc("submit_task", { p_task_id: own, p_summary: "Director result" }));
+      expect((await failure(director.rpc("start_task_review", { p_task_id: own }))).message).toBe(
+        "SELF_REVIEW_FORBIDDEN",
+      );
+      expect((await failure(director.rpc("review_task", { p_task_id: own, p_decision: "approved" }))).message).toBe(
+        "SELF_REVIEW_FORBIDDEN",
+      );
+
+      // Reassignment: the previous assignee loses the task, the new one gets the instructions only.
+      const handover = await create("Handover", a.id);
+      must(
+        "A works",
+        await a.client
+          .from("tasks")
+          .update({ status: "in_progress", work_notes: "A private notes", progress: 50 })
+          .eq("id", handover)
+          .select("id"),
+      );
+      must("A submits", await a.client.rpc("submit_task", { p_task_id: handover, p_summary: "A draft" }));
+      must("review", await director.rpc("start_task_review", { p_task_id: handover }));
+      must(
+        "revision",
+        await director.rpc("review_task", {
+          p_task_id: handover,
+          p_decision: "revision_required",
+          p_comment: "Private feedback for A",
+        }),
+      );
+      must("reassign", await director.from("tasks").update({ assigned_to: b.id }).eq("id", handover).select("id"));
+
+      expect(await rows(a.client.from("tasks").select("id").eq("id", handover))).toEqual([]);
+      expect(await rows(a.client.from("task_submissions").select("id").eq("task_id", handover))).toEqual([]);
+      expect(await rows(a.client.from("task_reviews").select("id").eq("task_id", handover))).toEqual([]);
+
+      expect(await rows(b.client.from("tasks").select("work_notes, progress").eq("id", handover))).toEqual([
+        { work_notes: "", progress: 0 },
+      ]);
+      expect(await rows(b.client.from("task_submissions").select("id").eq("task_id", handover))).toEqual([]);
+      expect(await rows(b.client.from("task_reviews").select("id").eq("task_id", handover))).toEqual([]);
+
+      // Supervisors keep the full history.
+      expect((await rows(director.from("task_submissions").select("id").eq("task_id", handover))).length).toBe(1);
+      expect((await rows(director.from("task_reviews").select("id").eq("task_id", handover))).length).toBe(1);
     });
   });
 });

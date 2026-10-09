@@ -1,26 +1,16 @@
 -- =============================================================================
--- NestHire — Month 1 plan (66 tasks)
+-- NestHire demo plan — fictional development data only (6 tasks).
 --
--- Run once AFTER the 20261007* migrations and scripts/sql/nesthire-team.sql.
--- Safe to run again: existing task IDs and dependencies are left unchanged.
+-- This public sample is intentionally not the real NestHire roadmap, roster,
+-- schedule, or assignments. Use a separate private bootstrap process for any
+-- real Production plan. It demonstrates task IDs, scheduling, dependencies,
+-- assignment by roster code, and the database workflow.
 --
--- * Creates the project "NestHire" (owner: the Director) and links it to the
---   "NestHire Team", so the roster members work on it.
--- * Inserts every task with its exact ID, responsible roster member, planning
---   week, priority, description, expected output and completion criteria.
---   Members without an account yet are the responsible roster entry; the task
---   is assigned to their account automatically when it is linked.
--- * Schedule: Month 1 starts Sunday 11 October 2026; working days Sunday to
---   Thursday; tasks start at 09:00 Asia/Gaza and the deadline is start +
---   duration (calculated by the database).
--- * Dependent tasks never run in the same period: every task starts at or
---   after the deadline of each of its predecessors (verified at the end).
--- * Everything is executed as the Director, so the activity log shows who
---   planned the month.
+-- Run after the 20261007* migrations and scripts/sql/nesthire-team.sql.
+-- Safe to run twice: existing demo task IDs and dependencies are preserved.
 -- =============================================================================
 begin;
-
-create temporary table m01_plan (
+create temporary table demo_plan (
   code text primary key,
   member text not null,
   week smallint not null,
@@ -34,412 +24,42 @@ create temporary table m01_plan (
   depends text[] not null default '{}'
 ) on commit drop;
 
-insert into m01_plan (code, member, week, priority, start_on, days, title, description, expected, criteria, depends) values
--- ---------------------------------------------------------------- Week 1 ----
-('M01-GH-01-01', 'GH', 1, 'p0', '2026-10-11', 1,
- 'تحديد نتيجة النجاح للـMVP وصاحب القرار النهائي',
- 'تحديد ما الذي يجب أن يثبته الـMVP حتى نعتبره ناجحًا (نتيجة قابلة للقياس للعميل وللفريق)، ومن يملك القرار النهائي في النطاق والأولويات وقبول المخرجات، حتى لا تتوقف القرارات أثناء الشهر.',
- 'وثيقة قصيرة: تعريف النجاح للـMVP بمؤشرات قابلة للقياس + صاحب القرار النهائي في كل نوع من القرارات.',
- 'المؤشرات قابلة للقياس ومحددة بزمن، وصاحب القرار واضح لكل من النطاق والأولويات والقبول، ومشاركة الوثيقة مع الفريق.',
- '{}'),
-('M01-GH-01-04', 'GH', 1, 'p0', '2026-10-12', 1,
- 'تحديد المستخدم الأساسي والـMVP Core Workflow',
- 'اختيار المستخدم الأساسي للـMVP (مثل مسؤول التوظيف في المؤسسة) ورسم المسار الأساسي الوحيد الذي يجب أن يعمل من البداية للنهاية: من نشر الوظيفة حتى نتيجة تقييم المرشح.',
- 'وصف للمستخدم الأساسي (Persona مختصرة) + خطوات الـCore Workflow مرقّمة مع مدخلات ومخرجات كل خطوة.',
- 'مستخدم أساسي واحد محدد، والمسار يغطي من الإدخال حتى النتيجة دون فجوات، ويعتمد عليه فريق UX والـBackend.',
- '{M01-GH-01-01}'),
-('M01-GH-01-02', 'GH', 1, 'p0', '2026-10-13', 1,
- 'تثبيت نطاق MVP وحدوده وإصدار Scope v1.0',
- 'تثبيت ما يدخل في الـMVP وما يخرج منه صراحة (In / Out of scope) بناءً على تعريف النجاح والمسار الأساسي، وإصدار نسخة Scope v1.0 كمرجع لكل الفريق.',
- 'وثيقة Scope v1.0: الميزات المشمولة، المستبعدة، الافتراضات، والقيود.',
- 'كل ميزة مصنفة داخل أو خارج النطاق مع السبب، والوثيقة معتمدة من صاحب القرار ومنشورة للفريق.',
- '{M01-GH-01-01,M01-GH-01-04}'),
-('M01-GH-01-06', 'GH', 1, 'p0', '2026-10-13', 1,
- 'تحديد فرضيات القيمة الأساسية التي يجب اختبارها',
- 'كتابة فرضيات القيمة التي يقوم عليها المنتج (لماذا سيدفع العميل، وما الألم الذي نحله) بصيغة قابلة للاختبار، وترتيبها حسب الخطورة لتوجيه مقابلات العملاء.',
- 'قائمة فرضيات قيمة مرتبة حسب الأولوية، لكل فرضية: الصيغة، طريقة الاختبار، وما الذي يثبتها أو ينفيها.',
- 'كل فرضية قابلة للاختبار بمقابلة أو تجربة، ومحدد لكل منها معيار قبول/رفض واضح.',
- '{M01-GH-01-04}'),
-('M01-GH-01-03', 'GH', 1, 'p0', '2026-10-14', 1,
- 'تثبيت الـ9 Job Dimensions المعتمدة ومعايير استخدامها',
- 'اعتماد الأبعاد التسعة التي تُقيَّم عليها الوظيفة والمرشح، مع تعريف كل بعد ومتى يُستخدم وحدود استخدامه، لتكون الأساس المشترك لفرق Evidence والتقييم والـML.',
- 'وثيقة الأبعاد التسعة: التعريف، أمثلة، معايير الاستخدام، وحالات عدم الانطباق لكل بعد.',
- 'تسعة أبعاد معتمدة بتعريفات غير متداخلة، ومراجعة من فريق AI قبل اعتمادها.',
- '{M01-GH-01-02}'),
-('M01-GH-01-05', 'GH', 1, 'p0', '2026-10-14', 2,
- 'إعداد دليل مقابلات العملاء وقائمة المستهدفين',
- 'تحويل فرضيات القيمة إلى دليل مقابلات (أسئلة مفتوحة غير موجِّهة) وتجهيز قائمة العملاء المستهدفين للجولة الأولى مع طريقة التواصل والمواعيد المقترحة.',
- 'دليل مقابلة جاهز + قائمة مستهدفين (10 جهات على الأقل) مع جهة الاتصال وحالة التواصل.',
- 'كل فرضية لها أسئلة تختبرها في الدليل، والقائمة كافية لإجراء الجولة الأولى في الأسبوع الثاني.',
- '{M01-GH-01-06}'),
--- ---------------------------------------------------------------- Week 2 ----
-('M01-GH-02-01', 'GH', 2, 'p0', '2026-10-18', 5,
- 'تنفيذ أول جولة مقابلات مع العملاء المستهدفين',
- 'إجراء الجولة الأولى من مقابلات Customer Discovery باستخدام الدليل المعتمد، وتوثيق كل مقابلة بشكل منظم لتحليلها لاحقًا.',
- 'محاضر مقابلات موحدة الشكل (اقتباسات، آلام، سلوك حالي، استعداد للدفع) لكل مقابلة.',
- 'تنفيذ 5 مقابلات على الأقل وتوثيقها كاملة خلال الأسبوع.',
- '{M01-GH-01-05}'),
-('M01-AB-01-01', 'AB', 2, 'p0', '2026-10-18', 1,
- 'حصر حقول Evidence Object وتعريف كل حقل',
- 'تحديد كل الحقول التي يحتاجها كائن الدليل (Evidence) لربط مقتطف من السيرة أو الإجابة ببعد من الأبعاد التسعة: المصدر، النص، البعد، الثقة، التاريخ... مع تعريف دقيق لكل حقل.',
- 'جدول حقول Evidence Object: الاسم، النوع، إلزامي/اختياري، التعريف، ومثال.',
- 'كل حقل له تعريف ونوع ومثال، والحقول تغطي ربط الدليل بالأبعاد التسعة ومصدره.',
- '{M01-GH-01-02,M01-GH-01-03}'),
-('M01-JA-01-01', 'JA', 2, 'p0', '2026-10-18', 1,
- 'تحديد المستخدمين وأهداف كل خطوة في رحلة التوظيف',
- 'تحويل المستخدم الأساسي والمسار الأساسي إلى رحلة مستخدم: من يستخدم كل خطوة، وما هدفه، وما الذي يحتاج أن يراه أو يقرره.',
- 'خريطة رحلة المستخدم (Journey) مع الهدف والاحتياج ونقاط الألم لكل خطوة.',
- 'كل خطوة في الـCore Workflow لها مستخدم وهدف واضح، ومراجعة سريعة مع غسان.',
- '{M01-GH-01-04}'),
-('M01-AB-01-02', 'AB', 2, 'p0', '2026-10-19', 1,
- 'كتابة JSON Schema موحد للـEvidence Object',
- 'تحويل جدول الحقول إلى JSON Schema رسمي يكون العقد الموحد بين الـAI والـBackend والواجهة.',
- 'ملف JSON Schema موثّق مع أمثلة صالحة وغير صالحة.',
- 'الـSchema يتحقق من الأمثلة الصالحة ويرفض غير الصالحة، ومتوافق مع جدول الحقول.',
- '{M01-AB-01-01}'),
-('M01-JA-01-02', 'JA', 2, 'p0', '2026-10-19', 1,
- 'رسم User Flow للمسار الأساسي للـMVP',
- 'رسم تدفق الشاشات والقرارات للمسار الأساسي، بما في ذلك الحالات البديلة الأساسية (نقص بيانات، خطأ، حاجة لمراجعة).',
- 'User Flow كامل للمسار الأساسي في Figma.',
- 'التدفق يغطي المسار من البداية للنهاية مع الحالات البديلة، ويطابق الـCore Workflow.',
- '{M01-JA-01-01}'),
-('M01-AB-01-03', 'AB', 2, 'p0', '2026-10-20', 1,
- 'تعريف حالات Missing وContradicting وUnverifiable Evidence',
- 'تحديد متى يُعتبر الدليل ناقصًا أو متناقضًا أو غير قابل للتحقق، وكيف يُمثَّل ذلك داخل الـSchema وما أثره على التقييم.',
- 'تعريفات الحالات الثلاث مع أمثلة وقواعد التمثيل داخل Evidence Object.',
- 'كل حالة لها تعريف قابل للتطبيق ومثالان على الأقل، وتمثيلها مدعوم في الـSchema.',
- '{M01-AB-01-02}'),
-('M01-JA-01-03', 'JA', 2, 'p0', '2026-10-20', 2,
- 'إنشاء Wireframes للمسارات الأساسية',
- 'تصميم Wireframes منخفضة الدقة لكل شاشات المسار الأساسي وفق الـUser Flow المعتمد.',
- 'Wireframes لكل شاشات المسار الأساسي مربوطة كنموذج قابل للنقر.',
- 'كل خطوة في الـUser Flow لها شاشة، والنموذج قابل للعرض على الفريق.',
- '{M01-JA-01-02}'),
-('M01-AH-01-01', 'AH', 2, 'p1', '2026-10-20', 2,
- 'تحديد متطلبات Responsive Web وتجربة الشاشات الصغيرة',
- 'تحديد ما يجب أن يعمل على الهاتف عبر الويب في الـMVP، ونقاط الانكسار، والسلوك المتوقع للشاشات الأساسية على الشاشات الصغيرة.',
- 'قائمة متطلبات Responsive: الأحجام المدعومة، الشاشات ذات الأولوية، والتعديلات المطلوبة على الـFlow.',
- 'المتطلبات مرتبطة بشاشات الـUser Flow ومراجعة مع جنا.',
- '{M01-JA-01-02}'),
-('M01-AB-01-04', 'AB', 2, 'p0', '2026-10-21', 2,
- 'إضافة اختبارات تحقق للـEvidence Schema',
- 'كتابة اختبارات آلية تتحقق من الـSchema وحالات Missing وContradicting وUnverifiable حتى لا ينكسر العقد عند أي تعديل.',
- 'مجموعة اختبارات آلية تعمل في الـRepository مع أمثلة لكل حالة.',
- 'الاختبارات تغطي الحالات الصالحة وغير الصالحة والحالات الثلاث، وتنجح على الـSchema الحالي.',
- '{M01-AB-01-02,M01-AB-01-03}'),
-('M01-JA-01-04', 'JA', 2, 'p0', '2026-10-22', 1,
- 'مراجعة User Flow وWireframes مع Product وFrontend',
- 'جلسة مراجعة مع غسان (Product) وعمار (Frontend) للتأكد من أن التصميم يحقق المسار وقابل للتنفيذ، وتوثيق التعديلات.',
- 'محضر المراجعة + نسخة معتمدة من الـUser Flow والـWireframes.',
- 'تعديلات المراجعة مطبقة، والتصميم معتمد من Product وFrontend.',
- '{M01-JA-01-03}'),
--- ---------------------------------------------------------------- Week 3 ----
-('M01-GH-02-02', 'GH', 3, 'p0', '2026-10-25', 2,
- 'تحليل نتائج المقابلات وتحديث فرضيات المنتج',
- 'تجميع نتائج المقابلات وتحليلها مقابل فرضيات القيمة: ما الذي ثبت، وما الذي نُفي، وما الجديد، ثم تحديث الفرضيات.',
- 'ملخص تحليل المقابلات + قائمة فرضيات محدّثة (مثبتة / منفية / تحتاج اختبارًا).',
- 'كل فرضية لها حكم مدعوم بأدلة من المقابلات.',
- '{M01-GH-02-01}'),
-('M01-AM-01-01', 'AM', 3, 'p1', '2026-10-25', 1,
- 'تحويل الـUX المعتمد إلى Frontend Screen Specification',
- 'تحويل الـWireframes المعتمدة إلى مواصفات شاشات للتطوير: المكونات، البيانات المعروضة، الحالات، والتفاعلات لكل شاشة.',
- 'Frontend Screen Specification لكل شاشات المسار الأساسي.',
- 'كل شاشة لها مكونات وبيانات وحالات واضحة، ومراجعة سريعة مع جنا.',
- '{M01-JA-01-04}'),
-('M01-BR-01-01', 'BR', 3, 'p1', '2026-10-25', 1,
- 'حصر كيانات النظام الأساسية ورسم ERD v0.1',
- 'استخراج الكيانات الأساسية من النطاق والـEvidence Schema (المؤسسة، الوظيفة، المرشح، التقييم، الدليل...) ورسم ERD أولي.',
- 'ERD v0.1 بالكيانات الأساسية وحقولها الرئيسية.',
- 'كل كيان في النطاق ممثل، والـEvidence مرتبط بالكيانات الصحيحة.',
- '{M01-GH-01-02,M01-AB-01-02}'),
-('M01-BR-01-06', 'BR', 3, 'p0', '2026-10-25', 1,
- 'إنشاء Backend Foundation باستخدام FastAPI',
- 'إنشاء هيكل مشروع الـBackend على FastAPI: الهيكل، الإعدادات، فحص الصحة، الـLogging، وتشغيل محلي موحد للفريق.',
- 'Repository للـBackend يعمل محليًا مع Health Check وتعليمات تشغيل.',
- 'أي عضو يستطيع تشغيل الخدمة محليًا باتباع التعليمات، والهيكل جاهز لإضافة الـAPIs.',
- '{}'),
-('M01-IS-01-01', 'IS', 3, 'p1', '2026-10-25', 1,
- 'رسم مراحل خط معالجة AI من الإدخال حتى النتيجة',
- 'رسم مراحل خط معالجة الذكاء الاصطناعي: استقبال الملفات، الاستخراج، بناء الأدلة، التقييم، ثم النتيجة، مع مدخلات ومخرجات كل مرحلة.',
- 'مخطط خط المعالجة (Pipeline) مع وصف كل مرحلة ومدخلاتها ومخرجاتها.',
- 'كل مرحلة مرتبطة بالـEvidence Schema، والمخطط معتمد من فريق AI.',
- '{M01-GH-01-02,M01-AB-01-02}'),
-('M01-AS-01-01', 'AS', 3, 'p1', '2026-10-25', 1,
- 'تعريف Outcome لكل Job Dimension معتمد',
- 'تحديد النتيجة (Outcome) التي يُخرجها التقييم لكل بعد من الأبعاد التسعة: المقياس، النطاق، وما الذي يعنيه كل مستوى.',
- 'جدول Outcome لكل بعد: نوع الناتج، المقياس، وتفسير المستويات.',
- 'كل الأبعاد التسعة لها Outcome محدد وقابل للتفسير.',
- '{M01-GH-01-03}'),
-('M01-BA-01-01', 'BA', 3, 'p1', '2026-10-25', 1,
- 'تحديد الحاجة الفعلية لـPredictive ML داخل MVP',
- 'تقييم هل يحتاج الـMVP فعلًا إلى نموذج تنبؤي، أم تكفي القواعد والتقييم المبني على الأدلة، مع المخاطر والتكلفة لكل خيار.',
- 'مذكرة قرار: الحاجة لـPredictive ML في الـMVP (نعم/لا/لاحقًا) مع المبررات.',
- 'القرار مبني على النطاق والأبعاد ومعتمد من غسان.',
- '{M01-GH-01-02,M01-GH-01-03}'),
-('M01-BR-01-02', 'BR', 3, 'p1', '2026-10-26', 1,
- 'إنشاء Data Dictionary للكيانات والحقول الأساسية',
- 'توثيق كل كيان وحقل في الـERD: النوع، القيود، الإلزامية، والمعنى، ليكون مرجعًا موحدًا للفريق.',
- 'Data Dictionary كامل لكيانات ERD v0.1.',
- 'كل حقل في الـERD موثق بنوعه وقيوده ومعناه.',
- '{M01-BR-01-01}'),
-('M01-BR-01-03', 'BR', 3, 'p1', '2026-10-26', 1,
- 'تحديد العلاقات بين المؤسسة والوظيفة والمرشح والتقييم والأدلة',
- 'تحديد العلاقات وأنواعها (واحد لمتعدد...) وقواعد الحذف والملكية بين المؤسسة والوظيفة والمرشح والتقييم والأدلة.',
- 'تحديث الـERD بالعلاقات وقواعدها.',
- 'كل علاقة لها نوع وقاعدة حذف/ملكية واضحة.',
- '{M01-BR-01-01}'),
-('M01-IS-01-02', 'IS', 3, 'p1', '2026-10-26', 1,
- 'تعريف Job Status وTransitions الخاصة بالمعالجة',
- 'تعريف حالات مهمة المعالجة (مثل Queued, Processing, Needs Review, Failed, Done) والانتقالات المسموحة بينها.',
- 'مخطط حالات وانتقالات (State Machine) لمهام المعالجة.',
- 'كل الحالات والانتقالات معرفة، بما في ذلك الفشل والمراجعة البشرية.',
- '{M01-IS-01-01}'),
-('M01-AS-01-02', 'AS', 3, 'p1', '2026-10-26', 1,
- 'تحديد مصادر الأدلة المطلوبة وحدود استخدامها',
- 'تحديد مصادر الأدلة المقبولة لكل بعد (السيرة، الإجابات، الاختبارات...) وما لا يجوز استخدامه، ومتى يكون المصدر غير كافٍ.',
- 'مصفوفة مصادر الأدلة لكل بعد مع حدود الاستخدام.',
- 'لكل بعد مصادر مقبولة وممنوعة واضحة ومتوافقة مع تعريفات Evidence.',
- '{M01-AS-01-01,M01-AB-01-03}'),
-('M01-BA-01-02', 'BA', 3, 'p1', '2026-10-26', 1,
- 'تحديد الأدلة المطلوبة قبل استخدام أي Predictive ML',
- 'تحديد البيانات والأدلة والشروط التي يجب توفرها قبل إدخال أي نموذج تنبؤي (حجم البيانات، جودتها، التحقق).',
- 'قائمة شروط الجاهزية لاستخدام Predictive ML.',
- 'الشروط قابلة للقياس ومرتبطة بقرار الحاجة.',
- '{M01-BA-01-01}'),
-('M01-AM-01-02', 'AM', 3, 'p1', '2026-10-26', 1,
- 'إنشاء هيكل التطبيق ومسارات الواجهات الأساسية',
- 'إنشاء مشروع الواجهة وهيكل المجلدات والمسارات (Routes) للشاشات الأساسية وفق مواصفات الشاشات.',
- 'تطبيق Frontend يعمل محليًا بمسارات لكل الشاشات الأساسية.',
- 'كل شاشة في المواصفات لها مسار، والتطبيق يعمل بأمر واحد.',
- '{M01-AM-01-01}'),
-('M01-GH-02-03', 'GH', 3, 'p0', '2026-10-27', 1,
- 'مشاركة نتائج Customer Discovery مع الفريق واتخاذ القرارات',
- 'عرض نتائج المقابلات والفرضيات المحدّثة على الفريق، واتخاذ القرارات المترتبة عليها وتوثيقها.',
- 'عرض النتائج + سجل القرارات (Decision Log).',
- 'كل قرار موثق مع صاحبه وأثره على النطاق أو الأولويات.',
- '{M01-GH-02-02}'),
-('M01-BR-01-04', 'BR', 3, 'p1', '2026-10-27', 1,
- 'تجميع واعتماد Data Contract v0.1',
- 'تجميع الـERD والعلاقات والـData Dictionary في Data Contract موحد واعتماده من الفريق.',
- 'وثيقة Data Contract v0.1 معتمدة.',
- 'العقد متسق مع الـEvidence Schema ومعتمد من AI وFrontend.',
- '{M01-BR-01-02,M01-BR-01-03}'),
-('M01-IS-01-03', 'IS', 3, 'p1', '2026-10-27', 1,
- 'تحديد آلية Idempotency وRetry للمهام الحساسة',
- 'تصميم آلية تمنع تكرار المعالجة عند إعادة الإرسال، وسياسة إعادة المحاولة (عدد المحاولات، الانتظار، متى نتوقف).',
- 'مواصفة Idempotency وRetry لمهام المعالجة.',
- 'كل مهمة حساسة لها مفتاح Idempotency وسياسة Retry واضحة.',
- '{M01-IS-01-02}'),
-('M01-AS-01-03', 'AS', 3, 'p0', '2026-10-27', 1,
- 'تحديد حالات Not Scorable ومتطلبات Human Review',
- 'تحديد متى لا يجوز إعطاء تقييم (Not Scorable) ومتى يجب تحويل الحالة لمراجعة بشرية، وما المطلوب من المراجع.',
- 'قواعد Not Scorable وHuman Review لكل بعد.',
- 'كل حالة لها شرط واضح وإجراء محدد، ومتوافقة مع حالات الأدلة.',
- '{M01-AS-01-02}'),
-('M01-BA-01-03', 'BA', 3, 'p1', '2026-10-27', 2,
- 'تعريف ضوابط Data Leakage والاختبار خارج العينة',
- 'تحديد قواعد منع تسرب البيانات بين التدريب والاختبار، وطريقة الاختبار خارج العينة لأي نموذج مستقبلي.',
- 'وثيقة ضوابط Data Leakage وبروتوكول الاختبار خارج العينة.',
- 'الضوابط قابلة للتطبيق ومراجعة من أشرف.',
- '{M01-BA-01-02}'),
-('M01-AM-01-03', 'AM', 3, 'p1', '2026-10-27', 1,
- 'إعداد TypeScript Linting وFormatting وقواعد الجودة',
- 'إعداد TypeScript الصارم والـLinting والـFormatting وفحوص الجودة على مشروع الواجهة.',
- 'إعدادات Lint وFormat وTypecheck تعمل بأوامر موحدة.',
- 'المشروع ينجح في الفحوص بلا أخطاء، والقواعد موثقة للفريق.',
- '{M01-AM-01-02}'),
-('M01-BR-01-05', 'BR', 3, 'p0', '2026-10-28', 1,
- 'تحديد API Contract للمسار الأساسي للـMVP',
- 'تحديد نقاط الـAPI للمسار الأساسي: المسارات، الطلبات، الاستجابات، والأخطاء، بناءً على الـData Contract ومواصفات الشاشات.',
- 'API Contract (OpenAPI) للمسار الأساسي.',
- 'كل شاشة في المسار الأساسي لها الـAPI الذي تحتاجه، والعقد معتمد من Frontend.',
- '{M01-BR-01-04,M01-AM-01-01}'),
-('M01-BR-01-07', 'BR', 3, 'p0', '2026-10-28', 1,
- 'إعداد PostgreSQL وتهيئة قاعدة البيانات الأولية',
- 'إعداد PostgreSQL وإنشاء الجداول الأولية وفق الـData Contract مع آلية Migrations.',
- 'قاعدة بيانات تعمل محليًا بجداول الـData Contract وأول Migration.',
- 'الـMigrations تعمل من الصفر بلا أخطاء ومتوافقة مع الـERD.',
- '{M01-BR-01-04,M01-BR-01-06}'),
-('M01-IS-01-04', 'IS', 3, 'p0', '2026-10-28', 1,
- 'مراجعة PII وتدفق البيانات داخل خط AI',
- 'تتبع البيانات الشخصية (PII) في كل مرحلة من خط المعالجة: أين تُخزن، من يصل إليها، وما الذي يُرسل لخدمات خارجية، مع ضوابط الحماية.',
- 'خريطة تدفق البيانات الشخصية وقائمة ضوابط الحماية.',
- 'كل حقل شخصي له مكان تخزين ومستوى وصول وضابط حماية محدد.',
- '{M01-IS-01-01,M01-BR-01-01}'),
-('M01-AS-01-04', 'AS', 3, 'p1', '2026-10-28', 1,
- 'توثيق ضوابط Explainability وFairness الأولية',
- 'توثيق كيف يُفسَّر كل تقييم للمستخدم (لماذا هذه النتيجة) وضوابط العدالة الأولية لمنع التحيز.',
- 'وثيقة ضوابط Explainability وFairness v0.1.',
- 'لكل تقييم طريقة تفسير مرتبطة بالأدلة، وضوابط عدالة قابلة للفحص.',
- '{M01-AS-01-03}'),
-('M01-AM-01-04', 'AM', 3, 'p1', '2026-10-28', 2,
- 'إنشاء Frontend Shell باستخدام Mock Data',
- 'بناء هيكل الواجهة (التخطيط، التنقل، الشاشات الأساسية) ببيانات تجريبية حتى يمكن عرض المسار كاملًا قبل ربط الـAPI.',
- 'Frontend Shell قابل للتشغيل يعرض المسار الأساسي ببيانات Mock.',
- 'يمكن المرور على المسار الأساسي كاملًا في المتصفح، والكود يجتاز فحوص الجودة.',
- '{M01-AM-01-02,M01-AM-01-03}'),
-('M01-BR-01-08', 'BR', 3, 'p1', '2026-10-29', 1,
- 'إعداد Validation وError Handling للمسار الأساسي',
- 'تطبيق التحقق من المدخلات وصيغة موحدة للأخطاء في الـBackend وفق الـAPI Contract.',
- 'طبقة Validation وError Handling موحدة مع أمثلة استجابات الأخطاء.',
- 'الأخطاء تطابق الـAPI Contract، والمدخلات غير الصالحة تُرفض برسائل واضحة.',
- '{M01-BR-01-05,M01-BR-01-06}'),
--- ---------------------------------------------------------------- Week 4 ----
-('M01-GH-02-04', 'GH', 4, 'p0', '2026-11-01', 1,
- 'تحديد فرضية الـPilot ومعايير نجاحها',
- 'بناءً على قرارات Discovery، تحديد فرضية تجربة الـPilot مع عميل حقيقي ومعايير نجاحها ومدتها.',
- 'وثيقة Pilot: الفرضية، العميل المستهدف، المدة، ومعايير النجاح.',
- 'معايير النجاح قابلة للقياس ومرتبطة بتعريف نجاح الـMVP.',
- '{M01-GH-02-03}'),
-('M01-AB-02-01', 'AB', 4, 'p1', '2026-11-01', 2,
- 'تنفيذ Parsing Spike محدود على عينات حقيقية',
- 'تجربة محدودة لاستخراج النصوص من عينات حقيقية (سير ذاتية بصيغ مختلفة) لاختبار الجدوى التقنية.',
- 'كود الـSpike ونتائج الاستخراج على العينات.',
- 'تجربة على 20 عينة على الأقل بصيغ مختلفة مع نتائج موثقة.',
- '{M01-AB-01-04,M01-IS-01-01}'),
-('M01-AS-02-01', 'AS', 4, 'p1', '2026-11-01', 1,
- 'إعداد فحوص جودة وأهلية البيانات',
- 'تحديد الفحوص التي تحكم هل البيانات المدخلة صالحة وكافية للتقييم (اكتمال، صيغة، حداثة...).',
- 'قائمة فحوص جودة وأهلية مع معيار نجاح/فشل لكل فحص.',
- 'كل فحص قابل للتطبيق آليًا ومرتبط بمصادر الأدلة.',
- '{M01-AS-01-02}'),
-('M01-BA-02-01', 'BA', 4, 'p1', '2026-11-01', 2,
- 'إعداد Golden Dataset أولي للحالات الأساسية',
- 'تجهيز مجموعة بيانات مرجعية صغيرة مُعلَّمة يدويًا للحالات الأساسية، لاستخدامها في اختبار مخرجات الـAI.',
- 'Golden Dataset أولي مع التعليمات (Labels) وطريقة الإعداد.',
- 'الحالات تغطي الأبعاد الأساسية، والتعليم مراجع من شخص ثانٍ.',
- '{M01-AS-01-01,M01-AB-01-02}'),
-('M01-IS-02-01', 'IS', 4, 'p1', '2026-11-01', 1,
- 'إنشاء AI Trace Schema لكل تشغيل AI',
- 'تصميم سجل تتبع لكل تشغيل AI (المدخلات المرجعية، النموذج، الإصدار، الزمن، النتيجة، الأخطاء) لتمكين التدقيق والتحليل.',
- 'AI Trace Schema موثق مع مثال.',
- 'كل تشغيل يمكن تتبعه وإعادة تفسيره، دون تخزين PII غير لازم.',
- '{M01-IS-01-02}'),
-('M01-JA-02-01', 'JA', 4, 'p1', '2026-11-01', 2,
- 'إعداد UI State Matrix للحالات الطبيعية والفشل والمراجعة',
- 'تحديد شكل كل شاشة في كل حالة: تحميل، فارغ، نجاح، فشل، قيد المراجعة، Not Scorable، وفق حالات المعالجة.',
- 'UI State Matrix لكل شاشات المسار الأساسي.',
- 'كل شاشة × كل حالة لها تصميم أو قاعدة واضحة، ومتوافقة مع حالات المعالجة.',
- '{M01-JA-01-04,M01-IS-01-02}'),
-('M01-AM-02-01', 'AM', 4, 'p1', '2026-11-01', 2,
- 'ربط Frontend بالـAPI Contract باستخدام Mock/Stub',
- 'استبدال البيانات التجريبية بطبقة API تطابق الـAPI Contract، مع Mock/Stub يحاكي الـBackend.',
- 'طبقة API في الواجهة مربوطة بـMock Server يطابق العقد.',
- 'كل شاشات المسار تعمل عبر طبقة الـAPI، والتبديل للـBackend الحقيقي لا يتطلب تغيير الشاشات.',
- '{M01-AM-01-04,M01-BR-01-05}'),
-('M01-BR-02-01', 'BR', 4, 'p0', '2026-11-01', 2,
- 'تنفيذ أول API للمسار الأساسي وربطه بقاعدة البيانات',
- 'تنفيذ أول نقطة API حقيقية في المسار الأساسي مع القراءة والكتابة في PostgreSQL.',
- 'API يعمل محليًا ومربوط بقاعدة البيانات مع اختبارات أساسية.',
- 'الـAPI يطابق العقد، ويجتاز الاختبارات، ويعيد الأخطاء بالصيغة الموحدة.',
- '{M01-BR-01-05,M01-BR-01-07,M01-BR-01-08}'),
-('M01-AH-02-01', 'AH', 4, 'p1', '2026-11-01', 1,
- 'مراجعة Wireframes وتجربة UX على الهاتف',
- 'مراجعة الـWireframes على شاشات الهاتف وتجربة المسار الأساسي عليها، وتوثيق المشاكل والتحسينات.',
- 'تقرير مراجعة تجربة الهاتف مع قائمة التعديلات المقترحة.',
- 'كل شاشة أساسية جُرّبت على مقاس هاتف، والملاحظات مشاركة مع جنا.',
- '{M01-AH-01-01,M01-JA-01-03}'),
-('M01-GH-02-05', 'GH', 4, 'p0', '2026-11-02', 1,
- 'مراجعة Scope مقابل نتائج Discovery واعتماد أي تعديل',
- 'مقارنة Scope v1.0 بنتائج Discovery وفرضية الـPilot، واعتماد أي تعديل في النطاق وإبلاغ الفريق.',
- 'Scope محدّث (أو تأكيد عدم التغيير) مع سجل التعديلات.',
- 'كل تعديل مبرر بنتيجة من Discovery ومعتمد ومنشور للفريق.',
- '{M01-GH-02-03,M01-GH-02-04}'),
-('M01-AS-02-02', 'AS', 4, 'p0', '2026-11-02', 2,
- 'إصدار Not Scorable Policy v0.1',
- 'تحويل قواعد Not Scorable وفحوص الأهلية إلى سياسة رسمية v0.1 تُطبق في المنتج.',
- 'وثيقة Not Scorable Policy v0.1.',
- 'السياسة تغطي كل الأبعاد وتربط كل حالة بفحص وإجراء، ومعتمدة من غسان.',
- '{M01-AS-01-03,M01-AS-02-01}'),
-('M01-IS-02-02', 'IS', 4, 'p1', '2026-11-02', 1,
- 'تحديد مؤشرات زمن المعالجة والفشل والتكلفة',
- 'تحديد المؤشرات التي نقيس بها خط المعالجة: زمن المعالجة، نسبة الفشل، والتكلفة لكل تشغيل، مع الحدود المقبولة.',
- 'قائمة مؤشرات مع طريقة الحساب والحدود المقبولة.',
- 'كل مؤشر قابل للحساب من الـAI Trace.',
- '{M01-IS-02-01}'),
-('M01-AH-02-02', 'AH', 4, 'p2', '2026-11-02', 1,
- 'توثيق متطلبات Mobile MVP وقرار التنفيذ/التأجيل',
- 'توثيق متطلبات تطبيق الهاتف للـMVP بناءً على مراجعة التجربة، ورفع توصية: تنفيذ الآن أو الاكتفاء بالويب المتجاوب وتأجيل التطبيق.',
- 'وثيقة متطلبات Mobile MVP + توصية القرار.',
- 'المتطلبات واضحة والتوصية مبررة ومعروضة على غسان للقرار.',
- '{M01-AH-02-01}'),
-('M01-AB-02-02', 'AB', 4, 'p1', '2026-11-03', 1,
- 'اختبار جودة Parsing وتحديد حالات الفشل',
- 'قياس دقة الاستخراج على العينات وتصنيف حالات الفشل وأسبابها.',
- 'تقرير جودة الـParsing مع تصنيف حالات الفشل.',
- 'نسبة الدقة محسوبة، وكل نوع فشل له أمثلة وسبب.',
- '{M01-AB-02-01}'),
-('M01-BA-02-02', 'BA', 4, 'p1', '2026-11-03', 1,
- 'إعداد حالات Positive وNegative وMissing وContradicting',
- 'إضافة حالات اختبار تغطي النتائج الإيجابية والسلبية والأدلة الناقصة والمتناقضة إلى الـGolden Dataset.',
- 'حالات اختبار مصنفة ضمن الـGolden Dataset.',
- 'كل نوع من الأنواع الأربعة ممثل بحالات كافية ومراجعة.',
- '{M01-BA-02-01}'),
-('M01-IS-02-03', 'IS', 4, 'p1', '2026-11-03', 2,
- 'إعداد أساس مراقبة حالات AI Jobs والأخطاء',
- 'إعداد مراقبة أولية لحالات مهام المعالجة والأخطاء بناءً على الـTrace والمؤشرات (لوحة أو تنبيهات بسيطة).',
- 'لوحة مراقبة أو تقرير دوري لحالات AI Jobs والأخطاء.',
- 'يمكن رؤية المهام العالقة والفاشلة والمؤشرات الأساسية.',
- '{M01-IS-02-01,M01-IS-02-02}'),
-('M01-JA-02-02', 'JA', 4, 'p1', '2026-11-03', 2,
- 'تسليم Design Tokens والمكونات الأساسية',
- 'تجهيز Design Tokens (الألوان، الخطوط، المسافات) والمكونات الأساسية بحالاتها لتسليمها للـFrontend.',
- 'ملف Design Tokens + مكتبة مكونات أساسية في Figma.',
- 'المكونات تغطي حالات الـUI State Matrix، والتسليم مراجع مع عمار.',
- '{M01-JA-02-01}'),
-('M01-AM-02-02', 'AM', 4, 'p1', '2026-11-03', 1,
- 'كتابة E2E Scenarios للمسار الطبيعي',
- 'كتابة سيناريوهات اختبار طرفية (End-to-End) للمسار الأساسي في الحالة الطبيعية.',
- 'سيناريوهات E2E مكتوبة وقابلة للتشغيل على الواجهة.',
- 'المسار الأساسي مغطى من البداية للنهاية والسيناريوهات تنجح.',
- '{M01-AM-02-01}'),
-('M01-BR-02-02', 'BR', 4, 'p0', '2026-11-03', 1,
- 'تطبيق Validation وصلاحيات الوصول الأساسية',
- 'تطبيق التحقق وصلاحيات الوصول على الـAPIs الأولى بحيث لا يصل مستخدم إلا لبيانات مؤسسته.',
- 'صلاحيات وصول مطبقة مع اختبارات رفض الوصول.',
- 'اختبارات تثبت رفض الوصول لبيانات مؤسسة أخرى.',
- '{M01-BR-02-01}'),
-('M01-AB-02-03', 'AB', 4, 'p0', '2026-11-04', 1,
- 'تحديد قواعد الانتقال من Text Extraction إلى Evidence Extraction',
- 'تحديد القواعد التي تحول النص المستخرج إلى أدلة مرتبطة بالأبعاد وفق الـEvidence Schema.',
- 'قواعد الانتقال موثقة مع أمثلة من العينات.',
- 'كل قاعدة تنتج Evidence صالح حسب الـSchema على الأمثلة.',
- '{M01-AB-02-02}'),
-('M01-AS-02-03', 'AS', 4, 'p1', '2026-11-04', 1,
- 'إعداد قواعد أولية لاكتشاف Evidence غير القابلة للتحقق',
- 'كتابة قواعد أولية تكتشف الأدلة غير القابلة للتحقق وتحولها للحالة المناسبة حسب السياسة.',
- 'قواعد اكتشاف أولية مع أمثلة إيجابية وسلبية.',
- 'القواعد تطبق السياسة وتنجح على أمثلة الاختبار.',
- '{M01-AS-02-02}'),
-('M01-BA-02-03', 'BA', 4, 'p1', '2026-11-04', 1,
- 'كتابة Test Specification v0.1 للـAI Outputs',
- 'كتابة مواصفة اختبار مخرجات الـAI: ما الذي نقيسه، على أي بيانات، وما معايير القبول.',
- 'وثيقة Test Specification v0.1.',
- 'المواصفة تستخدم الـGolden Dataset ولها معايير قبول قابلة للقياس.',
- '{M01-BA-02-02}'),
-('M01-AM-02-03', 'AM', 4, 'p1', '2026-11-04', 1,
- 'كتابة E2E Scenarios للفشل والمراجعة',
- 'كتابة سيناريوهات E2E لحالات الفشل والمراجعة البشرية وNot Scorable وفق الـUI State Matrix.',
- 'سيناريوهات E2E للفشل والمراجعة قابلة للتشغيل.',
- 'كل حالة فشل ومراجعة في الـState Matrix مغطاة بسيناريو.',
- '{M01-AM-02-02,M01-JA-02-01}'),
-('M01-BR-02-03', 'BR', 4, 'p1', '2026-11-04', 1,
- 'تحديد سياسات الحذف والاحتفاظ بالبيانات',
- 'تحديد مدة الاحتفاظ بكل نوع بيانات وطريقة الحذف (خاصة البيانات الشخصية) وفق مراجعة PII.',
- 'سياسة الاحتفاظ والحذف لكل نوع بيانات.',
- 'كل نوع بيانات له مدة وطريقة حذف، ومتوافقة مع مراجعة PII.',
- '{M01-IS-01-04,M01-BR-01-04}'),
-('M01-AB-02-04', 'AB', 4, 'p1', '2026-11-05', 1,
- 'توثيق حدود Parsing وقرار التقنية المعتمدة',
- 'توثيق حدود الـParsing الحالية واتخاذ قرار التقنية/الأداة المعتمدة للمرحلة القادمة بناءً على النتائج.',
- 'مذكرة قرار تقني + قائمة الحدود المعروفة.',
- 'القرار مبني على نتائج الجودة ومعتمد من غسان.',
- '{M01-AB-02-02,M01-AB-02-03}');
+insert into demo_plan (code, member, week, priority, start_on, days, title, description, expected, criteria, depends) values
+('M01-DL-01-01', 'DL', 1, 'p1', '2026-12-01', 1,
+ 'Demo: define a sample workflow outcome',
+ 'Fictional demo task: write one measurable outcome for the sample workflow.',
+ 'A short fictional outcome note.',
+ 'The outcome has an owner, a measure, and a review date.', '{}'),
+('M01-UX-01-01', 'UX', 1, 'p2', '2026-12-02', 1,
+ 'Demo: sketch the sample workspace flow',
+ 'Fictional demo task: sketch the screens needed to move a sample item from intake to review.',
+ 'A fictional low-fidelity flow sketch.',
+ 'The sketch includes intake, work, review, and completion states.', '{M01-DL-01-01}'),
+('M01-EN-01-01', 'EN', 1, 'p1', '2026-12-03', 1,
+ 'Demo: model a sample record',
+ 'Fictional demo task: describe the fields and relationships for one non-production sample record.',
+ 'A fictional record definition with example values.',
+ 'The definition has identifiers, ownership, status, and timestamps.', '{M01-UX-01-01}'),
+('M01-EN-01-02', 'EN', 1, 'p1', '2026-12-04', 1,
+ 'Demo: implement a validation example',
+ 'Fictional demo task: implement validation for the sample record and document one rejected input.',
+ 'A local validation example and a fictional rejected-input case.',
+ 'Valid input passes and the documented invalid input is rejected.', '{M01-EN-01-01}'),
+('M01-QA-01-01', 'QA', 1, 'p2', '2026-12-05', 1,
+ 'Demo: review the sample workflow',
+ 'Fictional demo task: review the sample flow and validation behavior using non-production data.',
+ 'A fictional review note with findings and disposition.',
+ 'The review identifies at least one check and records its disposition.', '{M01-EN-01-02}'),
+('M01-DL-01-02', 'DL', 1, 'p1', '2026-12-06', 1,
+ 'Demo: publish a sample result',
+ 'Fictional demo task: approve the demo result and record the publication boundary.',
+ 'A fictional publication note containing only the approved sample result.',
+ 'Only the approved demo result is marked ready for team visibility.', '{M01-QA-01-01}');
 
 do $$
 declare
   v_director uuid := (select p.id from public.profiles p where p.is_director order by p.created_at limit 1);
-  v_team uuid := (select t.id from public.teams t where lower(btrim(t.name)) = 'nesthire team');
+  v_team uuid := (select t.id from public.teams t where lower(btrim(t.name)) = 'nesthire demo team');
   v_project uuid;
   v_missing text;
   v_row record;
@@ -448,39 +68,46 @@ begin
     raise exception 'No Director found.';
   end if;
   if v_team is null then
-    raise exception 'Run scripts/sql/nesthire-team.sql first (NestHire Team not found).';
+    raise exception 'Run scripts/sql/nesthire-team.sql first (NestHire Demo Team not found).';
   end if;
 
   select string_agg(distinct p.member, ', ') into v_missing
-  from m01_plan p
-  where not exists (select 1 from public.team_members tm where tm.team_id = v_team and tm.member_code = p.member);
+  from demo_plan p
+  where not exists (
+    select 1 from public.team_members tm
+    where tm.team_id = v_team and tm.member_code = p.member
+  );
   if v_missing is not null then
-    raise exception 'Roster codes missing in NestHire Team: %', v_missing;
+    raise exception 'Demo roster codes missing: %', v_missing;
   end if;
 
-  -- Act as the Director for the rest of the transaction (authorship + audit).
   perform set_config(
     'request.jwt.claims',
     json_build_object('sub', v_director, 'role', 'authenticated', 'aud', 'authenticated')::text,
     true
   );
 
-  select p.id into v_project from public.projects p where p.name = 'NestHire' order by p.created_at limit 1;
+  select p.id into v_project
+  from public.projects p
+  where p.name = 'NestHire Demo Project'
+  order by p.created_at
+  limit 1;
+
   if v_project is null then
     v_project := public.create_project(
-      'NestHire',
-      'منصة NestHire للتوظيف المبني على الأدلة: خطة العمل الشهرية للفريق.',
-      'إطلاق MVP يقيّم المرشحين على الأبعاد التسعة بأدلة قابلة للتفسير، والتحقق منه مع عملاء حقيقيين.',
+      'NestHire Demo Project',
+      'Fictional demo workspace for local development only.',
+      'Demonstrate a private task workflow without using production data.',
       'active',
-      date '2026-10-11',
-      null
+      date '2026-12-01',
+      date '2026-12-31'
     );
   end if;
   if (select p.team_id from public.projects p where p.id = v_project) is distinct from v_team then
     perform public.set_project_team(v_project, v_team);
   end if;
 
-  for v_row in select * from m01_plan order by start_on, code loop
+  for v_row in select * from demo_plan order by start_on, code loop
     insert into public.tasks (
       project_id, task_code, title, description, expected_output, completion_criteria, priority,
       responsible_member_id, planning_month, planning_week,
@@ -490,36 +117,35 @@ begin
       v_project, v_row.code, v_row.title, v_row.description, v_row.expected, v_row.criteria, v_row.priority,
       (select tm.id from public.team_members tm where tm.team_id = v_team and tm.member_code = v_row.member),
       1, v_row.week,
-      (v_row.start_on + time '09:00') at time zone 'Asia/Gaza', v_row.days, 'days'
+      (v_row.start_on + time '09:00') at time zone 'UTC', v_row.days, 'days'
     where not exists (select 1 from public.tasks t where t.task_code = v_row.code);
   end loop;
 
   insert into public.task_dependencies (task_id, depends_on_task_id, project_id)
   select t.id, d.id, t.project_id
-  from m01_plan p
+  from demo_plan p
   cross join lateral unnest(p.depends) as dep(code)
   join public.tasks t on t.task_code = p.code
   join public.tasks d on d.task_code = dep.code
   where t.project_id = d.project_id
     and not exists (
-      select 1 from public.task_dependencies x where x.task_id = t.id and x.depends_on_task_id = d.id
+      select 1 from public.task_dependencies x
+      where x.task_id = t.id and x.depends_on_task_id = d.id
     );
 
-  -- Guarantees of the plan.
-  if (select count(*) from public.tasks t where t.task_code in (select code from m01_plan)) <> 66 then
-    raise exception 'Expected 66 month-1 tasks.';
+  if (select count(*) from public.tasks t where t.task_code in (select code from demo_plan)) <> 6 then
+    raise exception 'Expected 6 fictional demo tasks.';
   end if;
   if exists (
     select 1
     from public.task_dependencies x
     join public.tasks t on t.id = x.task_id
     join public.tasks d on d.id = x.depends_on_task_id
-    where t.task_code in (select code from m01_plan)
+    where t.task_code in (select code from demo_plan)
       and t.planned_start_at < d.due_at
   ) then
-    raise exception 'A task starts before one of its predecessors is due.';
+    raise exception 'A demo task starts before one of its predecessors is due.';
   end if;
 end;
 $$;
-
 commit;

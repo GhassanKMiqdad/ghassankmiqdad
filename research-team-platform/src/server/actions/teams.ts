@@ -26,7 +26,7 @@ function revalidateTeams() {
   revalidatePath("/teams", "layout");
   revalidatePath("/projects", "layout");
   revalidatePath("/tasks");
-  revalidatePath("/dashboard");
+  revalidatePath("/workspace");
 }
 
 export async function createTeamAction(input: unknown): Promise<ActionResult<{ teamId: string }>> {

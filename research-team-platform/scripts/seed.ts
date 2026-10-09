@@ -1,13 +1,13 @@
 /**
- * Demo data for the Research Team Platform.
+ * Demo data for NestHire Workspace.
  *
  *   npm run seed            # create demo users + demo projects (idempotent)
  *   npm run seed -- --reset # delete the demo projects first and recreate them
  *
  * 1. Creates (or updates) the demo users through the Supabase Auth admin API:
- *      Ghassan (Director), Research Manager, Research Member, Reviewer and the
+ *      Demo Lead (Director), Research Manager, Research Member, Reviewer and the
  *      eight other members of the NestHire team.
- * 2. Bootstraps Ghassan as platform admin and Director.
+ * 2. Bootstraps the Demo Lead as platform admin and Director.
  * 3. Performs every other step AS the respective user through the public API,
  *    exactly like the application does: Row Level Security, field-level
  *    triggers, workflow functions and the audit log all run for real.
@@ -29,8 +29,8 @@ type Client = SupabaseClient<Database>;
 type Role = "owner" | "manager" | "member" | "reviewer";
 
 const DEMO_PROJECT = "AI-Assisted Early Diagnosis Study";
-const NESTHIRE_TEAM = "NestHire Team";
-const NESTHIRE_PROJECT = "NestHire — Month 1 (demo)";
+const NESTHIRE_TEAM = "NestHire Demo Team";
+const NESTHIRE_PROJECT = "NestHire Demo Project";
 const BUCKET = "project-documents";
 
 for (const file of [".env.local", ".env"]) {
@@ -54,29 +54,29 @@ const PASSWORD = process.env.SEED_USER_PASSWORD?.trim() || `Rt-${randomBytes(9).
 const RESET = process.argv.includes("--reset");
 
 const USERS: { key: Role; email: string; fullName: string }[] = [
-  { key: "owner", email: `ghassan@${DOMAIN}`, fullName: "Ghassan Meqdad" },
+  { key: "owner", email: `demo-lead@${DOMAIN}`, fullName: "Demo Lead" },
   { key: "manager", email: `manager@${DOMAIN}`, fullName: "Research Manager" },
   { key: "member", email: `member@${DOMAIN}`, fullName: "Research Member" },
   { key: "reviewer", email: `reviewer@${DOMAIN}`, fullName: "Reviewer" },
 ];
 
-/** The NestHire roster: Ghassan (Team Lead, also Director) and eight members. */
+/** The NestHire roster: Demo Lead (Team Lead, also Director) and eight demo members. */
 const NESTHIRE: { code: string; name: string; title: string; email: string; lead?: boolean }[] = [
   {
-    code: "GH",
-    name: "Ghassan Meqdad",
+    code: "DL",
+    name: "Demo Lead",
     title: "Founder / Team Lead / ML Engineer / AI Lead",
-    email: `ghassan@${DOMAIN}`,
+    email: `demo-lead@${DOMAIN}`,
     lead: true,
   },
-  { code: "AB", name: "Abdullah Fsfs", title: "AI Engineering", email: `abdullah@${DOMAIN}` },
-  { code: "JA", name: "Janna", title: "UI/UX Designer", email: `janna@${DOMAIN}` },
-  { code: "AM", name: "Ammar Ramadan", title: "Frontend Developer", email: `ammar@${DOMAIN}` },
-  { code: "BR", name: "Baraa Al-Nabih", title: "Backend Developer", email: `baraa@${DOMAIN}` },
-  { code: "AS", name: "Ashraf Al-Kahlout", title: "ML Engineer", email: `ashraf@${DOMAIN}` },
-  { code: "BA", name: "Bashar Badawi", title: "ML Engineer", email: `bashar@${DOMAIN}` },
-  { code: "IS", name: "Israa Hamad", title: "AI Integration", email: `israa@${DOMAIN}` },
-  { code: "AH", name: "Ahmed Al-Gharabli", title: "Mobile Developer", email: `ahmed@${DOMAIN}` },
+  { code: "DA", name: "Demo Analyst", title: "AI Engineering", email: `demo-analyst@${DOMAIN}` },
+  { code: "UX", name: "Demo Designer", title: "UI/UX Designer", email: `demo-designer@${DOMAIN}` },
+  { code: "FE", name: "Demo Frontend", title: "Frontend Developer", email: `demo-frontend@${DOMAIN}` },
+  { code: "BE", name: "Demo Backend", title: "Backend Developer", email: `demo-backend@${DOMAIN}` },
+  { code: "ML", name: "Demo ML", title: "ML Engineer", email: `demo-ml@${DOMAIN}` },
+  { code: "DS", name: "Demo Data", title: "ML Engineer", email: `demo-data@${DOMAIN}` },
+  { code: "AI", name: "Demo Integrator", title: "AI Integration", email: `demo-integrator@${DOMAIN}` },
+  { code: "MO", name: "Demo Mobile", title: "Mobile Developer", email: `demo-mobile@${DOMAIN}` },
 ];
 
 const options = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } } as const;
@@ -211,7 +211,7 @@ async function main() {
   console.log(`  ✓ ${NESTHIRE.length - 1} NestHire members`);
 
   check("bootstrap platform admin", await admin.rpc("bootstrap_platform_admin", { p_user_id: ids.owner }));
-  console.log("  ✓ Ghassan is platform admin and Director");
+  console.log("  ✓ Demo Lead is platform admin and Director");
 
   const owner = await signIn(USERS[0]!.email);
   await seedResearchDemo(owner, ids);
@@ -395,6 +395,10 @@ async function seedResearchDemo(owner: Client, ids: Record<Role, string>) {
   await start(manager, "proposal");
   await submit(manager, "proposal", "Proposal draft v1 with aims, design and timeline.");
   check(
+    "reviewer starts the proposal review",
+    await reviewer.rpc("start_task_review", { p_task_id: taskIds.proposal }),
+  );
+  check(
     "reviewer approves proposal",
     await reviewer.rpc("review_task", {
       p_task_id: taskIds.proposal,
@@ -412,6 +416,10 @@ async function seedResearchDemo(owner: Client, ids: Record<Role, string>) {
 
   await start(member, "stats");
   await submit(member, "stats", "Analysis plan: primary endpoint, power calculation, sensitivity analyses.");
+  check(
+    "reviewer starts the analysis plan review",
+    await reviewer.rpc("start_task_review", { p_task_id: taskIds.stats }),
+  );
   check(
     "reviewer approves the analysis plan",
     await reviewer.rpc("review_task", {
@@ -523,7 +531,7 @@ async function seedNestHire(director: Client) {
 
   const plan = [
     {
-      code: "GH",
+      code: "DL",
       title: "Define the matching architecture",
       week: 1,
       start: -6,
@@ -532,7 +540,7 @@ async function seedNestHire(director: Client) {
       priority: "p0",
     },
     {
-      code: "AB",
+      code: "DA",
       title: "Build the candidate embedding pipeline",
       week: 1,
       start: -5,
@@ -540,9 +548,9 @@ async function seedNestHire(director: Client) {
       unit: "days",
       priority: "p0",
     },
-    { code: "JA", title: "Design the onboarding flow", week: 1, start: -3, duration: 1, unit: "weeks", priority: "p1" },
+    { code: "UX", title: "Design the onboarding flow", week: 1, start: -3, duration: 1, unit: "weeks", priority: "p1" },
     {
-      code: "AM",
+      code: "FE",
       title: "Implement the job listing screen",
       week: 1,
       start: -4,
@@ -550,9 +558,9 @@ async function seedNestHire(director: Client) {
       unit: "days",
       priority: "p1",
     },
-    { code: "BR", title: "Set up the matching API", week: 2, start: 1, duration: 5, unit: "days", priority: "p1" },
+    { code: "BE", title: "Set up the matching API", week: 2, start: 1, duration: 5, unit: "days", priority: "p1" },
     {
-      code: "AS",
+      code: "ML",
       title: "Train the baseline ranking model",
       week: 2,
       start: 0,
@@ -560,9 +568,9 @@ async function seedNestHire(director: Client) {
       unit: "hours",
       priority: "p0",
     },
-    { code: "BA", title: "Evaluate ranking metrics", week: 2, start: 3, duration: 3, unit: "days", priority: "p2" },
+    { code: "DS", title: "Evaluate ranking metrics", week: 2, start: 3, duration: 3, unit: "days", priority: "p2" },
     {
-      code: "IS",
+      code: "AI",
       title: "Integrate the LLM screening assistant",
       week: 2,
       start: 2,
@@ -570,7 +578,7 @@ async function seedNestHire(director: Client) {
       unit: "weeks",
       priority: "p1",
     },
-    { code: "AH", title: "Mobile app skeleton", week: 3, start: null, duration: null, unit: null, priority: "p2" },
+    { code: "MO", title: "Mobile app skeleton", week: 3, start: null, duration: null, unit: null, priority: "p2" },
   ] as const;
 
   const created = new Map<string, string>();
@@ -605,12 +613,12 @@ async function seedNestHire(director: Client) {
     "dependency",
     await director
       .from("task_dependencies")
-      .insert({ task_id: created.get("BR")!, depends_on_task_id: created.get("AB")!, project_id: projectId }),
+      .insert({ task_id: created.get("BE")!, depends_on_task_id: created.get("DA")!, project_id: projectId }),
   );
 
-  // Abdullah: start → submit → revision → resubmit → approve → MARK AS COMPLETED.
-  const ab = await signIn(NESTHIRE.find((person) => person.code === "AB")!.email);
-  const abTask = created.get("AB")!;
+  // Demo Analyst: start → submit → revision → resubmit → approve → MARK AS COMPLETED.
+  const ab = await signIn(NESTHIRE.find((person) => person.code === "DA")!.email);
+  const abTask = created.get("DA")!;
   check("AB starts", await ab.from("tasks").update({ status: "in_progress" }).eq("id", abTask));
   check(
     "AB progress",
@@ -648,6 +656,7 @@ async function seedNestHire(director: Client) {
       p_notes: "Benchmarks in the PR description.",
     }),
   );
+  check("GH reviews v2", await director.rpc("start_task_review", { p_task_id: abTask }));
   check(
     "GH approves",
     await director.rpc("review_task", { p_task_id: abTask, p_decision: "approved", p_comment: "Meets the criteria." }),
@@ -660,13 +669,13 @@ async function seedNestHire(director: Client) {
     }),
   );
 
-  // Janna and Ammar are working; Ammar's deadline has passed (overdue example).
-  const ja = await signIn(NESTHIRE.find((person) => person.code === "JA")!.email);
-  check("JA starts", await ja.from("tasks").update({ status: "in_progress" }).eq("id", created.get("JA")!));
-  const am = await signIn(NESTHIRE.find((person) => person.code === "AM")!.email);
+  // Demo Designer and Demo Frontend are working; Demo Frontend's deadline has passed (overdue example).
+  const ja = await signIn(NESTHIRE.find((person) => person.code === "UX")!.email);
+  check("JA starts", await ja.from("tasks").update({ status: "in_progress" }).eq("id", created.get("UX")!));
+  const am = await signIn(NESTHIRE.find((person) => person.code === "FE")!.email);
   check(
     "AM starts",
-    await am.from("tasks").update({ status: "in_progress", progress: 40 }).eq("id", created.get("AM")!),
+    await am.from("tasks").update({ status: "in_progress", progress: 40 }).eq("id", created.get("FE")!),
   );
   console.log("  ✓ demo workflow: revision loop, approval, publication, overdue and unscheduled examples");
 }

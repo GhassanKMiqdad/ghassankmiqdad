@@ -49,6 +49,15 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // /workspace is the canonical home of NestHire Workspace; older links keep working.
+  // (Redirects only change the URL: every page still checks the session and RLS.)
+  async redirects() {
+    return [
+      { source: "/dashboard", destination: "/workspace", permanent: true },
+      { source: "/nesthire", destination: "/workspace", permanent: true },
+      { source: "/nesthire/:path*", destination: "/workspace", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

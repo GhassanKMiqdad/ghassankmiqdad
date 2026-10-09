@@ -26,11 +26,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (never commit secrets) — .env.example is the documented template
+# env files (never commit secrets) — only .env.example is trackable
 .env
-.env*.local
-.env.development
-.env.production
+.env.*
+!.env.example
 
 # vercel
 .vercel

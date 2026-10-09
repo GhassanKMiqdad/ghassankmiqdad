@@ -1,8 +1,13 @@
-# Research Team Platform
+# NestHire Workspace
 
-منصة لإدارة الفرق البحثية — a full-stack platform for research teams: projects,
+**مساحة عمل NestHire** — a full-stack workspace for the NestHire team: projects,
 tasks, documents, discussions, a per-member permission system and an immutable
 activity log. Arabic-first (RTL) with English, light and dark themes.
+
+Production target: **https://ghassankmiqdad.vercel.app** (route `/workspace`).
+Keep the GitHub profile repository name `GhassanKMiqdad/ghassankmiqdad`; the
+application remains in `research-team-platform/` (the Vercel Root Directory).
+A dedicated NestHire repository may be considered as an optional future migration.
 
 Built with Next.js 16, TypeScript, Tailwind CSS 4, shadcn/ui and Supabase
 (Auth, PostgreSQL, Storage). **Every permission is enforced by the database**
@@ -94,20 +99,17 @@ resets, invitations) appear in Mailpit at <http://127.0.0.1:54324>.
 
 ### Demo accounts
 
-`npm run seed` creates (or updates) these users, the project
-_AI-Assisted Early Diagnosis Study_ and the **NestHire Team** (nine roster
-entries, the project _NestHire — Month 1 (demo)_ with demo tasks, a revision
-loop and a published result). Every step is performed through the API as the
-respective user, so the activity log is authentic. The NestHire members use
-`abdullah@`, `janna@`, `ammar@`, `baraa@`, `ashraf@`, `bashar@`, `israa@` and
-`ahmed@` on the same domain.
+`npm run seed` creates local-only fictional demo users, a sample project, and
+a demo task workflow. It never represents or bootstraps the real Production
+roster or task plan. Every step is performed through the API as the
+respective user, so the activity log is authentic.
 
-| User             | E-mail                 | Role                                         |
-| ---------------- | ---------------------- | -------------------------------------------- |
-| Ghassan Meqdad   | `ghassan@example.com`  | Director, platform admin, NestHire Team Lead |
-| Research Manager | `manager@example.com`  | Manager                                      |
-| Research Member  | `member@example.com`   | Research Member                              |
-| Reviewer         | `reviewer@example.com` | Reviewer                                     |
+| User          | E-mail                  | Role                   |
+| ------------- | ----------------------- | ---------------------- |
+| Demo Lead     | `demo-lead@example.com` | Director and Team Lead |
+| Demo Manager  | `manager@example.com`   | Manager                |
+| Demo Member   | `member@example.com`    | Research Member        |
+| Demo Reviewer | `reviewer@example.com`  | Reviewer               |
 
 The password is `SEED_USER_PASSWORD` from `.env.local`; when it is empty a
 random password is generated and printed. `SEED_EMAIL_DOMAIN` changes the
@@ -244,7 +246,7 @@ Supabase to run the pgTAP and API security suites and the seed script.
    `NEXT_PUBLIC_SUPABASE_ANON_KEY`، و`SERVICE_ROLE_KEY` ←
    `SUPABASE_SERVICE_ROLE_KEY` (مفتاح سري للخادم فقط، لا تضعه أبدًا في متغير
    يبدأ بـ `NEXT_PUBLIC_` ولا ترفعه إلى GitHub).
-4. أنشئ البيانات التجريبية: `npm run seed` (المستخدمون: Ghassan وResearch
+4. أنشئ البيانات التجريبية: `npm run seed` (المستخدمون: Demo Lead وResearch
    Manager وResearch Member وReviewer مع مشروع ومهام وسجل نشاط).
 5. شغّل التطبيق: `npm run dev` ثم افتح <http://localhost:3000>. الرسائل
    البريدية المحلية تظهر في <http://127.0.0.1:54324>.

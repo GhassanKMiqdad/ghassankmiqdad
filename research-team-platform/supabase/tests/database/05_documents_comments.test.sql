@@ -180,9 +180,12 @@ select is_empty(
   'storage: an outsider cannot list or download project files'
 );
 select tests.authenticate_as('reviewer');
-select ok(
-  (select count(*) from storage.objects where bucket_id = 'project-documents') >= 2,
-  'storage: a member with documents.view can download project files'
+-- Object reads follow the documents table: registered project files only,
+-- never another member's unregistered upload or an orphan object.
+select results_eq(
+  $$ select name from storage.objects where bucket_id = 'project-documents' order by name $$,
+  format($$ values (%L::text) $$, tests.uid('project_a') || '/50000000-0000-4000-8000-000000000012/final.txt'),
+  'storage: a member with documents.view can download registered project files (and nothing else)'
 );
 
 -- ---------------------------------------------------------------------------

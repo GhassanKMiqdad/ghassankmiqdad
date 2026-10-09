@@ -10,8 +10,10 @@
 --                                             publication for the team, notifications
 --
 -- "Reviewer" = tasks.review in the project (Directors hold it everywhere,
--- Team Leads in their team's projects). Nobody reviews, approves or completes
--- their own task, except a Director (organization-level override, audited).
+-- Team Leads in their team's projects). This historical migration retained an
+-- audited Director self-review override; migration
+-- 20261008000200_final_privacy_hardening removes it. Final rule: no user may
+-- review, approve or publish their own work.
 -- Every transition is written to the audit log by the tasks trigger with a
 -- semantic action name (task.submitted, task.approved, …).
 -- =============================================================================

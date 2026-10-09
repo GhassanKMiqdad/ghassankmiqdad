@@ -5,8 +5,8 @@
  */
 export const en = {
   app: {
-    name: "Research Team Hub",
-    tagline: "Plan, run and audit collaborative research.",
+    name: "NestHire Workspace",
+    tagline: "Private work, reviewed results, published to your team.",
   },
   common: {
     save: "Save",
@@ -55,11 +55,11 @@ export const en = {
     created: "Created",
     updated: "Updated",
     by: "by {name}",
-    copyright: "Research Team Hub",
+    copyright: "NestHire Workspace",
   },
   nav: {
     mainNavigation: "Main navigation",
-    dashboard: "Dashboard",
+    dashboard: "Workspace",
     projects: "Projects",
     tasks: "Tasks",
     documents: "Documents",
@@ -84,7 +84,7 @@ export const en = {
   auth: {
     login: {
       title: "Sign in",
-      subtitle: "Welcome back. Sign in to your research workspace.",
+      subtitle: "Welcome back. Sign in to NestHire Workspace.",
       email: "E-mail",
       password: "Password",
       submit: "Sign in",
@@ -95,7 +95,7 @@ export const en = {
     },
     signup: {
       title: "Create your account",
-      subtitle: "Join your research team in a minute.",
+      subtitle: "Join your NestHire team in a minute.",
       fullName: "Full name",
       email: "E-mail",
       password: "Password",
@@ -139,9 +139,9 @@ export const en = {
     samePassword: "The new password must be different from the current one.",
   },
   dashboard: {
-    title: "Dashboard",
+    title: "NestHire Workspace",
     greeting: "Welcome back, {name}",
-    subtitle: "Here is what is happening across your research projects.",
+    subtitle: "Your tasks, reviews and team results at a glance.",
     stats: {
       totalProjects: "Projects",
       activeTasks: "Active tasks",
@@ -467,7 +467,7 @@ export const en = {
     waitingForCompletion: "Approved — waiting to be marked as completed.",
     closed: "This task is closed.",
     noActions: "No workflow action is available to you right now.",
-    selfReviewNotice: "You cannot review your own task.",
+    selfReviewNotice: "You cannot review, approve or publish your own work, whatever your role.",
     progressTitle: "Execution",
     progressSaved: "Progress saved.",
     saveProgress: "Save progress",
@@ -633,6 +633,8 @@ export const en = {
     emptyHint: "Results appear here when a reviewer marks an approved task as completed.",
     finalResult: "Final result",
     deliverables: "Deliverables",
+    files: "Files",
+    externalLinks: "External links",
     teamComment: "Comment",
     completedOn: "Completed {date}",
     responsible: "Responsible",
@@ -677,7 +679,7 @@ export const en = {
   },
   documents: {
     title: "Documents",
-    subtitle: "Files shared across your research projects.",
+    subtitle: "Files shared across your projects.",
     projectSubtitle: "Papers, datasets and files of this project.",
     upload: "Upload document",
     uploadTitle: "Upload a document",
@@ -709,6 +711,23 @@ export const en = {
     uploading: "Uploading…",
     preparing: "Preparing upload…",
     finalizing: "Saving…",
+  },
+  taskFiles: {
+    title: "Task files",
+    description: "Private: only the reviewers and the responsible member see them until the task is published.",
+    upload: "Attach file",
+    empty: "No files attached yet.",
+    locked: "Handed in",
+    lockedHint: "Handed in with a version: locked.",
+    view: "View",
+    download: "Download",
+    remove: "Remove file",
+    removed: "File removed.",
+    removeTitle: "Remove this file?",
+    removeDescription: "The file will be permanently removed.",
+    include: "Files of this version",
+    includeHint: "Choose from the files you attached to the task.",
+    noOwnFiles: "Attach your files in the Task files card first.",
   },
   comments: {
     title: "Comments",
@@ -1062,7 +1081,7 @@ export const en = {
     TASK_EDIT_FORBIDDEN: "You cannot edit this task.",
     TASK_STATUS_FORBIDDEN: "This step is not allowed for this task in its current state.",
     TASK_BLOCKED: "This task cannot start before its predecessor tasks are approved.",
-    SELF_REVIEW_FORBIDDEN: "You cannot review, approve or complete your own task.",
+    SELF_REVIEW_FORBIDDEN: "Nobody can review, approve or publish their own work — another reviewer must do it.",
     LAST_DIRECTOR: "At least one Director must remain.",
     DEPENDENCY_CYCLE: "This dependency would create a cycle.",
     TASK_ASSIGN_FORBIDDEN: "You cannot assign this task to someone else.",
@@ -1078,6 +1097,10 @@ export const en = {
     MEMBER_NOT_FOUND: "This member was not found in the project.",
     NOT_FOUND: "The requested item does not exist or you cannot access it.",
     DOCUMENT_FILE_MISSING: "The uploaded file could not be found. Please upload it again.",
+    DOCUMENT_LOCKED: "This file was handed in with a version and can no longer be changed or removed.",
+    DELIVERABLE_LINK_FORBIDDEN:
+      "Storage links cannot be used as deliverable links. Attach the file to the task instead.",
+    TASK_FILE_INVALID: "Only files you attached to this task can be handed in.",
     FILE_TOO_LARGE: "The file is too large (maximum {size}).",
     FILE_TYPE_NOT_ALLOWED: "This file type is not allowed.",
     UPLOAD_FAILED: "The upload failed. Please try again.",
