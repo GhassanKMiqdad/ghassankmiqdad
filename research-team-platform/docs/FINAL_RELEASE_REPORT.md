@@ -2,12 +2,12 @@
 
 **تاريخ التحقق:** 2026-10-09 21:59 +03:00
 **الفرع:** `fix/nesthire-production-readiness`  
-**آخر commit:** `ed2e0079d22cb3c45aec290e9752d97ca03e1082`  
+**آخر commit التطبيقي المختبر:** `ad774b9e4c604c084d2198a9379f3374cc1dcb74`
 **Pull Request:** https://github.com/GhassanKMiqdad/ghassankmiqdad/pull/6
 
 ## A. الملخص التنفيذي
 
-تم إغلاق إصلاحات الكود وCI وحماية الفرع بنجاح. اجتاز آخر commit تشغيل GitHub Actions رقم `37971904710`، بما في ذلك البناء والاختبارات المعزولة وSupabase المحلي وpgTAP واختبارات أمان API والتكامل وSeed. كما شُغّل بديل PostgreSQL المحلي المجاني، وطُبقت عليه جميع migrations ونجحت 278 حالة pgTAP.
+تم إغلاق إصلاحات الكود وCI وحماية الفرع بنجاح. اجتاز آخر commit تشغيل GitHub Actions رقم `37977226887`، بما في ذلك البناء والاختبارات المعزولة وSupabase المحلي وpgTAP واختبارات أمان API والتكامل وSeed. كما شُغّل بديل PostgreSQL المحلي المجاني، وطُبقت عليه جميع migrations ونجحت 278 حالة pgTAP.
 
 تم إنشاء نشر Vercel Preview فعلي من آخر commit وحالته `READY`، لكن فحص الصفحة من المتصفح محجوب بحماية Vercel SSO. لا يوجد حاليًا نشر Production فعّال للمشروع وفق بيانات Vercel (`live: false` و`target: null` في آخر نشر).
 
@@ -88,10 +88,10 @@
 - project ID: `prj_UOjxJVEifFHDyfKY4CCVLIanr1sI`
 - الإطار: Next.js
 - Node.js: `24.x`
-- آخر Preview deployment: `nesthire-f2f4pq3er-ghassankmiqdad.vercel.app`
+- آخر Preview deployment: `nesthire-nbws619we-ghassankmiqdad.vercel.app`
 - حالة آخر Preview: `READY`
-- commit المنشور في آخر Preview: `ed2e007`
-- رابط فحص النشر: https://vercel.com/ghassankmiqdad/nesthire/7GRaFgL5ix6vDBnFVb92djEXbVhT
+- commit المنشور في آخر Preview: `ad774b9`
+- رابط فحص النشر: https://vercel.com/ghassankmiqdad/nesthire/DycwgrcgVgwU8auxzfvqeGQ1cwFA
 - حماية SSO مفعّلة على Production وPreview، لذلك تعذر فتح التطبيق من المتصفح دون جلسة Vercel مخولة.
 - `live: false` و`target: null` في بيانات المشروع/النشر الأخير؛ لم يثبت وجود Production deployment.
 - متغيرات البيئة المسماة الظاهرة تضمنت متغيرات Supabase العامة وإعدادات الموقع والمنطقة واللغة. لم تُكشف قيمها. لم يظهر `SUPABASE_SERVICE_ROLE_KEY` ضمن القائمة المقروءة، ولذلك لم يُدّعَ اكتمال عمليات الإدارة في Production.
@@ -103,10 +103,10 @@
 ## F. تغييرات GitHub
 
 - الفرع: `fix/nesthire-production-readiness`
-- آخر commit: `ed2e007`
+- آخر commit التطبيقي المختبر: `ad774b9`
 - PR: https://github.com/GhassanKMiqdad/ghassankmiqdad/pull/6
 - الحالة: OPEN، `CLEAN`
-- آخر CI: https://github.com/GhassanKMiqdad/ghassankmiqdad/actions/runs/37971904710
+- آخر CI: https://github.com/GhassanKMiqdad/ghassankmiqdad/actions/runs/37977226887
 - Required checks على `main`: `Lint, types, unit tests and build` و`Database and API security tests (Supabase)`
 - دمج PR: لم يتم
 - نشر Production: لم يتم
@@ -115,7 +115,7 @@
 
 ### رابط Preview الفعلي
 
-https://nesthire-f2f4pq3er-ghassankmiqdad.vercel.app/
+https://nesthire-nbws619we-ghassankmiqdad.vercel.app/
 
 هذا **رابط Preview** وليس Production. بيانات Vercel تثبت أن النشر `READY` وعلى آخر commit، لكن فتحه في المتصفح حاليًا يعيد إلى Vercel Login بسبب SSO؛ لذلك لم يُثبت Smoke Test للواجهة من جلسة عامة.
 
