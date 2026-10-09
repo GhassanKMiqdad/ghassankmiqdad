@@ -1089,6 +1089,7 @@ export const en = {
     INVALID_INPUT: "The submitted data is not valid.",
     CONFLICT: "This item already exists.",
     INVITE_UNAVAILABLE: "Inviting new users is not configured on the server (missing service key).",
+    ADMIN_UNAVAILABLE: "This administrative operation is not configured on the server (missing service key).",
     CONFIRMATION_MISMATCH: "The confirmation text does not match.",
     RATE_LIMITED: "Too many requests. Please wait a moment.",
     UNEXPECTED: "Something went wrong. Please try again.",

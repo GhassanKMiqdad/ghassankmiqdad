@@ -84,7 +84,10 @@ npx supabase db push
      | `SUPABASE_SERVICE_ROLE_KEY`     | Secret key                                    |
      | `PLATFORM_ADMIN_EMAILS`         | بريدك الإلكتروني (ستصبح مدير المنصة تلقائيًا) |
      | `APP_TIMEZONE`                  | مثل `Asia/Gaza`                               |
-     | `NEXT_PUBLIC_DEFAULT_LOCALE`    | `ar`                                          |
+
+| `NEXT_PUBLIC_DEFAULT_LOCALE` | `ar` |
+| `EXPORT_RATE_LIMIT` | `5` (exports per user/project window) |
+| `EXPORT_RATE_WINDOW_SECONDS` | `60` |
 
 4. اضغط **Deploy** وانتظر حتى ينتهي البناء (2–3 دقائق تقريبًا).
 5. انسخ رابط التطبيق، مثل `https://research-team.vercel.app`، ثم:
