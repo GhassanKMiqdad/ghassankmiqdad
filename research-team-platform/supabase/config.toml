@@ -1,7 +1,7 @@
 # Supabase CLI configuration for local development (`npx supabase start`).
 # Hosted projects are configured in the Supabase dashboard instead; see README.
 
-project_id = "nesthire-workspace"
+project_id = "research-team-platform"
 
 [api]
 enabled = true
@@ -66,7 +66,7 @@ subject = "Reset your password | إعادة تعيين كلمة المرور"
 content_path = "./supabase/templates/recovery.html"
 
 [auth.email.template.invite]
-subject = "You have been invited to NestHire Workspace | دعوة للانضمام إلى مساحة عمل NestHire"
+subject = "Join NestHire Workspace | انضم إلى مساحة عمل NestHire"
 content_path = "./supabase/templates/invite.html"
 
 [auth.email.template.email_change]

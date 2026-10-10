@@ -1,8 +1,13 @@
 # NestHire Workspace
 
-مساحة العمل الداخلية لفريق NestHire، المنصة الذكية للتوظيف. A full-stack workspace
-for product teams: projects, tasks, documents, discussions, per-member permissions
-and an immutable activity log. Arabic-first (RTL) with English, light and dark themes.
+**مساحة عمل NestHire** — a full-stack workspace for the NestHire team: projects,
+tasks, documents, discussions, a per-member permission system and an immutable
+activity log. Arabic-first (RTL) with English, light and dark themes.
+
+Production target: **https://team-nesthire.vercel.app**.
+Keep the GitHub profile repository name `GhassanKMiqdad/ghassankmiqdad`; the
+application remains in `research-team-platform/` (the Vercel Root Directory).
+A dedicated NestHire repository may be considered as an optional future migration.
 
 Built with Next.js 16, TypeScript, Tailwind CSS 4, shadcn/ui and Supabase
 (Auth, PostgreSQL, Storage). **Every permission is enforced by the database**
@@ -15,7 +20,7 @@ that bypasses the UI is rejected exactly like a hidden button.
 
 ## Features
 
-- **Projects** — name, description, product goal, status, start date,
+- **Projects** — name, description, project goal, status, start date,
   deadline, owner, members, tasks, documents, comments and activity; projects
   are fully isolated from each other.
 - **Flexible permissions** — roles (Owner, Manager, Team Member, Reviewer)
@@ -94,20 +99,17 @@ resets, invitations) appear in Mailpit at <http://127.0.0.1:54324>.
 
 ### Demo accounts
 
-`npm run seed` creates (or updates) these users, the project
-_AI-Assisted Early Diagnosis Study_ and the **NestHire Team** (nine roster
-entries, the project _NestHire — Month 1 (demo)_ with demo tasks, a revision
-loop and a published result). Every step is performed through the API as the
-respective user, so the activity log is authentic. The NestHire members use
-`abdullah@`, `janna@`, `ammar@`, `baraa@`, `ashraf@`, `bashar@`, `israa@` and
-`ahmed@` on the same domain.
+`npm run seed` creates local-only fictional demo users, a sample project, and
+a demo task workflow. It never represents or bootstraps the real Production
+roster or task plan. Every step is performed through the API as the
+respective user, so the activity log is authentic.
 
-| User             | E-mail                 | Role                                         |
-| ---------------- | ---------------------- | -------------------------------------------- |
-| Ghassan Meqdad   | `ghassan@example.com`  | Director, platform admin, NestHire Team Lead |
-| Research Manager | `manager@example.com`  | Manager                                      |
-| Research Member  | `member@example.com`   | Research Member                              |
-| Reviewer         | `reviewer@example.com` | Reviewer                                     |
+| User          | E-mail                  | Role                   |
+| ------------- | ----------------------- | ---------------------- |
+| Demo Lead     | `demo-lead@example.com` | Director and Team Lead |
+| Demo Manager  | `manager@example.com`   | Manager                |
+| Demo Member   | `member@example.com`    | Team Member            |
+| Demo Reviewer | `reviewer@example.com`  | Reviewer               |
 
 The password is `SEED_USER_PASSWORD` from `.env.local`; when it is empty a
 random password is generated and printed. `SEED_EMAIL_DOMAIN` changes the
@@ -124,7 +126,7 @@ Project → Settings → Environment Variables. **Never commit real values** —
 | `NEXT_PUBLIC_SUPABASE_URL`                                | Yes          | Supabase dashboard → _Project Settings → Data API_ (Project URL), or the _Connect_ dialog. Local: `API_URL`.                                                                                                                  | Browser (public)                                   |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY`                           | Yes          | _Project Settings → API Keys_: the **publishable** key (`sb_publishable_…`) or the legacy **anon** key. Local: `ANON_KEY`.                                                                                                    | Browser (public, protected by RLS)                 |
 | `SUPABASE_SERVICE_ROLE_KEY`                               | Recommended  | _Project Settings → API Keys_: a **secret** key (`sb_secret_…`) or the legacy **service_role** key. Local: `SERVICE_ROLE_KEY`. Needed for e-mail invitations, removing a deleted project's files and `PLATFORM_ADMIN_EMAILS`. | **Server only** — never prefix with `NEXT_PUBLIC_` |
-| `NEXT_PUBLIC_SITE_URL`                                    | Production   | Your public URL, e.g. `https://research.example.org` (used in e-mail links and to mark cookies `Secure`).                                                                                                                     | Browser                                            |
+| `NEXT_PUBLIC_SITE_URL`                                    | Production   | Your public URL, e.g. `https://team-nesthire.vercel.app` (used in e-mail links and to mark cookies `Secure`).                                                                                                                 | Browser                                            |
 | `PLATFORM_ADMIN_EMAILS`                                   | First deploy | Comma-separated e-mails promoted to platform admin after a confirmed sign-in.                                                                                                                                                 | Server                                             |
 | `APP_TIMEZONE`                                            | No           | IANA zone used for "overdue" and dates, e.g. `Asia/Gaza` (default `UTC`).                                                                                                                                                     | Server                                             |
 | `NEXT_PUBLIC_DEFAULT_LOCALE`                              | No           | `ar` (default) or `en`.                                                                                                                                                                                                       | Browser                                            |
@@ -202,7 +204,7 @@ The required permission scenarios and where they are tested:
 | Scenario                                                     | Tests                                                                  |
 | ------------------------------------------------------------ | ---------------------------------------------------------------------- |
 | The owner/admin can edit everything                          | integration _owner (admin of the project)_, pgTAP 02–04                |
-| A member cannot delete tasks without permission              | integration _research member › cannot delete a task…_, pgTAP 03        |
+| A member cannot delete tasks without permission              | integration _team member › cannot delete a task…_, pgTAP 03            |
 | A member can edit an assigned task                           | integration _…can edit a task assigned to them…_, pgTAP 03             |
 | A member cannot edit another user's task                     | integration _…cannot edit a task that another user created…_, pgTAP 03 |
 | A user cannot access another project                         | integration _project isolation_, pgTAP 02                              |
@@ -244,8 +246,8 @@ Supabase to run the pgTAP and API security suites and the seed script.
    `NEXT_PUBLIC_SUPABASE_ANON_KEY`، و`SERVICE_ROLE_KEY` ←
    `SUPABASE_SERVICE_ROLE_KEY` (مفتاح سري للخادم فقط، لا تضعه أبدًا في متغير
    يبدأ بـ `NEXT_PUBLIC_` ولا ترفعه إلى GitHub).
-4. أنشئ البيانات التجريبية: `npm run seed` (المستخدمون: Ghassan وResearch
-   Manager وResearch Member وReviewer مع مشروع ومهام وسجل نشاط).
+4. أنشئ البيانات التجريبية: `npm run seed` (المستخدمون: Demo Lead وProject
+   Manager وTeam Member وReviewer مع مشروع ومهام وسجل نشاط).
 5. شغّل التطبيق: `npm run dev` ثم افتح <http://localhost:3000>. الرسائل
    البريدية المحلية تظهر في <http://127.0.0.1:54324>.
 

@@ -3,6 +3,7 @@ import "server-only";
 import type { TeamMemberStatus, TeamRole } from "@/lib/permissions/catalog";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { unwrap } from "@/server/action";
+import { listTaskFilesByIds } from "@/server/queries/documents";
 import type { PublicationItem, TeamRosterMember, TeamSummary } from "@/types/app";
 
 /** Teams the caller can see (RLS: Directors all, members their teams, project members the project's team). */
@@ -108,12 +109,15 @@ export async function listPublications(
   const supabase = await createSupabaseServerClient();
   let query = supabase.from("task_publications").select(
     `task_id, project_id, team_id, task_code, title, responsible_name, responsible_title, final_result,
-       deliverable_links, team_comment, final_submission_version, completed_at,
+       deliverable_links, document_ids, team_comment, final_submission_version, completed_at,
        team:teams(name), project:projects(name)`,
   );
   if (options.teamId) query = query.eq("team_id", options.teamId);
   if (options.projectId) query = query.eq("project_id", options.projectId);
   const rows = unwrap(await query.order("completed_at", { ascending: false }).limit(options.limit ?? 100));
+  // Published files only: the documents RLS lets the team read exactly the
+  // files listed in a publication it can see.
+  const files = await listTaskFilesByIds(rows.flatMap((row) => row.document_ids ?? []));
   return rows.map((row) => ({
     taskId: row.task_id,
     projectId: row.project_id,
@@ -126,6 +130,7 @@ export async function listPublications(
     responsibleTitle: row.responsible_title,
     finalResult: row.final_result,
     links: row.deliverable_links ?? [],
+    files: files.filter((file) => (row.document_ids ?? []).includes(file.id)),
     teamComment: row.team_comment,
     version: row.final_submission_version,
     completedAt: row.completed_at,

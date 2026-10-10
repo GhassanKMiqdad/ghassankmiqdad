@@ -44,5 +44,30 @@ begin
 end;
 $$;
 
+-- The final privacy hardening also checks the submitter at review and publish
+-- time. Override that guard narrowly so a manager's own currently assigned
+-- task follows the same exception at every workflow entry point.
+create or replace function private.assert_not_own_submission(p_submission public.task_submissions)
+returns void
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_task public.tasks;
+begin
+  if p_submission.submitted_by = (select auth.uid()) then
+    select t.* into v_task from public.tasks t where t.id = p_submission.task_id;
+    if not found or not private.can_self_review_task(v_task) then
+      raise exception using errcode = '42501', message = 'SELF_REVIEW_FORBIDDEN';
+    end if;
+  end if;
+end;
+$$;
+
+comment on function private.assert_not_own_submission(public.task_submissions) is
+  'Blocks self-review except for an active project owner/manager or Director assigned to the task.';
+
 revoke execute on function private.can_self_review_task(public.tasks) from public, anon;
 grant execute on function private.can_self_review_task(public.tasks) to authenticated, service_role;

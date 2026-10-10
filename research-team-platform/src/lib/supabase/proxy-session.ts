@@ -60,12 +60,12 @@ export async function updateSession(request: NextRequest) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "NOT_AUTHENTICATED" }, { status: 401 });
     }
-    const next = pathname === "/" ? "/dashboard" : `${pathname}${search}`;
+    const next = pathname === "/" ? "/workspace" : `${pathname}${search}`;
     return redirectTo("/login", { next });
   }
 
   if (isAuthenticated && matches(pathname, GUEST_ONLY_PATHS)) {
-    return redirectTo("/dashboard");
+    return redirectTo("/workspace");
   }
 
   return response;

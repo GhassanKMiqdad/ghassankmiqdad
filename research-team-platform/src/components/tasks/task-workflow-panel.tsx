@@ -61,13 +61,30 @@ import {
   submitTaskAction,
 } from "@/server/actions/tasks";
 
-type WorkflowTask = TaskSnapshot & { id: string; isBlocked: boolean; hasSubmissions: boolean };
+type WorkflowTask = TaskSnapshot & {
+  id: string;
+  isBlocked: boolean;
+  hasSubmissions: boolean;
+  /** Who handed in the latest version (nobody reviews their own work). */
+  latestSubmitterId: string | null;
+};
+
+/** The responsible member's own task files, offered when submitting a version. */
+type SubmittableFile = { id: string; title: string; fileName: string };
 
 /**
  * The actions offered here are exactly the ones the policy (and the
  * database) allows for this user and status; everything else is not shown.
  */
-export function TaskWorkflowPanel({ task, access }: { task: WorkflowTask; access: ProjectAccessDTO }) {
+export function TaskWorkflowPanel({
+  task,
+  access,
+  ownFiles,
+}: {
+  task: WorkflowTask;
+  access: ProjectAccessDTO;
+  ownFiles: SubmittableFile[];
+}) {
   const { t, fmt } = useI18n();
   const router = useRouter();
   const { pending, run } = useServerAction();
@@ -75,7 +92,7 @@ export function TaskWorkflowPanel({ task, access }: { task: WorkflowTask; access
 
   const executor = canExecuteTask(subject, task);
   const supervisor = canSuperviseTasks(subject);
-  const reviewer = canReviewTask(subject, task);
+  const reviewer = canReviewTask(subject, task, task.latestSubmitterId);
   const can = (status: TaskStatus) => canChangeTaskStatus(subject, task, status);
 
   const changeStatus = async (status: TaskStatus, success: string) => {
@@ -108,7 +125,7 @@ export function TaskWorkflowPanel({ task, access }: { task: WorkflowTask; access
     );
   }
   if (canSubmitTask(subject, task)) {
-    actions.push(<SubmitDialog key="submit" taskId={task.id} resubmit={task.hasSubmissions} />);
+    actions.push(<SubmitDialog key="submit" taskId={task.id} resubmit={task.hasSubmissions} files={ownFiles} />);
   }
   if (reviewer && task.status === "submitted") {
     actions.push(
@@ -126,7 +143,8 @@ export function TaskWorkflowPanel({ task, access }: { task: WorkflowTask; access
       </Button>,
     );
   }
-  if (reviewer && (task.status === "submitted" || task.status === "under_review")) {
+  // SUBMITTED → UNDER_REVIEW → decision: the decision exists only during the review.
+  if (reviewer && task.status === "under_review") {
     actions.push(<ReviewDialog key="review" taskId={task.id} />);
   }
   if (reviewer && task.status === "approved") {
@@ -205,7 +223,7 @@ export function TaskWorkflowPanel({ task, access }: { task: WorkflowTask; access
 
   const selfReview =
     !reviewer &&
-    task.assignedTo === subject.userId &&
+    (task.assignedTo === subject.userId || task.latestSubmitterId === subject.userId) &&
     subject.permissions.has("tasks.review") &&
     ["submitted", "under_review", "approved"].includes(task.status);
 
@@ -219,14 +237,14 @@ export function TaskWorkflowPanel({ task, access }: { task: WorkflowTask; access
   );
 }
 
-function SubmitDialog({ taskId, resubmit }: { taskId: string; resubmit: boolean }) {
+function SubmitDialog({ taskId, resubmit, files }: { taskId: string; resubmit: boolean; files: SubmittableFile[] }) {
   const { t, fmt, message } = useI18n();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const { pending, run } = useServerAction();
   const form = useForm<SubmitTaskInput, unknown, SubmitTaskValues>({
     resolver: zodResolver(submitTaskSchema),
-    defaultValues: { summary: "", links: "", notes: "" },
+    defaultValues: { summary: "", links: "", notes: "", documentIds: [] },
   });
 
   const onSubmit = form.handleSubmit(async () => {
@@ -281,6 +299,50 @@ function SubmitDialog({ taskId, resubmit }: { taskId: string; resubmit: boolean 
                   <FormMessage localize={message} />
                 </FormItem>
               )}
+            />
+            <FormField
+              control={form.control}
+              name="documentIds"
+              render={({ field }) => {
+                const selected = field.value ?? [];
+                return (
+                  <FormItem>
+                    <FormLabel>{t.taskFiles.include}</FormLabel>
+                    {files.length === 0 ? (
+                      <FormDescription>{t.taskFiles.noOwnFiles}</FormDescription>
+                    ) : (
+                      <>
+                        <ul className="space-y-1.5">
+                          {files.map((file) => (
+                            <li key={file.id}>
+                              <label className="flex items-center gap-2 text-sm">
+                                <input
+                                  type="checkbox"
+                                  className="size-4 accent-primary"
+                                  checked={selected.includes(file.id)}
+                                  onChange={(event) =>
+                                    field.onChange(
+                                      event.target.checked
+                                        ? [...selected, file.id]
+                                        : selected.filter((id) => id !== file.id),
+                                    )
+                                  }
+                                />
+                                <span dir="auto" className="truncate">
+                                  {file.title}
+                                </span>
+                                <span className="truncate text-xs text-muted-foreground">{file.fileName}</span>
+                              </label>
+                            </li>
+                          ))}
+                        </ul>
+                        <FormDescription>{t.taskFiles.includeHint}</FormDescription>
+                      </>
+                    )}
+                    <FormMessage localize={message} />
+                  </FormItem>
+                );
+              }}
             />
             <FormField
               control={form.control}

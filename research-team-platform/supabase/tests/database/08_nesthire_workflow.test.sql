@@ -7,7 +7,7 @@
 --   Team Beta ......... member: outsider (C)                            → Project B
 begin;
 \ir _helpers.psql
-select plan(71);
+select plan(72);
 
 select tests.setup_world();
 -- The fixture's owner is the only Director inside this (rolled back) transaction.
@@ -267,6 +267,7 @@ select results_eq(
 -- Audit test 7 — approval, then MARK AS COMPLETED
 -- ---------------------------------------------------------------------------
 select tests.authenticate_as('manager');
+select public.start_task_review((select id from ids where key = 'task'));
 select lives_ok(
   format($$ select public.review_task(%L, 'approved', 'Meets the criteria') $$, (select id from ids where key = 'task')),
   'the Team Lead approves'
@@ -355,6 +356,10 @@ insert into public.tasks (project_id, title, assigned_to) values (tests.uid('pro
 update public.tasks set status = 'in_progress' where title = 'Lead own task';
 select public.submit_task((select id from public.tasks where title = 'Lead own task'), 'Done', '{}', '');
 select lives_ok(
+  format($$ select public.start_task_review(%L) $$, (select id from public.tasks where title = 'Lead own task')),
+  'the project manager may start reviewing their own assigned task'
+);
+select lives_ok(
   format($$ select public.review_task(%L, 'approved') $$, (select id from public.tasks where title = 'Lead own task')),
   'the project manager may approve their own assigned task'
 );
@@ -373,7 +378,8 @@ select tests.clear_authentication();
 select results_eq(
   format($$ select action from public.activity_logs where entity_id = %L and action like 'task.%%' order by created_at $$, (select id from ids where key = 'task')),
   $$ values ('task.created'), ('task.started'), ('task.submitted'), ('task.review_started'), ('task.schedule_changed'),
-            ('task.revision_requested'), ('task.resubmitted'), ('task.approved'), ('task.completed'), ('task.published') $$,
+            ('task.revision_requested'), ('task.resubmitted'), ('task.review_started'), ('task.approved'),
+            ('task.completed'), ('task.published') $$,
   'every step of the workflow is in the audit log'
 );
 select is(

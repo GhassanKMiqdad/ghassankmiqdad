@@ -16,7 +16,7 @@ describe("auth validation", () => {
       "/login",
       null,
     ]) {
-      expect(safeRedirectPath(value)).toBe("/dashboard");
+      expect(safeRedirectPath(value)).toBe("/workspace");
     }
   });
 
@@ -118,13 +118,23 @@ describe("domain validation", () => {
     expect(permissionsSchema.safeParse({ permissions: ["tasks.edit", "root.everything"] }).success).toBe(false);
   });
 
-  it("parses deliverable links one per line and rejects non-http links", () => {
+  it("parses external links one per line: https only, no credentials, no Storage URLs", () => {
     const parsed = submitTaskSchema.parse({
       summary: "Done",
-      links: "https://a.example\n\n http://b.example ",
+      links: "https://a.example\n\n https://b.example/pr/1 ",
       notes: "",
     });
-    expect(parsed.links).toEqual(["https://a.example", "http://b.example"]);
+    expect(parsed.links).toEqual(["https://a.example", "https://b.example/pr/1"]);
+    for (const link of [
+      "http://b.example",
+      "https://user:secret@b.example/x",
+      "https://example.com:bad/x",
+      "https://example.com:99999/x",
+      "https://example..com/x",
+      "https://abc.supabase.co/storage/v1/object/sign/project-documents/a?token=1",
+    ]) {
+      expect(submitTaskSchema.safeParse({ summary: "Done", links: link, notes: "" }).success).toBe(false);
+    }
     expect(submitTaskSchema.safeParse({ summary: "Done", links: "javascript:alert(1)", notes: "" }).success).toBe(
       false,
     );

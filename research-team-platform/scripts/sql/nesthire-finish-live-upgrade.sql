@@ -1,0 +1,12 @@
+-- HISTORICAL ARCHIVE — DO NOT RUN
+--
+-- This file previously contained a one-time live NestHire upgrade and
+-- operational bootstrap data. It is intentionally no longer executable.
+-- The production database already contains the base NestHire migrations
+-- through 20261007000500. Apply only the reviewed migrations in
+-- supabase/migrations/ in timestamp order, using the current deployment
+-- procedure in docs/DEPLOYMENT.md and docs/NESTHIRE.md.
+--
+-- This notice does not assert that any historical data or credentials were
+-- removed from prior Git history. See the release audit for historical
+-- exposure and rotation decisions.

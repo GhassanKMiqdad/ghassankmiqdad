@@ -129,6 +129,7 @@ export type Database = {
           project_id: string;
           size_bytes: number;
           storage_path: string;
+          task_id: string | null;
           title: string;
           updated_at: string;
           uploaded_by: string | null;
@@ -143,6 +144,7 @@ export type Database = {
           project_id: string;
           size_bytes?: number;
           storage_path: string;
+          task_id?: string | null;
           title: string;
           updated_at?: string;
           uploaded_by?: string | null;
@@ -156,6 +158,7 @@ export type Database = {
           project_id?: string;
           size_bytes?: number;
           storage_path?: string;
+          task_id?: string | null;
           title?: string;
           updated_at?: string;
           uploaded_by?: string | null;
@@ -166,6 +169,12 @@ export type Database = {
             columns: ["project_id"];
             referencedRelation: "projects";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "documents_task_fkey";
+            columns: ["task_id", "project_id"];
+            referencedRelation: "tasks";
+            referencedColumns: ["id", "project_id"];
           },
           {
             foreignKeyName: "documents_uploaded_by_fkey";
@@ -476,6 +485,7 @@ export type Database = {
         Row: {
           completed_at: string;
           deliverable_links: string[];
+          document_ids: string[];
           final_result: string;
           final_submission_version: number;
           project_id: string;
@@ -494,6 +504,7 @@ export type Database = {
         Insert: {
           completed_at: string;
           deliverable_links?: string[];
+          document_ids?: string[];
           final_result: string;
           final_submission_version: number;
           project_id: string;
@@ -511,6 +522,7 @@ export type Database = {
         Update: {
           completed_at?: string;
           deliverable_links?: string[];
+          document_ids?: string[];
           final_result?: string;
           final_submission_version?: number;
           project_id?: string;
@@ -626,6 +638,7 @@ export type Database = {
       task_submissions: {
         Row: {
           deliverable_links: string[];
+          document_ids: string[];
           id: string;
           is_final: boolean;
           notes: string;
@@ -640,6 +653,7 @@ export type Database = {
         ComputedFields: never;
         Insert: {
           deliverable_links?: string[];
+          document_ids?: string[];
           id?: string;
           is_final?: boolean;
           notes?: string;
@@ -653,6 +667,7 @@ export type Database = {
         };
         Update: {
           deliverable_links?: string[];
+          document_ids?: string[];
           id?: string;
           is_final?: boolean;
           notes?: string;
@@ -683,6 +698,7 @@ export type Database = {
         Row: {
           actual_start_at: string | null;
           approved_at: string | null;
+          assigned_at: string | null;
           assigned_to: string | null;
           completed_at: string | null;
           completion_criteria: string;
@@ -720,6 +736,7 @@ export type Database = {
         Insert: {
           actual_start_at?: string | null;
           approved_at?: string | null;
+          assigned_at?: string | null;
           assigned_to?: string | null;
           completed_at?: string | null;
           completion_criteria?: string;
@@ -754,6 +771,7 @@ export type Database = {
         Update: {
           actual_start_at?: string | null;
           approved_at?: string | null;
+          assigned_at?: string | null;
           assigned_to?: string | null;
           completed_at?: string | null;
           completion_criteria?: string;
@@ -1166,6 +1184,7 @@ export type Database = {
       submit_task: {
         Args: {
           p_deliverable_links?: string[];
+          p_document_ids?: string[];
           p_notes?: string;
           p_summary: string;
           p_task_id: string;

@@ -3,10 +3,11 @@
 import { ExternalLink, FileCheck2 } from "lucide-react";
 
 import { DateText } from "@/components/shared/date-text";
+import { TaskFileList } from "@/components/tasks/task-file-list";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
-import type { SubmissionItem } from "@/types/app";
+import type { SubmissionItem, TaskFileItem } from "@/types/app";
 
 const STATUS_VARIANT = {
   submitted: "warning",
@@ -16,7 +17,7 @@ const STATUS_VARIANT = {
 } as const;
 
 /** Every version, newest first, with the reviews it received. Private to supervisors and the responsible member. */
-export function SubmissionHistory({ submissions }: { submissions: SubmissionItem[] }) {
+export function SubmissionHistory({ submissions, files }: { submissions: SubmissionItem[]; files: TaskFileItem[] }) {
   const { t, fmt, date } = useI18n();
   if (submissions.length === 0) return <p className="text-sm text-muted-foreground">{t.submissions.empty}</p>;
 
@@ -63,6 +64,11 @@ export function SubmissionHistory({ submissions }: { submissions: SubmissionItem
                 </li>
               ))}
             </ul>
+          ) : null}
+          {submission.documentIds.length > 0 ? (
+            <div className="mt-2">
+              <TaskFileList files={files.filter((file) => submission.documentIds.includes(file.id))} />
+            </div>
           ) : null}
           {submission.notes ? (
             <p dir="auto" className="mt-2 text-start text-xs whitespace-pre-wrap text-muted-foreground">
