@@ -79,7 +79,6 @@ Run supabase link --project-ref jkvxhxrclfvoxqcniyck to setup IPv4 connection.
 
 - لا توجد قائمة migrations سحابية قابلة للإثبات بعد؛ لذلك لم يتم الانتقال إلى `db push` ولم تتم أي كتابة.
 
-
 ## ما تم تطبيقه فعليًا على المشروع الجديد
 
 **لا شيء.**
