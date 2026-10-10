@@ -241,3 +241,30 @@ https://nesthire-nbws619we-ghassankmiqdad.vercel.app/
 
 - **Merge Readiness: GO — مكتمل ومثبت بدمج `main` والـCI الإلزامي.**
 - **Production Readiness: NO-GO — ما زال محجوبًا بترحيلات Supabase، صلاحيات Vercel، إعدادات Auth/SMTP/Redirect URLs، النسخ الاحتياطية/PITR، وغياب رابط Production عام.**
+
+## J. ملحق إغلاق بوابة 2026-10-10
+
+### GitHub وCI
+
+- تم دمج PR #10 الخاص بتقييد `public.rls_auto_enable()` في `main` بعد نجاح جميع الفحوص المطلوبة.
+- commit `main` الحالي: `d923fe204a2b5bcbbcac7c29b251bc8a1fe8953f`.
+- فحوص PR #10: **4 ناجحة، 1 متخطاة، 0 فاشلة، 0 قيد الانتظار**؛ شملت lint/types/unit/build، فحوص قاعدة البيانات وأمن API، وتعليق Vercel والنشر.
+
+### Supabase الجديد
+
+- تم التحقق من المشروع الجديد `jkvxhxrclfvoxqcniyck` وربط Supabase CLI به؛ لم يُستخدم المعرّف القديم.
+- تمت مصادقة CLI عبر المسار الرسمي بنجاح، دون طباعة الرمز أو أي Secret.
+- محاولة `supabase db push --dry-run` لم تصل إلى قاعدة البيانات بسبب قيد IPv6 في بيئة التنفيذ، حتى بعد إعادة الربط ومحاولة محلل DNS عبر HTTPS. الدليل الفعلي:
+
+```text
+IPv6 is not supported on your current network
+Run supabase link --project-ref jkvxhxrclfvoxqcniyck to setup IPv4 connection.
+```
+
+- لم تُعرض قائمة migrations السحابية، ولم يُنفذ `supabase db push`، ولم تُنشأ بيانات أو Seed أو تغييرات إنتاجية. عدد migrations في `main` هو 19، وتظهر أسماؤها في `docs/SUPABASE_NEW_PROJECT_SETUP_REPORT.md`.
+- العائق المتبقي هو توفير اتصال PostgreSQL IPv4/Pooler صالح من بيئة رسمية أو CI معتمدة، مع كلمة المرور عبر Secret Manager؛ لا ينبغي إرسالها في المحادثة.
+
+### القرار الحالي
+
+- **Merge Readiness: GO** — الكود المدموج في `main` اجتاز CI المطلوب، بما في ذلك الإصلاح الأمني في PR #10.
+- **Production Readiness: NO-GO** — لم يُثبت تطبيق migrations على Supabase الجديد، ولا تزال إعدادات Auth/SMTP/Redirect URLs وBackup/PITR/Storage restore وVercel Production URL غير مثبتة. لا يجوز إطلاق `https://team-nesthire.vercel.app` حاليًا؛ الدليل السابق يثبت `404 DEPLOYMENT_NOT_FOUND`.
