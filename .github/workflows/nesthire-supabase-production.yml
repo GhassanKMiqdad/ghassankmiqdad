@@ -1,0 +1,112 @@
+name: NestHire Supabase Production Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "Committed source ref containing the migrations"
+        required: true
+        default: "main"
+        type: string
+      apply:
+        description: "Apply only after reviewing the dry-run output"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nesthire-supabase-production-migration
+  cancel-in-progress: false
+
+jobs:
+  dry-run:
+    name: Supabase migration dry-run
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: research-team-platform
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_PROJECT_REF: jkvxhxrclfvoxqcniyck
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_ref }}
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.119.0
+      - name: Validate secret without revealing it
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_DB_URL:-}" || { echo "SUPABASE_DB_URL is not configured" >&2; exit 1; }
+          python3 - <<'PY'
+          import os
+          from urllib.parse import urlsplit
+          value = os.environ["SUPABASE_DB_URL"]
+          parsed = urlsplit(value)
+          if parsed.scheme not in {"postgres", "postgresql"}:
+              raise SystemExit("SUPABASE_DB_URL must be a PostgreSQL URL")
+          if not parsed.hostname or "pooler" not in parsed.hostname.lower():
+              raise SystemExit("SUPABASE_DB_URL must use the Supabase Session Pooler host")
+          if parsed.port != 5432:
+              raise SystemExit("SUPABASE_DB_URL must use Session Pooler port 5432")
+          if "vqorfahkecswjrqgizhy" in value:
+              raise SystemExit("old Supabase project reference detected")
+          print("SUPABASE_DB_URL present; Session Pooler host and port validated")
+          PY
+      - name: Show migration files from the selected ref
+        run: |
+          set -euo pipefail
+          find supabase/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort
+      - name: Run Supabase dry-run
+        run: |
+          set -euo pipefail
+          supabase db push --db-url "$SUPABASE_DB_URL" --dry-run
+
+  apply:
+    name: Apply Supabase migrations
+    needs: dry-run
+    if: ${{ inputs.apply == true && needs.dry-run.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: research-team-platform
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_ref }}
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.119.0
+      - name: Validate secret without revealing it
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_DB_URL:-}" || { echo "SUPABASE_DB_URL is not configured" >&2; exit 1; }
+          python3 - <<'PY'
+          import os
+          from urllib.parse import urlsplit
+          value = os.environ["SUPABASE_DB_URL"]
+          parsed = urlsplit(value)
+          if parsed.scheme not in {"postgres", "postgresql"} or "pooler" not in (parsed.hostname or '').lower() or parsed.port != 5432:
+              raise SystemExit("SUPABASE_DB_URL is not a valid Session Pooler URL")
+          if "vqorfahkecswjrqgizhy" in value:
+              raise SystemExit("old Supabase project reference detected")
+          print("SUPABASE_DB_URL validated")
+          PY
+      - name: Apply migrations without reset or seed
+        run: |
+          set -euo pipefail
+          supabase db push --db-url "$SUPABASE_DB_URL"
+      - name: Verify migration ledger
+        run: |
+          set -euo pipefail
+          supabase migration list --db-url "$SUPABASE_DB_URL"
