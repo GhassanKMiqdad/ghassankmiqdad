@@ -3,8 +3,9 @@ import type { Dictionary } from "./en";
 /** القاموس العربي — يجب أن يطابق بنية en.ts تمامًا. */
 export const ar: Dictionary = {
   app: {
-    name: "منصة الفريق البحثي",
-    tagline: "خطّط، نفّذ، ودقّق العمل البحثي الجماعي.",
+    name: "مساحة عمل NestHire",
+    tagline:
+      "مساحة العمل الداخلية لفريق NestHire لتطوير وإدارة منصة التوظيف الذكي وتنظيم المهام والتعاون وتسليم الأعمال ومراجعتها.",
   },
   common: {
     save: "حفظ",
@@ -53,7 +54,7 @@ export const ar: Dictionary = {
     created: "تاريخ الإنشاء",
     updated: "آخر تحديث",
     by: "بواسطة {name}",
-    copyright: "منصة الفريق البحثي",
+    copyright: "مساحة عمل NestHire",
   },
   nav: {
     mainNavigation: "التنقل الرئيسي",
@@ -82,7 +83,7 @@ export const ar: Dictionary = {
   auth: {
     login: {
       title: "تسجيل الدخول",
-      subtitle: "مرحبًا بعودتك. سجّل الدخول إلى مساحة عملك البحثية.",
+      subtitle: "مرحبًا بعودتك. سجّل الدخول إلى مساحة عملك الداخلية.",
       email: "البريد الإلكتروني",
       password: "كلمة المرور",
       submit: "تسجيل الدخول",
@@ -93,7 +94,7 @@ export const ar: Dictionary = {
     },
     signup: {
       title: "إنشاء حساب",
-      subtitle: "انضم إلى فريقك البحثي خلال دقيقة.",
+      subtitle: "انضم إلى فريق NestHire الخاص بك خلال دقيقة.",
       fullName: "الاسم الكامل",
       email: "البريد الإلكتروني",
       password: "كلمة المرور",
@@ -139,7 +140,7 @@ export const ar: Dictionary = {
   dashboard: {
     title: "لوحة التحكم",
     greeting: "مرحبًا بعودتك، {name}",
-    subtitle: "نظرة عامة على ما يجري في مشاريعك البحثية.",
+    subtitle: "نظرة عامة على ما يجري في مشاريع NestHire الخاصة بك.",
     stats: {
       totalProjects: "المشاريع",
       activeTasks: "المهام النشطة",
@@ -176,15 +177,15 @@ export const ar: Dictionary = {
   },
   projects: {
     title: "المشاريع",
-    subtitle: "المشاريع البحثية التي أنت عضو فيها.",
+    subtitle: "مشاريع NestHire التي أنت عضو فيها.",
     new: "مشروع جديد",
-    createTitle: "إنشاء مشروع بحثي",
+    createTitle: "إنشاء مشروع NestHire",
     createSubtitle: "ستصبح مالك المشروع ويمكنك بعد ذلك دعوة فريقك.",
     editTitle: "تفاصيل المشروع",
     fields: {
       name: "اسم المشروع",
       description: "الوصف",
-      researchGoal: "هدف البحث",
+      researchGoal: "هدف المشروع",
       status: "الحالة",
       startDate: "تاريخ البدء",
       deadline: "الموعد النهائي",
@@ -193,12 +194,12 @@ export const ar: Dictionary = {
     placeholders: {
       name: "مثال: دراسة التشخيص بمساعدة الذكاء الاصطناعي",
       description: "السياق والنطاق والمنهجية…",
-      researchGoal: "ما الذي يجب أن يحققه هذا البحث؟",
+      researchGoal: "ما الذي يجب أن يحققه هذا المشروع؟",
     },
     members: "{count} أعضاء",
     tasksCount: "{count} مهام",
     empty: "لا توجد مشاريع بعد",
-    emptyCreate: "أنشئ مشروعك البحثي الأول لتبدأ بتنظيم المهام والمستندات والفريق.",
+    emptyCreate: "أنشئ مشروع NestHire الأول لتبدأ بتنظيم المهام والمستندات والفريق.",
     emptyNoRights: "ستظهر المشاريع هنا عندما يضيفك مالك مشروع إلى فريقه.",
     created: "تم إنشاء المشروع.",
     updated: "تم تحديث المشروع.",
@@ -218,12 +219,12 @@ export const ar: Dictionary = {
     },
     overview: {
       about: "عن المشروع",
-      goal: "هدف البحث",
+      goal: "هدف المشروع",
       timeline: "الجدول الزمني",
       progress: "التقدم",
       discussion: "نقاش المشروع",
       team: "الفريق",
-      noGoal: "لم يتم تحديد هدف البحث بعد.",
+      noGoal: "لم يتم تحديد هدف المشروع بعد.",
       daysLeft: "متبقٍ {count} يومًا",
       dueToday: "الموعد اليوم",
       pastDeadline: "تجاوز الموعد النهائي",
@@ -444,8 +445,8 @@ export const ar: Dictionary = {
     newDeadline: "موعد نهائي جديد (اختياري)",
     approved: "تم اعتماد التسليم. اعتمد المهمة كمكتملة لنشرها.",
     revisionRequested: "تم طلب تعديل.",
-    markCompleted: "اعتماد كمكتملة",
-    completeTitle: "اعتماد كمكتملة ونشرها",
+    markCompleted: "اعتماد ومشاركة",
+    completeTitle: "اعتماد ومشاركة",
     completeDescription:
       "يصبح التسليم النهائي المعتمد هو النتيجة الرسمية ويُنشر للفريق. تبقى المسودات والنسخ السابقة وملاحظات المراجعة خاصة.",
     teamComment: "تعليق للفريق (اختياري)",
@@ -672,8 +673,8 @@ export const ar: Dictionary = {
   },
   documents: {
     title: "المستندات",
-    subtitle: "الملفات المشتركة في مشاريعك البحثية.",
-    projectSubtitle: "الأوراق البحثية ومجموعات البيانات وملفات هذا المشروع.",
+    subtitle: "الملفات المشتركة في مشاريع NestHire الخاصة بك.",
+    projectSubtitle: "الأوراق الداخلية ومجموعات البيانات وملفات هذا المشروع.",
     upload: "رفع مستند",
     uploadTitle: "رفع مستند",
     uploadDescription: "ملفات PDF وOffice وCSV والنصوص وLaTeX وZIP والصور حتى {size}.",
@@ -694,7 +695,7 @@ export const ar: Dictionary = {
       description: "عمّ يتحدث هذا الملف؟",
     },
     empty: "لا توجد مستندات بعد",
-    emptyHint: "ارفع الأوراق البحثية أو البيانات أو التقارير لمشاركتها مع فريقك.",
+    emptyHint: "ارفع الأوراق الداخلية أو البيانات أو التقارير لمشاركتها مع فريقك.",
     uploaded: "تم رفع المستند.",
     updated: "تم تحديث المستند.",
     deleted: "تم حذف المستند.",
@@ -706,10 +707,10 @@ export const ar: Dictionary = {
     finalizing: "جارٍ الحفظ…",
   },
   comments: {
-    title: "التعليقات",
-    placeholder: "اكتب تعليقًا…",
-    submit: "تعليق",
-    empty: "لا توجد تعليقات بعد. ابدأ النقاش.",
+    title: "نقاش خاص",
+    placeholder: "اكتب رسالة خاصة…",
+    submit: "إرسال الرسالة",
+    empty: "لا توجد رسائل خاصة بعد. ابدأ النقاش.",
     edited: "معدَّل",
     deleteTitle: "حذف هذا التعليق؟",
     editLabel: "تعديل التعليق",
@@ -975,7 +976,7 @@ export const ar: Dictionary = {
       depends_on_code: "المهمة السابقة",
       assigned_to: "المكلَّف",
       name: "الاسم",
-      research_goal: "هدف البحث",
+      research_goal: "هدف المشروع",
       start_date: "تاريخ البدء",
       deadline: "الموعد النهائي",
       content: "التعليق",
@@ -1031,7 +1032,7 @@ export const ar: Dictionary = {
     },
     admin: {
       title: "إدارة المنصة",
-      description: "حدّد من يستطيع إنشاء المشاريع البحثية ومن يدير المنصة.",
+      description: "حدّد من يستطيع إنشاء مشاريع NestHire ومن يدير المنصة.",
       platformAdmin: "مدير المنصة",
       canCreateProjects: "يستطيع إنشاء المشاريع",
       joined: "تاريخ الانضمام",

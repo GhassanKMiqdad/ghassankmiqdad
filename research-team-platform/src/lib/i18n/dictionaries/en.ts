@@ -5,8 +5,8 @@
  */
 export const en = {
   app: {
-    name: "Research Team Hub",
-    tagline: "Plan, run and audit collaborative research.",
+    name: "NestHire Workspace",
+    tagline: "The internal workspace for the team building NestHire, an intelligent hiring platform.",
   },
   common: {
     save: "Save",
@@ -55,7 +55,7 @@ export const en = {
     created: "Created",
     updated: "Updated",
     by: "by {name}",
-    copyright: "Research Team Hub",
+    copyright: "NestHire Workspace",
   },
   nav: {
     mainNavigation: "Main navigation",
@@ -84,7 +84,7 @@ export const en = {
   auth: {
     login: {
       title: "Sign in",
-      subtitle: "Welcome back. Sign in to your research workspace.",
+      subtitle: "Welcome back. Sign in to your NestHire Workspace.",
       email: "E-mail",
       password: "Password",
       submit: "Sign in",
@@ -95,7 +95,7 @@ export const en = {
     },
     signup: {
       title: "Create your account",
-      subtitle: "Join your research team in a minute.",
+      subtitle: "Join your NestHire team in a minute.",
       fullName: "Full name",
       email: "E-mail",
       password: "Password",
@@ -141,7 +141,7 @@ export const en = {
   dashboard: {
     title: "Dashboard",
     greeting: "Welcome back, {name}",
-    subtitle: "Here is what is happening across your research projects.",
+    subtitle: "Here is what is happening across your NestHire projects.",
     stats: {
       totalProjects: "Projects",
       activeTasks: "Active tasks",
@@ -178,15 +178,15 @@ export const en = {
   },
   projects: {
     title: "Projects",
-    subtitle: "Research projects you are a member of.",
+    subtitle: "NestHire projects you are a member of.",
     new: "New project",
-    createTitle: "Create a research project",
+    createTitle: "Create a NestHire project",
     createSubtitle: "You will become the owner and can then invite your team.",
     editTitle: "Project details",
     fields: {
       name: "Project name",
       description: "Description",
-      researchGoal: "Research goal",
+      researchGoal: "Project goal",
       status: "Status",
       startDate: "Start date",
       deadline: "Deadline",
@@ -195,12 +195,12 @@ export const en = {
     placeholders: {
       name: "e.g. AI-assisted diagnosis study",
       description: "Context, scope and methodology…",
-      researchGoal: "What should this research achieve?",
+      researchGoal: "What should this project achieve?",
     },
     members: "{count} members",
     tasksCount: "{count} tasks",
     empty: "No projects yet",
-    emptyCreate: "Create your first research project to start organising tasks, documents and your team.",
+    emptyCreate: "Create your first NestHire project to start organising tasks, documents and your team.",
     emptyNoRights: "You will see projects here once a project owner adds you to their team.",
     created: "Project created.",
     updated: "Project updated.",
@@ -220,12 +220,12 @@ export const en = {
     },
     overview: {
       about: "About",
-      goal: "Research goal",
+      goal: "Project goal",
       timeline: "Timeline",
       progress: "Progress",
       discussion: "Project discussion",
       team: "Team",
-      noGoal: "No research goal defined yet.",
+      noGoal: "No project goal defined yet.",
       daysLeft: "{count} days left",
       dueToday: "Due today",
       pastDeadline: "Past deadline",
@@ -449,8 +449,8 @@ export const en = {
     newDeadline: "New deadline (optional)",
     approved: "Submission approved. Mark the task as completed to publish it.",
     revisionRequested: "Revision requested.",
-    markCompleted: "Mark as completed",
-    completeTitle: "Mark as completed and publish",
+    markCompleted: "Approve & Share",
+    completeTitle: "Approve & Share",
     completeDescription:
       "The approved final submission becomes the official result and is published to the team. Drafts, earlier versions and review notes stay private.",
     teamComment: "Comment for the team (optional)",
@@ -677,7 +677,7 @@ export const en = {
   },
   documents: {
     title: "Documents",
-    subtitle: "Files shared across your research projects.",
+    subtitle: "Files shared across your NestHire projects.",
     projectSubtitle: "Papers, datasets and files of this project.",
     upload: "Upload document",
     uploadTitle: "Upload a document",
@@ -711,10 +711,10 @@ export const en = {
     finalizing: "Saving…",
   },
   comments: {
-    title: "Comments",
-    placeholder: "Write a comment…",
-    submit: "Comment",
-    empty: "No comments yet. Start the discussion.",
+    title: "Private discussion",
+    placeholder: "Write a private message…",
+    submit: "Send message",
+    empty: "No private messages yet. Start the discussion.",
     edited: "edited",
     deleteTitle: "Delete this comment?",
     editLabel: "Edit comment",
@@ -1045,7 +1045,7 @@ export const en = {
     },
     admin: {
       title: "Platform administration",
-      description: "Decide who can create research projects and who administers the platform.",
+      description: "Decide who can create NestHire projects and who administers the platform.",
       platformAdmin: "Platform admin",
       canCreateProjects: "Can create projects",
       joined: "Joined",

@@ -92,10 +92,15 @@ export function canUpdateTaskProgress(access: AccessSubject | null | undefined, 
   return task.status !== "completed" && (canExecuteTask(access, task) || canSuperviseTasks(access));
 }
 
-/** Review, approve, request revisions and mark as completed. Nobody but a Director reviews their own task. */
+/** Review, approve, request revisions and publish. Only a project owner/manager or Director may review their own task. */
 export function canReviewTask(access: AccessSubject | null | undefined, task: TaskSnapshot): boolean {
   if (!access || !can(access, "tasks.review")) return false;
-  return task.assignedTo !== access.userId || access.isDirector === true;
+  return (
+    task.assignedTo !== access.userId ||
+    access.isDirector === true ||
+    access.role === "owner" ||
+    access.role === "manager"
+  );
 }
 
 /** Status changes allowed through a direct update (SQL: private.task_transition_allowed). */

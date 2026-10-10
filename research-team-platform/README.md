@@ -1,8 +1,8 @@
-# Research Team Platform
+# NestHire Workspace
 
-منصة لإدارة الفرق البحثية — a full-stack platform for research teams: projects,
-tasks, documents, discussions, a per-member permission system and an immutable
-activity log. Arabic-first (RTL) with English, light and dark themes.
+مساحة العمل الداخلية لفريق NestHire، المنصة الذكية للتوظيف. A full-stack workspace
+for product teams: projects, tasks, documents, discussions, per-member permissions
+and an immutable activity log. Arabic-first (RTL) with English, light and dark themes.
 
 Built with Next.js 16, TypeScript, Tailwind CSS 4, shadcn/ui and Supabase
 (Auth, PostgreSQL, Storage). **Every permission is enforced by the database**
@@ -15,10 +15,10 @@ that bypasses the UI is rejected exactly like a hidden button.
 
 ## Features
 
-- **Projects** — name, description, research goal, status, start date,
+- **Projects** — name, description, product goal, status, start date,
   deadline, owner, members, tasks, documents, comments and activity; projects
   are fully isolated from each other.
-- **Flexible permissions** — roles (Owner, Manager, Research Member, Reviewer)
+- **Flexible permissions** — roles (Owner, Manager, Team Member, Reviewer)
   are only templates; each member's 24 permissions can be adjusted per project
   on _Team → Member → Permissions_. Anti-escalation rules: nobody can change
   their own permissions or grant a permission they do not hold.

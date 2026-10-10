@@ -7,7 +7,7 @@
 --   Team Beta ......... member: outsider (C)                            → Project B
 begin;
 \ir _helpers.psql
-select plan(70);
+select plan(71);
 
 select tests.setup_world();
 -- The fixture's owner is the only Director inside this (rolled back) transaction.
@@ -354,14 +354,19 @@ select tests.authenticate_as('manager');
 insert into public.tasks (project_id, title, assigned_to) values (tests.uid('project_a'), 'Lead own task', tests.uid('manager'));
 update public.tasks set status = 'in_progress' where title = 'Lead own task';
 select public.submit_task((select id from public.tasks where title = 'Lead own task'), 'Done', '{}', '');
-select throws_ok(
+select lives_ok(
   format($$ select public.review_task(%L, 'approved') $$, (select id from public.tasks where title = 'Lead own task')),
-  '42501', 'SELF_REVIEW_FORBIDDEN', 'nobody below the Director approves their own work'
+  'the project manager may approve their own assigned task'
+);
+select is(
+  (select status::text from public.tasks where title = 'Lead own task'),
+  'approved',
+  'manager self-approval keeps the task private until publication'
 );
 select tests.authenticate_as('owner');
 select lives_ok(
-  format($$ select public.review_task(%L, 'revision_required', 'Add the evaluation table') $$, (select id from public.tasks where title = 'Lead own task')),
-  'the Director reviews the Team Lead''s work'
+  format($$ select public.complete_task(%L, 'Manager self-approved; owner published') $$, (select id from public.tasks where title = 'Lead own task')),
+  'the Director may publish the manager''s approved work'
 );
 select tests.clear_authentication();
 
