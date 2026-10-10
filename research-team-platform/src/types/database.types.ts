@@ -1019,6 +1019,14 @@ export type Database = {
         Args: { p_user_id: string };
         Returns: undefined;
       };
+      check_project_export_rate_limit: {
+        Args: {
+          p_limit?: number;
+          p_project_id: string;
+          p_window_seconds?: number;
+        };
+        Returns: { allowed: boolean; retry_after: number }[];
+      };
       complete_task: {
         Args: { p_task_id: string; p_team_comment?: string };
         Returns: undefined;

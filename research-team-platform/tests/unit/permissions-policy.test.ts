@@ -79,10 +79,14 @@ describe("tasks: supervisor (owner / Director / Team Lead)", () => {
     expect(canUpdateTask(owner, closed)).toBe(false);
   });
 
-  it("reviews others' work; only a Director may review their own", () => {
+  it("reviews others' work; managers and Directors may review their own", () => {
     const own = task(OWNER, OWNER, "submitted");
     expect(canReviewTask(owner, task(OWNER, MEMBER, "submitted"))).toBe(true);
-    expect(canReviewTask(owner, own)).toBe(false);
+    expect(canReviewTask(owner, own)).toBe(true);
+    expect(canReviewTask(accessFor("manager", { userId: MANAGER }), task(MANAGER, MANAGER, "submitted"))).toBe(true);
+    expect(canReviewTask(accessFor("reviewer", { userId: REVIEWER }), task(REVIEWER, REVIEWER, "submitted"))).toBe(
+      false,
+    );
     expect(canReviewTask({ ...owner, isDirector: true }, own)).toBe(true);
   });
 });

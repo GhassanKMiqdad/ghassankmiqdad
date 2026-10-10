@@ -44,6 +44,7 @@ const KNOWN_DATABASE_CODES = new Set<string>([
   "IMMUTABLE_FIELD",
   "ACTIVITY_LOG_IMMUTABLE",
   "INVALID_INPUT",
+  "ADMIN_UNAVAILABLE",
 ]);
 
 export type DatabaseErrorLike = {
