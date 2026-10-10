@@ -218,3 +218,11 @@ https://nesthire-nbws619we-ghassankmiqdad.vercel.app/
 - **Production Readiness: NO-GO** — النطاق المطلوب غير مرتبط، ترحيلات الإنتاج غير مطبقة، Auth/SMTP/Redirect URLs والنسخ الاحتياطية غير مثبتة، والتكامل/E2E الخارجي محجوبان.
 
 لا أقدّم `https://team-nesthire.vercel.app` كرابط منصة جاهزة؛ الدليل الحالي يثبت أنه نطاق HTTPS موجود لكنه يعيد `DEPLOYMENT_NOT_FOUND`.
+
+## J. نتيجة PR8 بعد إصلاح CI — 2026-10-10
+
+تم إصلاح فشل بوابة Database/API الذي كشف أن اختبار التكامل القديم ما زال يتوقع منع مراجعة المدير العام لعمله، بينما migration `20261010000100_nesthire_manager_self_review` تسمح بالمراجعة الذاتية المحدودة أثناء بقاء المسؤول الحالي. عُدّل الاختبار ليختبر هذا الاستثناء مع استمرار اختبار عزل إعادة الإسناد.
+
+على commit `fe98f83518100897cb11ce3859944a7fe94d20c0` نجحت بوابتا GitHub Actions: **Lint, types, unit tests and build** و **Database and API security tests (Supabase)**. كما نجح نشر Vercel Preview `https://nesthire-a4qgq8gzo-ghassankmiqdad.vercel.app`، بينما بقي فحص Supabase Preview متخطى لأن إنشاء preview branch/المورد السحابي ليس جزءًا من الخطة المجانية المعتمدة. حالة PR8 `OPEN` و`mergeStateStatus=CLEAN`؛ لم يتم الدمج.
+
+هذا يرفع **Merge Readiness** إلى **GO** من ناحية الكود والفحوص المرتبطة بالـPR، مع بقاء الدمج قرارًا منفصلًا لمراجعة المالك. ولا يغيّر **Production Readiness**: تبقى **NO-GO** لأن رابط `team-nesthire.vercel.app` يعيد `DEPLOYMENT_NOT_FOUND`، ولأن إعداد Supabase الإنتاجي، الترحيلات السحابية، Auth/SMTP/Redirect URLs، النسخ الاحتياطية وPITR، واختبار E2E الخارجي لم تُثبت.
