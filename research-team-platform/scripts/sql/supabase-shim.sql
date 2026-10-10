@@ -33,6 +33,20 @@ $$;
 
 grant anon, authenticated, service_role to authenticator;
 
+-- Supabase creates this SECURITY DEFINER event-trigger helper in hosted
+-- projects. The local shim models its callable signature so migrations can
+-- verify that API roles do not retain EXECUTE on it.
+create or replace function public.rls_auto_enable()
+returns event_trigger
+language plpgsql
+security definer
+set search_path = 'pg_catalog'
+as $$
+begin
+  null;
+end;
+$$;
+
 -- Schemas and Supabase-like default privileges -----------------------------------
 create schema if not exists extensions;
 create schema if not exists auth;

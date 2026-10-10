@@ -1,7 +1,7 @@
 -- Schema, privileges and reference data.
 begin;
 \ir _helpers.psql
-select plan(36);
+select plan(38);
 
 select tables_are(
   'public',
@@ -71,6 +71,28 @@ select ok(
 select ok(
   not has_function_privilege('anon', 'private.has_permission(uuid, text)', 'EXECUTE'),
   'anon cannot execute the private permission helpers'
+);
+select ok(
+  not exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname = 'rls_auto_enable'
+      and has_function_privilege('anon', p.oid, 'EXECUTE')
+  ),
+  'anon cannot execute the platform RLS event-trigger helper'
+);
+select ok(
+  not exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname = 'rls_auto_enable'
+      and has_function_privilege('authenticated', p.oid, 'EXECUTE')
+  ),
+  'authenticated cannot execute the platform RLS event-trigger helper'
 );
 
 -- Reference data.
