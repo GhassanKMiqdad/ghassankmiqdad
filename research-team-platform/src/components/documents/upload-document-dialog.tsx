@@ -36,7 +36,16 @@ type Phase = "idle" | "preparing" | "uploading" | "finalizing";
  * server-chosen path, the browser sends the file straight to Storage, then the
  * server registers the document (the database verifies the object exists).
  */
-export function UploadDocumentDialog({ projectId }: { projectId: string }) {
+export function UploadDocumentDialog({
+  projectId,
+  taskId = null,
+  label,
+}: {
+  projectId: string;
+  /** Uploads a private task file instead of a project library document. */
+  taskId?: string | null;
+  label?: string;
+}) {
   const { t, fmt, locale } = useI18n();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -78,7 +87,7 @@ export function UploadDocumentDialog({ projectId }: { projectId: string }) {
     setError(null);
 
     setPhase("preparing");
-    const prepared = await prepareDocumentUploadAction({ projectId, fileName: file.name, size: file.size });
+    const prepared = await prepareDocumentUploadAction({ projectId, taskId, fileName: file.name, size: file.size });
     if (!prepared.ok) {
       setError(prepared.error.message);
       setPhase("idle");
@@ -99,6 +108,7 @@ export function UploadDocumentDialog({ projectId }: { projectId: string }) {
     setPhase("finalizing");
     const finalized = await finalizeDocumentUploadAction({
       projectId,
+      taskId,
       documentId,
       storagePath,
       fileName: file.name,
@@ -128,9 +138,9 @@ export function UploadDocumentDialog({ projectId }: { projectId: string }) {
       }}
     >
       <DialogTrigger asChild>
-        <Button>
+        <Button variant={taskId ? "outline" : "default"}>
           <Upload aria-hidden />
-          {t.documents.upload}
+          {label ?? t.documents.upload}
         </Button>
       </DialogTrigger>
       <DialogContent closeLabel={t.common.close}>

@@ -66,7 +66,7 @@ subject = "Reset your password | إعادة تعيين كلمة المرور"
 content_path = "./supabase/templates/recovery.html"
 
 [auth.email.template.invite]
-subject = "You have been invited to a research team | دعوة للانضمام إلى فريق بحثي"
+subject = "Join NestHire Workspace | انضم إلى مساحة عمل NestHire"
 content_path = "./supabase/templates/invite.html"
 
 [auth.email.template.email_change]

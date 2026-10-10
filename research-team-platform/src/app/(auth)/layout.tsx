@@ -11,12 +11,12 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
     locale === "ar"
       ? [
           { icon: ShieldCheck, text: "صلاحيات دقيقة لكل عضو في كل مشروع، مطبّقة على مستوى قاعدة البيانات." },
-          { icon: ClipboardList, text: "مهام ومستندات ونقاشات منظمة لفريقك البحثي." },
+          { icon: ClipboardList, text: "مهام خاصة ومراجعات ونتائج معتمدة تُنشر لفريقك فقط بعد الاعتماد." },
           { icon: History, text: "سجل تدقيق كامل وغير قابل للتعديل لكل تغيير." },
         ]
       : [
           { icon: ShieldCheck, text: "Fine-grained, per-project permissions enforced by the database." },
-          { icon: ClipboardList, text: "Tasks, documents and discussions organised for your research team." },
+          { icon: ClipboardList, text: "Private tasks and reviews; your team sees only approved, published results." },
           { icon: History, text: "A complete, immutable audit trail of every change." },
         ];
 

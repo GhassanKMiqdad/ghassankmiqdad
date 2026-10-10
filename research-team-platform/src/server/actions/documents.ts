@@ -9,14 +9,40 @@ import { documentStoragePath, isDocumentPathFor, resolveFileType } from "@/lib/f
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { uuidField } from "@/lib/validation/common";
 import { documentDetailsSchema, finalizeUploadSchema, prepareUploadSchema } from "@/lib/validation/document";
-import { assertProjectPermission } from "@/server/access";
-import { parseInput, runAction, unwrap } from "@/server/action";
+import { canAttachTaskFile, canManageTaskFile } from "@/lib/permissions/policy";
+import { assertProjectAccess, assertProjectPermission } from "@/server/access";
+import { parseInput, runAction, unwrap, unwrapMaybe } from "@/server/action";
 import { getDocumentForAction } from "@/server/queries/documents";
 import { DOCUMENT_BUCKET, SIGNED_URL_TTL_SECONDS } from "@/server/storage";
 
 function revalidateDocumentPaths(projectId: string) {
   revalidatePath("/documents");
   revalidatePath(`/projects/${projectId}`, "layout");
+}
+
+/**
+ * Upload rights: a private task file follows the task (the responsible member
+ * while working on it, or a supervisor); a library file needs documents.upload.
+ * The database re-checks both (documents RLS + documents_task_file_guard).
+ */
+async function assertUploadAllowed(projectId: string, taskId: string | null | undefined) {
+  if (!taskId) {
+    await assertProjectPermission(projectId, "documents.upload");
+    return;
+  }
+  const access = await assertProjectAccess(projectId);
+  const supabase = await createSupabaseServerClient();
+  const task = unwrapMaybe(
+    await supabase
+      .from("tasks")
+      .select("id, created_by, assigned_to, status")
+      .eq("id", taskId)
+      .eq("project_id", projectId)
+      .maybeSingle(),
+  );
+  if (!task) throw new AppError("NOT_FOUND");
+  const snapshot = { createdBy: task.created_by, assignedTo: task.assigned_to, status: task.status };
+  if (!canAttachTaskFile(access, snapshot)) throw new AppError("TASK_EDIT_FORBIDDEN");
 }
 
 /**
@@ -29,7 +55,7 @@ export async function prepareDocumentUploadAction(
 ): Promise<ActionResult<{ documentId: string; storagePath: string; token: string; mimeType: string }>> {
   return runAction(async () => {
     const values = parseInput(prepareUploadSchema, input);
-    await assertProjectPermission(values.projectId, "documents.upload");
+    await assertUploadAllowed(values.projectId, values.taskId);
 
     const fileType = resolveFileType(values.fileName);
     if (!fileType) throw new AppError("FILE_TYPE_NOT_ALLOWED");
@@ -55,7 +81,7 @@ export async function prepareDocumentUploadAction(
 export async function finalizeDocumentUploadAction(input: unknown): Promise<ActionResult<{ documentId: string }>> {
   return runAction(async () => {
     const values = parseInput(finalizeUploadSchema, input);
-    await assertProjectPermission(values.projectId, "documents.upload");
+    await assertUploadAllowed(values.projectId, values.taskId);
 
     if (!isDocumentPathFor(values.projectId, values.documentId, values.storagePath)) {
       throw new AppError("INVALID_INPUT");
@@ -68,6 +94,7 @@ export async function finalizeDocumentUploadAction(input: unknown): Promise<Acti
       await supabase.from("documents").insert({
         id: values.documentId,
         project_id: values.projectId,
+        task_id: values.taskId ?? null,
         title: values.title,
         description: values.description,
         file_name: values.fileName,
@@ -78,6 +105,7 @@ export async function finalizeDocumentUploadAction(input: unknown): Promise<Acti
     );
 
     revalidateDocumentPaths(values.projectId);
+    if (values.taskId) revalidatePath(`/projects/${values.projectId}/tasks/${values.taskId}`);
     return { documentId: values.documentId };
   });
 }
@@ -101,16 +129,36 @@ export async function discardDocumentUploadAction(projectId: string, storagePath
   });
 }
 
+/**
+ * Library files: documents.edit / documents.delete. Task files: their uploader or
+ * a supervisor; a file handed in with a version is locked (DOCUMENT_LOCKED).
+ */
+async function assertDocumentManageable(
+  document: { project_id: string; task_id: string | null; uploaded_by: string | null },
+  libraryPermission: "documents.edit" | "documents.delete",
+) {
+  if (!document.task_id) {
+    await assertProjectPermission(document.project_id, libraryPermission);
+    return;
+  }
+  const access = await assertProjectAccess(document.project_id);
+  if (!canManageTaskFile(access, document.uploaded_by)) throw new AppError("PERMISSION_DENIED");
+}
+
 export async function getDocumentUrlAction(
   documentId: string,
   mode: "view" | "download",
 ): Promise<ActionResult<{ url: string }>> {
   return runAction(async () => {
     const id = parseInput(uuidField, documentId);
+    // RLS decides which rows are readable: a private task file only by the task's
+    // supervisors and responsible member, by the team only once published.
     const document = await getDocumentForAction(id);
     if (!document) throw new AppError("NOT_FOUND");
-    await assertProjectPermission(document.project_id, "documents.view");
+    if (document.task_id) await assertProjectAccess(document.project_id);
+    else await assertProjectPermission(document.project_id, "documents.view");
 
+    // Signed with the caller's session: the storage SELECT policy applies the same rule.
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.storage
       .from(DOCUMENT_BUCKET)
@@ -128,7 +176,7 @@ export async function updateDocumentAction(documentId: string, input: unknown): 
     const values = parseInput(documentDetailsSchema, input);
     const document = await getDocumentForAction(id);
     if (!document) throw new AppError("NOT_FOUND");
-    await assertProjectPermission(document.project_id, "documents.edit");
+    await assertDocumentManageable(document, "documents.edit");
 
     const supabase = await createSupabaseServerClient();
     const updated = unwrap(
@@ -141,6 +189,7 @@ export async function updateDocumentAction(documentId: string, input: unknown): 
     if (updated.length === 0) throw new AppError("PERMISSION_DENIED");
 
     revalidateDocumentPaths(document.project_id);
+    if (document.task_id) revalidatePath(`/projects/${document.project_id}/tasks/${document.task_id}`);
     return null;
   });
 }
@@ -150,7 +199,7 @@ export async function deleteDocumentAction(documentId: string): Promise<ActionRe
     const id = parseInput(uuidField, documentId);
     const document = await getDocumentForAction(id);
     if (!document) throw new AppError("NOT_FOUND");
-    await assertProjectPermission(document.project_id, "documents.delete");
+    await assertDocumentManageable(document, "documents.delete");
 
     const supabase = await createSupabaseServerClient();
     const deleted = unwrap(await supabase.from("documents").delete().eq("id", id).select("id"));
@@ -161,6 +210,7 @@ export async function deleteDocumentAction(documentId: string): Promise<ActionRe
     if (error) console.error("[documents] file removal failed", error.message);
 
     revalidateDocumentPaths(document.project_id);
+    if (document.task_id) revalidatePath(`/projects/${document.project_id}/tasks/${document.task_id}`);
     return null;
   });
 }

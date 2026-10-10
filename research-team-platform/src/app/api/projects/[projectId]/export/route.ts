@@ -56,6 +56,24 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/proj
   const { format } = parsedQuery.data;
   const supabase = await createSupabaseServerClient();
 
+  const configuredLimit = Number.parseInt(process.env.EXPORT_RATE_LIMIT ?? "5", 10);
+  const configuredWindow = Number.parseInt(process.env.EXPORT_RATE_WINDOW_SECONDS ?? "60", 10);
+  const rateLimit = await supabase.rpc("check_project_export_rate_limit", {
+    p_project_id: projectId,
+    p_limit: Number.isFinite(configuredLimit) ? configuredLimit : 5,
+    p_window_seconds: Number.isFinite(configuredWindow) ? configuredWindow : 60,
+  });
+  if (rateLimit.error || !rateLimit.data?.[0]) {
+    return NextResponse.json({ error: t.errors.UNEXPECTED }, { status: 500 });
+  }
+  if (!rateLimit.data[0].allowed) {
+    const retryAfter = Math.max(1, rateLimit.data[0].retry_after ?? 60);
+    return NextResponse.json(
+      { error: t.errors.RATE_LIMITED },
+      { status: 429, headers: { "Retry-After": String(retryAfter), "Cache-Control": "no-store" } },
+    );
+  }
+
   // Audit first: if the export cannot be recorded, it does not happen.
   const audit = await supabase.rpc("record_project_export", {
     p_project_id: projectId,
@@ -165,6 +183,7 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/proj
           .from("documents")
           .select("id, title, description, file_name, mime_type, size_bytes, created_at, uploaded_by")
           .eq("project_id", projectId)
+          .is("task_id", null)
       : Promise.resolve({ data: null, error: null }),
     supabase
       .from("comments")

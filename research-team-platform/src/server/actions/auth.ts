@@ -106,7 +106,7 @@ export async function signUpAction(input: unknown): Promise<ActionResult<{ needs
       password: values.password,
       options: {
         data: { full_name: values.fullName },
-        emailRedirectTo: `${siteUrl}/auth/callback?next=/dashboard`,
+        emailRedirectTo: `${siteUrl}/auth/callback?next=/workspace`,
       },
     });
 
@@ -119,7 +119,7 @@ export async function signUpAction(input: unknown): Promise<ActionResult<{ needs
     }
 
     if (data.session) {
-      redirect("/dashboard");
+      redirect("/workspace");
     }
     return { ok: true, data: { needsConfirmation: true } };
   });
@@ -156,7 +156,7 @@ export async function updatePasswordAction(input: unknown): Promise<ActionResult
       if (!key) console.error("[auth] password update failed", error.code, error.message);
       return authFailure(key ?? "weakPassword");
     }
-    redirect("/dashboard");
+    redirect("/workspace");
   });
 }
 

@@ -41,7 +41,7 @@ import { listMyTeamMemberships, listPublications } from "@/server/queries/teams"
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n();
-  return { title: t.dashboard.title };
+  return { title: { absolute: t.dashboard.title } };
 }
 
 export default async function DashboardPage() {
@@ -63,7 +63,12 @@ export default async function DashboardPage() {
 
   const header = (
     <PageHeader
-      title={fmt(t.dashboard.greeting, { name: profile.displayName })}
+      title={
+        <>
+          <span className="block text-sm font-medium text-primary">{t.dashboard.title}</span>
+          {fmt(t.dashboard.greeting, { name: profile.displayName })}
+        </>
+      }
       description={
         <span className="flex flex-wrap items-center gap-2">
           <OrgRoleBadge role={orgRole} />

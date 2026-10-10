@@ -34,7 +34,7 @@ export const newPasswordSchema = z
   });
 
 /** Only same-origin relative paths are accepted as post-login redirects. */
-export function safeRedirectPath(value: unknown, fallback = "/dashboard"): string {
+export function safeRedirectPath(value: unknown, fallback = "/workspace"): string {
   if (typeof value !== "string") return fallback;
   if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return fallback;
   if (value.startsWith("/login") || value.startsWith("/signup") || value.startsWith("/auth/")) return fallback;

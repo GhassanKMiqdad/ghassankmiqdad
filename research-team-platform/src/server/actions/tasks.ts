@@ -32,7 +32,7 @@ import { parseInput, runAction, unwrap, unwrapMaybe } from "@/server/action";
 
 function revalidateTaskPaths(projectId: string, taskId?: string) {
   revalidatePath("/tasks");
-  revalidatePath("/dashboard");
+  revalidatePath("/workspace");
   revalidatePath("/schedule");
   revalidatePath("/results");
   revalidatePath("/reports");
@@ -284,6 +284,7 @@ export async function submitTaskAction(taskId: string, input: unknown): Promise<
         p_summary: values.summary,
         p_deliverable_links: values.links,
         p_notes: values.notes,
+        p_document_ids: values.documentIds,
       }),
     );
     const submission = unwrap(
