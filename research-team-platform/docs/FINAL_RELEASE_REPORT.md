@@ -268,3 +268,46 @@ Run supabase link --project-ref jkvxhxrclfvoxqcniyck to setup IPv4 connection.
 
 - **Merge Readiness: GO** — الكود المدموج في `main` اجتاز CI المطلوب، بما في ذلك الإصلاح الأمني في PR #10.
 - **Production Readiness: NO-GO** — لم يُثبت تطبيق migrations على Supabase الجديد، ولا تزال إعدادات Auth/SMTP/Redirect URLs وBackup/PITR/Storage restore وVercel Production URL غير مثبتة. لا يجوز إطلاق `https://team-nesthire.vercel.app` حاليًا؛ الدليل السابق يثبت `404 DEPLOYMENT_NOT_FOUND`.
+
+## K. تحديث تنفيذ Supabase الفعلي — 2026-10-10
+
+### ما نُفّذ فعليًا على المشروع الجديد
+
+بعد التحقق من أن المشروع الهدف هو `jkvxhxrclfvoxqcniyck` وأن سجل الترحيلات كان فارغًا، نجح الاختبار المحلي النهائي:
+
+```text
+All tests successful.
+Files=11, Tests=389
+Result: PASS
+```
+
+تم استخدام مسار Supabase الرسمي عبر MCP لأن اتصال CLI المباشر إلى `db.jkvxhxrclfvoxqcniyck.supabase.co` محجوب بـIPv6. سجل القاعدة الفعلي الآن هو:
+
+- `core_schema`
+- `core_schema_regex_fix`
+- `core_schema_regex_fix_v2`
+- `permission_catalog`
+- `revoke_rls_auto_enable_execute`
+
+ملاحظات مهمة:
+
+- `core_schema_regex_fix` و`core_schema_regex_fix_v2` كانا إصلاحين تصحيحيين لقيد Regex وصل بتهريب غير صحيح أثناء تحويل أول migration يدويًا؛ لا توجد بيانات تطبيقية في المشروع.
+- تم تطبيق `revoke_rls_auto_enable_execute` مبكرًا كإجراء دفاعي، وأصبح الوصول المباشر للدالة محجوبًا.
+- لم تُطبق migrations الرسمية الـ20 كاملة؛ migrations من `helper_functions` فصاعدًا ما زالت ناقصة.
+- لا يجوز اعتبار المشروع جاهزًا للاستخدام حتى تكتمل السلسلة الرسمية وتُعاد مقارنة سجل القاعدة مع `origin/main`.
+
+### العائق والخطوة المطلوبة
+
+يلزم وضع **Supabase Session Pooler — Session Mode** connection string للمشروع الجديد في Secret Manager رسمي أو بيئة CI مخولة باسم مثل `SUPABASE_DB_URL`، ثم تشغيل:
+
+```text
+npx supabase@2.119.0 db push --db-url "$SUPABASE_DB_URL" --dry-run
+npx supabase@2.119.0 db push --db-url "$SUPABASE_DB_URL"
+```
+
+لا ينبغي إرسال Connection String أو كلمة مرور قاعدة البيانات في المحادثة أو إدراجها في Git. يجب أن يطابق المضيف والمنفذ واسم المستخدم ما تعرضه صفحة Connect للمشروع الجديد، ويجب ألا يشير إلى المشروع القديم.
+
+### القرار بعد التنفيذ الجزئي
+
+- **Merge Readiness: GO** — لا يزال الكود في `main` وCI ناجحين.
+- **Production Readiness: NO-GO** — قاعدة Supabase الجديدة في حالة تطبيق جزئي، والمigrations الرسمية غير مكتملة، وVercel ما زال يعيد `403` إداريًا و`team-nesthire.vercel.app` يعيد `404 DEPLOYMENT_NOT_FOUND`.

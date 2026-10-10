@@ -109,3 +109,18 @@ supabase db push --db-url <IPv4 pooler URL> --dry-run
 5. تشغيل اختبارات الصلاحيات والخصوصية وRate Limiting المناسبة على المشروع الجديد.
 
 **الحالة:** جاهزية الكود والمخطط المحلي مثبتة، والمشروع الجديد تم التحقق من هويته وربطه؛ تطبيق Supabase السحابي **لم يبدأ** لأن اتصال PostgreSQL IPv4 لم يتوفر. لا توجد migrations مطبقة فعليًا.
+
+## تحديث التنفيذ الفعلي — 2026-10-10
+
+- الاختبار المحلي النهائي: **389 اختبارًا ناجحًا من 11 ملفًا**.
+- بسبب حجب اتصال CLI المباشر بـIPv6، استُخدم مسار Supabase الرسمي عبر MCP بعد التحقق من المشروع الجديد.
+- سجل Supabase الفعلي بعد التنفيذ الجزئي:
+  - `core_schema`
+  - `core_schema_regex_fix`
+  - `core_schema_regex_fix_v2`
+  - `permission_catalog`
+  - `revoke_rls_auto_enable_execute`
+- لم تُطبق السلسلة الرسمية كاملة؛ migrations من `helper_functions` فصاعدًا غير مطبقة.
+- لم تُستخدم `db reset --linked` ولم يُطبق Seed ولم تُحذف بيانات تطبيقية.
+- يلزم الآن Session Pooler — Session Mode عبر Secret Manager/CI باسم `SUPABASE_DB_URL` حتى يمكن تنفيذ `dry-run` و`db push` الرسميين دون تحويل SQL يدويًا.
+- **Production Readiness: NO-GO** إلى أن يكتمل سجل migrations الرسمي وتُراجع الجداول والدوال والسياسات وStorage على القاعدة السحابية.
