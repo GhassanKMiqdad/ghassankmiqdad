@@ -226,3 +226,18 @@ https://nesthire-nbws619we-ghassankmiqdad.vercel.app/
 على commit `fe98f83518100897cb11ce3859944a7fe94d20c0` نجحت بوابتا GitHub Actions: **Lint, types, unit tests and build** و **Database and API security tests (Supabase)**. كما نجح نشر Vercel Preview `https://nesthire-a4qgq8gzo-ghassankmiqdad.vercel.app`، بينما بقي فحص Supabase Preview متخطى لأن إنشاء preview branch/المورد السحابي ليس جزءًا من الخطة المجانية المعتمدة. حالة PR8 `OPEN` و`mergeStateStatus=CLEAN`؛ لم يتم الدمج.
 
 هذا يرفع **Merge Readiness** إلى **GO** من ناحية الكود والفحوص المرتبطة بالـPR، مع بقاء الدمج قرارًا منفصلًا لمراجعة المالك. ولا يغيّر **Production Readiness**: تبقى **NO-GO** لأن رابط `team-nesthire.vercel.app` يعيد `DEPLOYMENT_NOT_FOUND`، ولأن إعداد Supabase الإنتاجي، الترحيلات السحابية، Auth/SMTP/Redirect URLs، النسخ الاحتياطية وPITR، واختبار E2E الخارجي لم تُثبت.
+
+## K. حالة ما بعد دمج PR8 — 2026-10-10
+
+تم دمج PR8 إلى `main` بنجاح. commit `main` الحالي هو `868517cf962ee6695fe88f5964c19b0fe696f883`، وPR8 حالته `MERGED`. فحوص GitHub Actions الإلزامية على الإصدار قبل الدمج كانت ناجحة، مع بقاء Supabase Preview متخطى وليس نجاحًا.
+
+إعادة التحقق الحي بعد الدمج أثبتت أن مشروع Supabase ذي المعرّف `vqorfahkecswjrqgizhy` ما زال `ACTIVE_HEALTHY`، وأن سجل migrations السحابي ما زال ينتهي عند `20261007000500_nesthire_security`. لذلك لم تُطبق migrations `20261008000100` و`20261008000200` و`20261008000300` و`20261009000100` و`20261010000100` على الإنتاج.
+
+لا توجد صلاحية Vercel إدارية في الموصل الحالي. Vercel أعاد الخطأ `403 forbidden: Not authorized` على نطاق الفريق `ghassankmiqdad`، وVercel CLI غير مثبت في Sandbox. لذلك لم أغيّر Root Directory أو Environment Variables أو النطاق أو Production Deployment. الفحص العام الأخير لـ`https://team-nesthire.vercel.app` ما زال يعيد `404 DEPLOYMENT_NOT_FOUND`.
+
+لم أطبق أي migration إنتاجية لأن دليل الاستعادة والنسخ الاحتياطية/PITR غير متاح، ولأن ذلك سيخالف شرط إثبات إمكانية الاستعادة قبل التغيير. كما لم أجرِ اختبارًا وظيفيًا على بيانات حقيقية؛ لا توجد بيئة Production منشورة عامة صالحة للاختبار.
+
+**القرار الحالي:**
+
+- **Merge Readiness: GO — مكتمل ومثبت بدمج `main` والـCI الإلزامي.**
+- **Production Readiness: NO-GO — ما زال محجوبًا بترحيلات Supabase، صلاحيات Vercel، إعدادات Auth/SMTP/Redirect URLs، النسخ الاحتياطية/PITR، وغياب رابط Production عام.**
