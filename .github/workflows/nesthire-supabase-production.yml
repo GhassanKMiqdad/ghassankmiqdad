@@ -46,16 +46,15 @@ jobs:
           test -n "${SUPABASE_DB_URL:-}" || { echo "SUPABASE_DB_URL is not configured" >&2; exit 1; }
           python3 - <<'PY'
           import os
-          from urllib.parse import urlsplit
           value = os.environ["SUPABASE_DB_URL"]
-          parsed = urlsplit(value)
-          if parsed.scheme not in {"postgres", "postgresql"}:
+          lowered = value.lower()
+          if not lowered.startswith(("postgres://", "postgresql://")):
               raise SystemExit("SUPABASE_DB_URL must be a PostgreSQL URL")
-          if not parsed.hostname or "pooler" not in parsed.hostname.lower():
+          if "pooler.supabase.com" not in lowered:
               raise SystemExit("SUPABASE_DB_URL must use the Supabase Session Pooler host")
-          if parsed.port != 5432:
+          if ":5432/" not in lowered:
               raise SystemExit("SUPABASE_DB_URL must use Session Pooler port 5432")
-          if "vqorfahkecswjrqgizhy" in value:
+          if "vqorfahkecswjrqgizhy" in lowered:
               raise SystemExit("old Supabase project reference detected")
           print("SUPABASE_DB_URL present; Session Pooler host and port validated")
           PY
@@ -93,12 +92,11 @@ jobs:
           test -n "${SUPABASE_DB_URL:-}" || { echo "SUPABASE_DB_URL is not configured" >&2; exit 1; }
           python3 - <<'PY'
           import os
-          from urllib.parse import urlsplit
           value = os.environ["SUPABASE_DB_URL"]
-          parsed = urlsplit(value)
-          if parsed.scheme not in {"postgres", "postgresql"} or "pooler" not in (parsed.hostname or '').lower() or parsed.port != 5432:
+          lowered = value.lower()
+          if not lowered.startswith(("postgres://", "postgresql://")) or "pooler.supabase.com" not in lowered or ":5432/" not in lowered:
               raise SystemExit("SUPABASE_DB_URL is not a valid Session Pooler URL")
-          if "vqorfahkecswjrqgizhy" in value:
+          if "vqorfahkecswjrqgizhy" in lowered:
               raise SystemExit("old Supabase project reference detected")
           print("SUPABASE_DB_URL validated")
           PY
