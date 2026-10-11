@@ -203,3 +203,85 @@ npm run test:integration
 ```
 
 Never run `supabase db reset`, `--include-seed`, or `npm run seed` against production.
+
+## 10. Real Month-1 data migration (prepared and rehearsed, 2026-10-11)
+
+Source of truth: `vqorfahkecswjrqgizhy` (read-only access only; nothing was changed there).
+The import file contains real business data and is therefore **not** in this public
+repository; it is kept privately in the session workspace and handed to the owner.
+
+### Source inventory (read-only)
+
+| Table                                                                                             | Rows      | Notes                                                                       |
+| ------------------------------------------------------------------------------------------------- | --------- | --------------------------------------------------------------------------- |
+| tasks                                                                                             | 66        | all `scheduled`, all created 2026-10-07 15:07:01 UTC and never edited since |
+| task_dependencies                                                                                 | 90        |                                                                             |
+| team_members (roster)                                                                             | 9         | 1 linked to an account (GH, team lead), 8 pending without accounts          |
+| teams / projects / project_members                                                                | 1 / 1 / 1 | the Director is the project owner                                           |
+| activity_logs                                                                                     | 165       | 66 `task.created`, 90 `task.dependency_added`, 9 other events               |
+| auth.users / identities                                                                           | 1 / 1     | the Director                                                                |
+| profiles                                                                                          | 1         | Director, platform admin                                                    |
+| documents, comments, notifications, submissions, reviews, publications, invites, user_permissions | 0         |                                                                             |
+| storage.objects                                                                                   | 0         | no files to migrate (bucket existed, empty)                                 |
+
+### Method
+
+- Export: verbatim rows through the Supabase MCP, written straight to disk. JSON payload
+  columns are exported as text, because the transport converts JSON numbers (`1.00`
+  would become `1`).
+- Mapping: **identity mapping**. All UUIDs, timestamps, assignments, roster links and
+  ownership are kept exactly; no ID is rewritten.
+- Identity: the Director's auth user and email identity are recreated with the **same
+  UUID**. The password hash is **not** copied; the owner sets a new password through
+  "Forgot password" (verified below).
+- Import: one transaction. Guards refuse to run if:
+  - the schema is incomplete;
+  - the data already exists (re-runs are no-ops);
+  - the email belongs to a different account.
+- Exact values: user triggers on the seven business tables are paused **inside the
+  transaction only**, so source timestamps stay and no synthetic audit rows appear.
+  Foreign keys and check constraints stay enforced. The original 165 history entries are
+  copied; IP address and user agent (4 entries) are deliberately not copied (data
+  minimisation). `tasks.assigned_at` stays NULL, as an in-place upgrade would leave it.
+- In-transaction verification of the counts and of the Director's flags.
+
+### Evidence (rehearsal on the local Supabase stack, real GoTrue, all 20 migrations)
+
+Fidelity hashes, identical queries on source and target (`md5` of ordered row text):
+
+| Dimension                      | Source                             | Imported  | Rows |
+| ------------------------------ | ---------------------------------- | --------- | ---- |
+| tasks (content)                | `2a694585e753fb31e4b1377a5330d181` | identical | 66   |
+| tasks (ids, links, timestamps) | `9b0ad4a8f8aeaa51dec1946718288f53` | identical | 66   |
+| dependencies                   | `a4893d3f8119cbc186383e45624a9e9f` | identical | 90   |
+| roster                         | `3fcde86c41dcc88c339eab6b2b62b2dd` | identical | 9    |
+| team, project, membership      | `478f21881d063146fba03e6fad609f1b` | identical | 3    |
+| history                        | `4bbb37c5335bca4e87db02c2dec0cac8` | identical | 165  |
+| profile                        | `60ad735c0e5ca005d6db449e68900fb9` | identical | 1    |
+| auth identity                  | `f2dd120e0f8c8facbc77308a0d3bde24` | identical | 1    |
+
+The plan text was also proven identical to the historical load script
+(`12a9f38:scripts/sql/nesthire-month-01.sql`): replaying it gives the same content hash.
+
+Behaviour:
+
+- Second run: refused by the guard, nothing changed.
+- Identity, through GoTrue:
+  - password login before recovery is refused (400);
+  - recovery email → token-hash exchange → new password → sign-in all succeed, with the
+    same UUID.
+- RLS as the Director: 66 tasks, 90 dependencies, 9 roster members, 165 history entries.
+- Anonymous: 401.
+- Unrelated signed-in account:
+  - 0 tasks, dependencies, roster entries, teams, projects and history;
+  - a PATCH on a real task by UUID changes 0 rows;
+  - `get_project_team` returns `PERMISSION_DENIED`.
+
+### Running it on production
+
+Order: part-2 schema script (section 4) → import → verification query. After the
+import, the Director uses "Forgot password" on the deployed site. This needs Supabase
+Auth Site URL and redirect URLs set to the production domain, and email delivery (the
+built-in sender only reaches members of the Supabase organisation). The 8 pending
+roster members are linked when the Director adds each email under Teams → Edit member
+and the person signs up; their tasks are already attached to their roster entries.
