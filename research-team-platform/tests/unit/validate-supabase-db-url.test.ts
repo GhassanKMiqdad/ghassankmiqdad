@@ -153,6 +153,14 @@ describe("validator hints", () => {
     for (const c of codes) expect(HINTS[c], c).toBeTruthy();
   });
 
+  it("rejects a bracketed pooler host (the 2026-10-11 secret defect) with a host hint", async () => {
+    const { HINTS } = await import("../../scripts/ci/validate-supabase-db-url.mjs");
+    expect(
+      code(`postgresql://postgres.${REF}:${PASSWORD}@[aws-0-ap-southeast-1.pooler.supabase.com]:5432/postgres`),
+    ).toBe("ILLEGAL_CHARACTERS");
+    expect(HINTS.ILLEGAL_CHARACTERS).toContain("around the host");
+  });
+
   it("explains the dashboard template mistake without echoing the value", () => {
     const value = `postgresql://postgres.${REF}:[${PASSWORD}]@${HOST}:5432/postgres`;
     expect(code(value)).toBe("ILLEGAL_CHARACTERS");

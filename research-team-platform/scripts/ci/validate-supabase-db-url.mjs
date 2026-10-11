@@ -136,7 +136,7 @@ export const HINTS = Object.freeze({
   MISSING: "Set the SUPABASE_DB_URL secret (Supabase -> Connect -> Session pooler URI).",
   TOO_LONG: "The value is longer than any Session Pooler URI; paste only the URI.",
   ILLEGAL_CHARACTERS:
-    "Remove spaces/newlines and the [ ] brackets around the password from the dashboard template; percent-encode special characters in the password.",
+    "Remove spaces/newlines and any [ ] brackets (around the host, e.g. @[aws-0-...pooler.supabase.com], or around the password from the dashboard template); percent-encode special characters in the password.",
   FORBIDDEN_PROJECT: "The value points at the retired project; use the jkvxhxrclfvoxqcniyck Session Pooler URI.",
   SCHEME: "The URI must start with postgresql:// (lower case).",
   DATABASE: "The URI must end with /postgres (optionally ?sslmode=require).",
