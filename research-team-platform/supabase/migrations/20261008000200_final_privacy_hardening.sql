@@ -19,8 +19,9 @@
 --     previous assignee loses the task entirely. Execution notes and progress
 --     of the previous assignee are cleared from the task row on reassignment
 --     (their values remain in the audit log for supervisors).
---  3. External deliverable links: https only, no embedded credentials, never
---     a Storage API URL. They are references, not proof of anything.
+--  3. External deliverable links: well-formed https only, no embedded
+--     credentials, never a Storage API URL. Migration 20261008000300 adds
+--     strict host and port parsing. Links are references, not proof of anything.
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------

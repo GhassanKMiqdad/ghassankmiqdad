@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import type { ActionResult } from "@/lib/action-result";
 import { AppError } from "@/lib/errors";
+import { getServiceRoleKey } from "@/lib/env.server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { uuidField } from "@/lib/validation/common";
@@ -70,6 +71,7 @@ export async function deleteProjectAction(projectId: string, input: unknown): Pr
     const { confirmation } = parseInput(deleteProjectSchema, input);
     const access = await assertProjectPermission(id, "project.delete");
     if (confirmation.trim() !== access.projectName.trim()) throw new AppError("CONFIRMATION_MISMATCH");
+    if (!getServiceRoleKey()) throw new AppError("ADMIN_UNAVAILABLE");
 
     const supabase = await createSupabaseServerClient();
     const deleted = unwrap(await supabase.from("projects").delete().eq("id", id).select("id"));

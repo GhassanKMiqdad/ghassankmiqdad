@@ -4,7 +4,8 @@ import type { Dictionary } from "./en";
 export const ar: Dictionary = {
   app: {
     name: "مساحة عمل NestHire",
-    tagline: "عمل خاص، مراجعة دقيقة، ونتائج معتمدة تُنشر لفريقك.",
+    tagline:
+      "مساحة العمل الداخلية لفريق NestHire لتطوير وإدارة منصة التوظيف الذكي وتنظيم المهام والتعاون وتسليم الأعمال ومراجعتها.",
   },
   common: {
     save: "حفظ",
@@ -139,7 +140,7 @@ export const ar: Dictionary = {
   dashboard: {
     title: "مساحة عمل NestHire",
     greeting: "مرحبًا بعودتك، {name}",
-    subtitle: "مهامك ومراجعاتك ونتائج فريقك في مكان واحد.",
+    subtitle: "نظرة عامة على ما يجري في مشاريع NestHire الخاصة بك.",
     stats: {
       totalProjects: "المشاريع",
       activeTasks: "المهام النشطة",
@@ -176,15 +177,15 @@ export const ar: Dictionary = {
   },
   projects: {
     title: "المشاريع",
-    subtitle: "المشاريع البحثية التي أنت عضو فيها.",
+    subtitle: "المشاريع التي أنت عضو فيها.",
     new: "مشروع جديد",
-    createTitle: "إنشاء مشروع بحثي",
+    createTitle: "إنشاء مشروع",
     createSubtitle: "ستصبح مالك المشروع ويمكنك بعد ذلك دعوة فريقك.",
     editTitle: "تفاصيل المشروع",
     fields: {
       name: "اسم المشروع",
       description: "الوصف",
-      researchGoal: "هدف البحث",
+      researchGoal: "هدف المشروع",
       status: "الحالة",
       startDate: "تاريخ البدء",
       deadline: "الموعد النهائي",
@@ -193,12 +194,12 @@ export const ar: Dictionary = {
     placeholders: {
       name: "مثال: دراسة التشخيص بمساعدة الذكاء الاصطناعي",
       description: "السياق والنطاق والمنهجية…",
-      researchGoal: "ما الذي يجب أن يحققه هذا البحث؟",
+      researchGoal: "ما الذي يجب أن يحققه هذا المشروع؟",
     },
     members: "{count} أعضاء",
     tasksCount: "{count} مهام",
     empty: "لا توجد مشاريع بعد",
-    emptyCreate: "أنشئ مشروعك البحثي الأول لتبدأ بتنظيم المهام والمستندات والفريق.",
+    emptyCreate: "أنشئ مشروعك الأول لتبدأ بتنظيم المهام والمستندات والفريق.",
     emptyNoRights: "ستظهر المشاريع هنا عندما يضيفك مالك مشروع إلى فريقه.",
     created: "تم إنشاء المشروع.",
     updated: "تم تحديث المشروع.",
@@ -218,12 +219,12 @@ export const ar: Dictionary = {
     },
     overview: {
       about: "عن المشروع",
-      goal: "هدف البحث",
+      goal: "هدف المشروع",
       timeline: "الجدول الزمني",
       progress: "التقدم",
       discussion: "نقاش المشروع",
       team: "الفريق",
-      noGoal: "لم يتم تحديد هدف البحث بعد.",
+      noGoal: "لم يتم تحديد هدف المشروع بعد.",
       daysLeft: "متبقٍ {count} يومًا",
       dueToday: "الموعد اليوم",
       pastDeadline: "تجاوز الموعد النهائي",
@@ -675,7 +676,7 @@ export const ar: Dictionary = {
   documents: {
     title: "المستندات",
     subtitle: "الملفات المشتركة في مشاريعك.",
-    projectSubtitle: "الأوراق البحثية ومجموعات البيانات وملفات هذا المشروع.",
+    projectSubtitle: "الأوراق الداخلية ومجموعات البيانات وملفات هذا المشروع.",
     upload: "رفع مستند",
     uploadTitle: "رفع مستند",
     uploadDescription: "ملفات PDF وOffice وCSV والنصوص وLaTeX وZIP والصور حتى {size}.",
@@ -696,7 +697,7 @@ export const ar: Dictionary = {
       description: "عمّ يتحدث هذا الملف؟",
     },
     empty: "لا توجد مستندات بعد",
-    emptyHint: "ارفع الأوراق البحثية أو البيانات أو التقارير لمشاركتها مع فريقك.",
+    emptyHint: "ارفع الملفات أو البيانات أو التقارير لمشاركتها مع فريقك.",
     uploaded: "تم رفع المستند.",
     updated: "تم تحديث المستند.",
     deleted: "تم حذف المستند.",
@@ -807,7 +808,7 @@ export const ar: Dictionary = {
   roles: {
     owner: "المالك",
     manager: "مدير",
-    member: "عضو بحث",
+    member: "عضو الفريق",
     reviewer: "مراجِع",
   },
   roleDescriptions: {
@@ -994,7 +995,7 @@ export const ar: Dictionary = {
       depends_on_code: "المهمة السابقة",
       assigned_to: "المكلَّف",
       name: "الاسم",
-      research_goal: "هدف البحث",
+      research_goal: "هدف المشروع",
       start_date: "تاريخ البدء",
       deadline: "الموعد النهائي",
       content: "التعليق",
@@ -1050,7 +1051,7 @@ export const ar: Dictionary = {
     },
     admin: {
       title: "إدارة المنصة",
-      description: "حدّد من يستطيع إنشاء المشاريع البحثية ومن يدير المنصة.",
+      description: "حدّد من يستطيع إنشاء المشاريع ومن يدير المنصة.",
       platformAdmin: "مدير المنصة",
       canCreateProjects: "يستطيع إنشاء المشاريع",
       joined: "تاريخ الانضمام",
@@ -1099,6 +1100,7 @@ export const ar: Dictionary = {
     INVITE_UNAVAILABLE: "دعوة مستخدمين جدد غير مهيأة على الخادم (مفتاح الخدمة غير موجود).",
     CONFIRMATION_MISMATCH: "نص التأكيد غير مطابق.",
     RATE_LIMITED: "طلبات كثيرة. يرجى الانتظار قليلًا.",
+    ADMIN_UNAVAILABLE: "خدمة الإدارة الخادمية غير مهيأة.",
     UNEXPECTED: "حدث خطأ غير متوقع. يرجى المحاولة مجددًا.",
   },
   pages: {

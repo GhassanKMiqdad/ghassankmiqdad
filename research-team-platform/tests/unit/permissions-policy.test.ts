@@ -81,11 +81,14 @@ describe("tasks: supervisor (owner / Director / Team Lead)", () => {
     expect(canUpdateTask(owner, closed)).toBe(false);
   });
 
-  it("reviews others' work; nobody — Director included — reviews their own", () => {
+  it("reviews others' work; project managers may review their own assigned task", () => {
     const own = task(OWNER, OWNER, "submitted");
     expect(canReviewTask(owner, task(OWNER, MEMBER, "submitted"))).toBe(true);
-    expect(canReviewTask(owner, own)).toBe(false);
-    expect(canReviewTask({ ...owner, isDirector: true }, own)).toBe(false);
+    expect(canReviewTask(owner, own)).toBe(true);
+    expect(canReviewTask({ ...owner, isDirector: true }, own)).toBe(true);
+    expect(canReviewTask(accessFor("reviewer", { userId: REVIEWER }), task(REVIEWER, REVIEWER, "submitted"))).toBe(
+      false,
+    );
   });
 });
 
@@ -316,13 +319,12 @@ describe("NestHire hardening: self-approval and private task files", () => {
   const manager = accessFor("manager");
   const member = accessFor("member");
 
-  it("nobody reviews, approves or publishes a version they submitted, even after a reassignment", () => {
+  it("only a manager may self-review while still assigned; reassigned versions remain protected", () => {
     const reassigned = task(MANAGER, OTHER, "submitted");
     expect(canReviewTask(manager, reassigned, MANAGER)).toBe(false);
     expect(canReviewTask(manager, reassigned, OTHER)).toBe(true);
-    // Directors included: self-review is denied for every role.
     expect(canReviewTask({ ...manager, isDirector: true }, reassigned, MANAGER)).toBe(false);
-    expect(canReviewTask({ ...manager, isDirector: true }, task(MANAGER, MANAGER, "submitted"), MANAGER)).toBe(false);
+    expect(canReviewTask(manager, task(MANAGER, MANAGER, "submitted"), MANAGER)).toBe(true);
     expect(canReviewTask(member, task(MANAGER, MEMBER, "submitted"), MEMBER)).toBe(false);
   });
 

@@ -1,6 +1,7 @@
 -- NestHire Workspace final privacy hardening (migration 20261008000200):
--- self-review / self-approval / self-publication denied for EVERY role
--- (Director included), reassignment privacy, unauthorized file rename/delete,
+-- self-review / self-approval / self-publication are limited to an active
+-- project owner/manager or Director assigned to the task; reassignment privacy,
+-- unauthorized file rename/delete,
 -- external-link rules and former members.
 --
 --   owner ........ Director
@@ -10,7 +11,7 @@
 --   reviewer ..... independent reviewer (tasks.view + tasks.review)
 begin;
 \ir _helpers.psql
-select plan(45);
+select plan(47);
 
 select tests.setup_world();
 update public.profiles set is_director = (id = tests.uid('owner'));
@@ -25,31 +26,21 @@ create or replace function pg_temp.path(p_doc text, p_file text) returns text la
 $$;
 
 -- ---------------------------------------------------------------------------
--- 1. The Director cannot review, approve or publish their own work
+-- 1. The Director may self-review while assigned, and publication is explicit
 -- ---------------------------------------------------------------------------
 select tests.authenticate_as('owner');
 insert into public.tasks (project_id, title, assigned_to) values (tests.uid('project_a'), 'Director own work', tests.uid('owner'));
 insert into ids select 'dir', id from public.tasks where title = 'Director own work';
 update public.tasks set status = 'in_progress' where id = pg_temp.id('dir');
 select public.submit_task(pg_temp.id('dir'), 'Director result', '{}', '', '{}');
-select throws_ok(format($$ select public.start_task_review(%L) $$, pg_temp.id('dir')),
-  '42501', 'SELF_REVIEW_FORBIDDEN', 'the Director cannot start the review of their own work');
 
-select tests.authenticate_as('manager');
-select public.start_task_review(pg_temp.id('dir'));
 select tests.authenticate_as('owner');
-select throws_ok(format($$ select public.review_task(%L, 'approved') $$, pg_temp.id('dir')),
-  '42501', 'SELF_REVIEW_FORBIDDEN', 'Director self-approval = DENIED');
-
-select tests.authenticate_as('manager');
+select lives_ok(format($$ select public.start_task_review(%L) $$, pg_temp.id('dir')),
+  'the Director may start review of their own assigned work');
 select lives_ok(format($$ select public.review_task(%L, 'approved', 'Independent approval') $$, pg_temp.id('dir')),
-  'an independent reviewer approves the Director''s work');
-select tests.authenticate_as('owner');
-select throws_ok(format($$ select public.complete_task(%L, '') $$, pg_temp.id('dir')),
-  '42501', 'SELF_REVIEW_FORBIDDEN', 'Director self-publication = DENIED');
-select tests.authenticate_as('manager');
+  'the Director approves their own assigned work');
 select lives_ok(format($$ select public.complete_task(%L, '') $$, pg_temp.id('dir')),
-  'an independent reviewer publishes it');
+  'the Director must explicitly publish their approved work');
 
 -- Reassigning does not open a back door for the Director either.
 select tests.authenticate_as('owner');
@@ -72,8 +63,12 @@ insert into public.tasks (project_id, title, assigned_to) values (tests.uid('pro
 insert into ids select 'lead', id from public.tasks where title = 'Lead task';
 update public.tasks set status = 'in_progress' where id = pg_temp.id('lead');
 select public.submit_task(pg_temp.id('lead'), 'Lead result', '{}', '', '{}');
-select throws_ok(format($$ select public.start_task_review(%L) $$, pg_temp.id('lead')),
-  '42501', 'SELF_REVIEW_FORBIDDEN', 'manager self-review = DENIED');
+select lives_ok(format($$ select public.start_task_review(%L) $$, pg_temp.id('lead')),
+  'the project manager may start review of their own assigned work');
+select lives_ok(format($$ select public.review_task(%L, 'approved') $$, pg_temp.id('lead')),
+  'the project manager may approve their own assigned work');
+select lives_ok(format($$ select public.complete_task(%L, '') $$, pg_temp.id('lead')),
+  'the project manager must explicitly publish their own approved work');
 
 -- ---------------------------------------------------------------------------
 -- 2. Reassignment privacy
@@ -244,6 +239,10 @@ select throws_ok(format($$ select public.submit_task(%L, 's', array['http://exam
   '22023', 'DELIVERABLE_LINK_FORBIDDEN', 'plain http links are refused');
 select throws_ok(format($$ select public.submit_task(%L, 's', array['https://user:secret@example.com/x'], '', '{}') $$, pg_temp.id('links')),
   '22023', 'DELIVERABLE_LINK_FORBIDDEN', 'links with embedded credentials are refused');
+select throws_ok(format($$ select public.submit_task(%L, 's', array['https://example.com:bad/x'], '', '{}') $$, pg_temp.id('links')),
+  '22023', 'DELIVERABLE_LINK_FORBIDDEN', 'a non-numeric URL port is refused');
+select throws_ok(format($$ select public.submit_task(%L, 's', array['https://example.com:99999/x'], '', '{}') $$, pg_temp.id('links')),
+  '22023', 'DELIVERABLE_LINK_FORBIDDEN', 'a port outside the valid range is refused');
 select throws_ok(format($$ select public.submit_task(%L, 's', array['https://abc.supabase.co/storage/v1/object/sign/x?token=y'], '', '{}') $$, pg_temp.id('links')),
   '22023', 'DELIVERABLE_LINK_FORBIDDEN', 'Storage URLs are refused');
 select lives_ok(format($$ select public.submit_task(%L, 's', array['https://github.com/org/repo/pull/1'], '', '{}') $$, pg_temp.id('links')),

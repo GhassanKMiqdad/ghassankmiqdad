@@ -756,7 +756,7 @@ describe.skipIf(!env)("API security — direct requests that bypass the UI", () 
       expect((await rows(a.client.from("task_reviews").select("decision").eq("task_id", task.id))).length).toBe(2);
     });
 
-    it("nobody approves their own work — the Director included — and reassignment does not leak earlier private work", async () => {
+    it("project owners may self-review while assigned, and reassignment does not leak earlier private work", async () => {
       const { owner, member: a, colleague: b } = f.users;
       const director = owner.client;
       const create = async (title: string, assignee: string) =>
@@ -769,16 +769,12 @@ describe.skipIf(!env)("API security — direct requests that bypass the UI", () 
             .single(),
         ).id;
 
-      // The Director submits their own work and cannot review, approve or publish it.
+      // The Director submits their own work and may review it while still assigned.
       const own = await create("Director own work", owner.id);
       must("start", await director.from("tasks").update({ status: "in_progress" }).eq("id", own).select("id"));
       must("submit", await director.rpc("submit_task", { p_task_id: own, p_summary: "Director result" }));
-      expect((await failure(director.rpc("start_task_review", { p_task_id: own }))).message).toBe(
-        "SELF_REVIEW_FORBIDDEN",
-      );
-      expect((await failure(director.rpc("review_task", { p_task_id: own, p_decision: "approved" }))).message).toBe(
-        "SELF_REVIEW_FORBIDDEN",
-      );
+      must("self review", await director.rpc("start_task_review", { p_task_id: own }));
+      must("self approve", await director.rpc("review_task", { p_task_id: own, p_decision: "approved" }));
 
       // Reassignment: the previous assignee loses the task, the new one gets the instructions only.
       const handover = await create("Handover", a.id);

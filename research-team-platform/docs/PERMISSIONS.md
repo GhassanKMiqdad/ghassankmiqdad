@@ -95,7 +95,7 @@ trigger (rules of the NestHire upgrade):
 | Start / resume                                                                          | the responsible member or `tasks.edit` (not while predecessors are unfinished)                                       |
 | Block, unblock, cancel, re-open                                                         | `tasks.edit`                                                                                                         |
 | Submit / resubmit (new version)                                                         | the responsible member, through `submit_task()`                                                                      |
-| Review, approve, request revision, mark as completed                                    | `tasks.review` through the workflow functions; never on one's own task (Directors excepted)                          |
+| Review, approve, request revision, mark as completed                                    | `tasks.review` through the workflow functions; no user may review, approve or publish their own work                 |
 | Change assignee                                                                         | `tasks.assign` (the new assignee must be an active member)                                                           |
 | Delete                                                                                  | `tasks.delete`                                                                                                       |
 | Task ID, project, team, creator, visibility, workflow dates                             | Never (no column privilege; `IMMUTABLE_FIELD`)                                                                       |

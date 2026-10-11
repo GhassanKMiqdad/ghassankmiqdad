@@ -6,7 +6,7 @@
 export const en = {
   app: {
     name: "NestHire Workspace",
-    tagline: "Private work, reviewed results, published to your team.",
+    tagline: "The internal workspace for the team building NestHire, an intelligent hiring platform.",
   },
   common: {
     save: "Save",
@@ -141,7 +141,7 @@ export const en = {
   dashboard: {
     title: "NestHire Workspace",
     greeting: "Welcome back, {name}",
-    subtitle: "Your tasks, reviews and team results at a glance.",
+    subtitle: "Here is what is happening across your NestHire projects.",
     stats: {
       totalProjects: "Projects",
       activeTasks: "Active tasks",
@@ -178,15 +178,15 @@ export const en = {
   },
   projects: {
     title: "Projects",
-    subtitle: "Research projects you are a member of.",
+    subtitle: "Projects you are a member of.",
     new: "New project",
-    createTitle: "Create a research project",
+    createTitle: "Create a project",
     createSubtitle: "You will become the owner and can then invite your team.",
     editTitle: "Project details",
     fields: {
       name: "Project name",
       description: "Description",
-      researchGoal: "Research goal",
+      researchGoal: "Project goal",
       status: "Status",
       startDate: "Start date",
       deadline: "Deadline",
@@ -195,12 +195,12 @@ export const en = {
     placeholders: {
       name: "e.g. AI-assisted diagnosis study",
       description: "Context, scope and methodology…",
-      researchGoal: "What should this research achieve?",
+      researchGoal: "What should this project achieve?",
     },
     members: "{count} members",
     tasksCount: "{count} tasks",
     empty: "No projects yet",
-    emptyCreate: "Create your first research project to start organising tasks, documents and your team.",
+    emptyCreate: "Create your first project to start organising tasks, documents and your team.",
     emptyNoRights: "You will see projects here once a project owner adds you to their team.",
     created: "Project created.",
     updated: "Project updated.",
@@ -220,12 +220,12 @@ export const en = {
     },
     overview: {
       about: "About",
-      goal: "Research goal",
+      goal: "Project goal",
       timeline: "Timeline",
       progress: "Progress",
       discussion: "Project discussion",
       team: "Team",
-      noGoal: "No research goal defined yet.",
+      noGoal: "No project goal defined yet.",
       daysLeft: "{count} days left",
       dueToday: "Due today",
       pastDeadline: "Past deadline",
@@ -815,7 +815,7 @@ export const en = {
   roles: {
     owner: "Owner",
     manager: "Manager",
-    member: "Research Member",
+    member: "Team Member",
     reviewer: "Reviewer",
   },
   roleDescriptions: {
@@ -1008,7 +1008,7 @@ export const en = {
       depends_on_code: "Predecessor",
       assigned_to: "Assignee",
       name: "Name",
-      research_goal: "Research goal",
+      research_goal: "Project goal",
       start_date: "Start date",
       deadline: "Deadline",
       content: "Comment",
@@ -1064,7 +1064,7 @@ export const en = {
     },
     admin: {
       title: "Platform administration",
-      description: "Decide who can create research projects and who administers the platform.",
+      description: "Decide who can create projects and who administers the platform.",
       platformAdmin: "Platform admin",
       canCreateProjects: "Can create projects",
       joined: "Joined",
@@ -1114,6 +1114,7 @@ export const en = {
     INVITE_UNAVAILABLE: "Inviting new users is not configured on the server (missing service key).",
     CONFIRMATION_MISMATCH: "The confirmation text does not match.",
     RATE_LIMITED: "Too many requests. Please wait a moment.",
+    ADMIN_UNAVAILABLE: "The server administration service is not configured.",
     UNEXPECTED: "Something went wrong. Please try again.",
   },
   pages: {

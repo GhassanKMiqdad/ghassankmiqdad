@@ -24,7 +24,7 @@ export type AccessSubject = {
   status: MemberStatus;
   /** Effective permissions (owners: all; inactive members or no project.view: none). */
   permissions: ReadonlySet<PermissionKey>;
-  /** Organization Director (may review their own work; holds every permission everywhere). */
+  /** Organization Director (holds every permission everywhere). */
   isDirector?: boolean;
 };
 
@@ -92,17 +92,19 @@ export function canUpdateTaskProgress(access: AccessSubject | null | undefined, 
   return task.status !== "completed" && (canExecuteTask(access, task) || canSuperviseTasks(access));
 }
 
-/** Review, approve, request revisions and mark as completed. Nobody reviews their own work. */
+/** Review, approve, request revisions and mark as completed. Project managers may self-review only while assigned. */
 export function canReviewTask(
   access: AccessSubject | null | undefined,
   task: TaskSnapshot,
   latestSubmitterId?: string | null,
 ): boolean {
   if (!access || !can(access, "tasks.review")) return false;
-  // Nobody — Directors included — reviews, approves or publishes a task they are
-  // responsible for or a version they handed in (SQL: assert_task_reviewer,
-  // assert_not_own_submission).
-  return task.assignedTo !== access.userId && latestSubmitterId !== access.userId;
+  if (task.assignedTo === access.userId) {
+    return access.isDirector === true || access.role === "owner" || access.role === "manager";
+  }
+  // A manager may self-review only when they are also the current assignee. A
+  // submitted version from a prior assignment remains non-self-reviewable.
+  return latestSubmitterId !== access.userId;
 }
 
 /** Attach a private file to a task (SQL: private.can_attach_task_file). */
