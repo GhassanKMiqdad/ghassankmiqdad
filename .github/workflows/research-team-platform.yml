@@ -6,10 +6,12 @@ on:
     paths:
       - "research-team-platform/**"
       - ".github/workflows/research-team-platform.yml"
+      - ".github/workflows/nesthire-supabase-production.yml"
   pull_request:
     paths:
       - "research-team-platform/**"
       - ".github/workflows/research-team-platform.yml"
+      - ".github/workflows/nesthire-supabase-production.yml"
   workflow_dispatch:
 
 concurrency:

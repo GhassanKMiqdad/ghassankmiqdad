@@ -1,0 +1,195 @@
+{
+  "project_ref": "jkvxhxrclfvoxqcniyck",
+  "generated": "2026-10-11",
+  "source_commit_base": "419d22872e7684dde8a1bd6feae2934edad8690f",
+  "repository_migrations": [
+    {
+      "version": "20261001000100",
+      "name": "core_schema",
+      "file": "supabase/migrations/20261001000100_core_schema.sql",
+      "sha256": "eeb555c354d2a147924f90bc044742dc665cee51cf686c8edb589f49b17dff4f",
+      "production_status": "verified-equivalent (core schema predated ledger; constraint repaired in part 1)"
+    },
+    {
+      "version": "20261001000200",
+      "name": "permission_catalog",
+      "file": "supabase/migrations/20261001000200_permission_catalog.sql",
+      "sha256": "d981911bebe75113d0f2825649421bfe3dfa91548736183d9f010b18d4e2e00d",
+      "production_status": "verified-equivalent (catalog predated ledger; one description repaired in part 1)"
+    },
+    {
+      "version": "20261001000300",
+      "name": "helper_functions",
+      "file": "supabase/migrations/20261001000300_helper_functions.sql",
+      "sha256": "3375e4023efe572784ce0c1d0292d30e90ac638fb8036583ac9931dd460ef3ea",
+      "production_status": "applied 2026-10-11 via MCP (guarded)"
+    },
+    {
+      "version": "20261001000400",
+      "name": "auth_profiles",
+      "file": "supabase/migrations/20261001000400_auth_profiles.sql",
+      "sha256": "48a32587f2bff1bb09475f0ee30481468f7af685db8d4ba5da51a1b99682f894",
+      "production_status": "applied 2026-10-11 via MCP (guarded)"
+    },
+    {
+      "version": "20261001000500",
+      "name": "business_rules",
+      "file": "supabase/migrations/20261001000500_business_rules.sql",
+      "sha256": "8a0d8575f32f0c9324bfe13b672f0f663a9385196f6cefafd006919ec58f354a",
+      "production_status": "applied 2026-10-11 via MCP (guarded)"
+    },
+    {
+      "version": "20261001000600",
+      "name": "audit_log",
+      "file": "supabase/migrations/20261001000600_audit_log.sql",
+      "sha256": "b659c1163bbc703e71ee8d1c32775d21444f64c10a5d216760ee4890adffb0db",
+      "production_status": "applied 2026-10-11 via MCP (guarded)"
+    },
+    {
+      "version": "20261001000700",
+      "name": "rpc_functions",
+      "file": "supabase/migrations/20261001000700_rpc_functions.sql",
+      "sha256": "056265e8fc7ea2c1ef987155cc2ce16d1916fd591684748c43e28787abce70f2",
+      "production_status": "PENDING - owner-run part 2 script"
+    },
+    {
+      "version": "20261001000800",
+      "name": "row_level_security",
+      "file": "supabase/migrations/20261001000800_row_level_security.sql",
+      "sha256": "9b58b53b414effc04172430156df40eb2bcf7636fd5246a1ff3815363d176c80",
+      "production_status": "PENDING - owner-run part 2 script"
+    },
+    {
+      "version": "20261001000900",
+      "name": "storage",
+      "file": "supabase/migrations/20261001000900_storage.sql",
+      "sha256": "6955c4346e43efa0c6b1fae9b7273fa30ccd5edd895e75761103c4d4bc2d2bfe",
+      "production_status": "PENDING - owner-run part 2 script"
+    },
+    {
+      "version": "20261007000100",
+      "name": "nesthire_roles_teams",
+      "file": "supabase/migrations/20261007000100_nesthire_roles_teams.sql",
+      "sha256": "796ba1e78aa8cb3dabe71aef907f94a6c70a5c404e1ace90921f1a9d9aabed44",
+      "production_status": "PENDING - owner-run part 2 script"
+    },
+    {
+      "version": "20261007000200",
+      "name": "nesthire_task_model",
+      "file": "supabase/migrations/20261007000200_nesthire_task_model.sql",
+      "sha256": "a639dba3bada62130c1f8abb6d2e3d6b2f15e17312815fa3a76d43c74d2896a0",
+      "production_status": "PENDING - owner-run part 2 script"
+    },
+    {
+      "version": "20261007000300",
+      "name": "nesthire_task_rules",
+      "file": "supabase/migrations/20261007000300_nesthire_task_rules.sql",
+      "sha256": "e7b984fae25ebda62b3a13af83e3528ccdf25e94f28a0654514d861b626e690d",
+      "production_status": "PENDING - owner-run part 2 script"
+    },
+    {
+      "version": "20261007000400",
+      "name": "nesthire_workflow",
+      "file": "supabase/migrations/20261007000400_nesthire_workflow.sql",
+      "sha256": "56e9452715c2e3bf7ed07cb76fdcb3968609c4acd7b4167e4346db6f0ee2fe7b",
+      "production_status": "PENDING - owner-run part 2 script"
+    },
+    {
+      "version": "20261007000500",
+      "name": "nesthire_security",
+      "file": "supabase/migrations/20261007000500_nesthire_security.sql",
+      "sha256": "e915b562a26779bdea6c6923df6435c1c0fdb27c4f347fb37845723851ff0e25",
+      "production_status": "PENDING - owner-run part 2 script"
+    },
+    {
+      "version": "20261008000100",
+      "name": "workflow_security_hardening",
+      "file": "supabase/migrations/20261008000100_workflow_security_hardening.sql",
+      "sha256": "13417899e1c4f4333e52c9660b581930718b335b6a6bb00ce012241976980ae7",
+      "production_status": "PENDING - owner-run part 2 script"
+    },
+    {
+      "version": "20261008000200",
+      "name": "final_privacy_hardening",
+      "file": "supabase/migrations/20261008000200_final_privacy_hardening.sql",
+      "sha256": "9bc6f97e6dc17e42f09b37fc8f9aee06625aa4979e96224824edccfc22d0586b",
+      "production_status": "PENDING - owner-run part 2 script"
+    },
+    {
+      "version": "20261008000300",
+      "name": "strict_external_links",
+      "file": "supabase/migrations/20261008000300_strict_external_links.sql",
+      "sha256": "dbc8644f2416574b9a978afd97eaf64a669df88fcaa78ed95df03258e9c8505c",
+      "production_status": "PENDING - owner-run part 2 script"
+    },
+    {
+      "version": "20261009000100",
+      "name": "export_rate_limit",
+      "file": "supabase/migrations/20261009000100_export_rate_limit.sql",
+      "sha256": "3a5642dc7ecc1a1930e1907f356495249a5b6ab1d7748d0b1fb6d12a121cf79f",
+      "production_status": "PENDING - owner-run part 2 script"
+    },
+    {
+      "version": "20261010000100",
+      "name": "nesthire_manager_self_review",
+      "file": "supabase/migrations/20261010000100_nesthire_manager_self_review.sql",
+      "sha256": "a23274ddd81a0e5310d2f889d43130b1d5fc917a918c0524f97a9e79ce3c8642",
+      "production_status": "PENDING - owner-run part 2 script"
+    },
+    {
+      "version": "20261010000200",
+      "name": "revoke_rls_auto_enable_execute",
+      "file": "supabase/migrations/20261010000200_revoke_rls_auto_enable_execute.sql",
+      "sha256": "d40b6966dea0166797f8084413b4e123b93dd448268bf75c523eea4607982fcb",
+      "production_status": "verified-effective (revoke already in place; ledger row recorded in part 1)"
+    }
+  ],
+  "remote_only_ledger_entries": [
+    {
+      "version": "20261010074921",
+      "name": "core_schema",
+      "origin": "manual MCP apply_migration on 2026-10-10; kept, not deleted"
+    },
+    {
+      "version": "20261010074946",
+      "name": "core_schema_regex_fix",
+      "origin": "manual MCP apply_migration on 2026-10-10; kept, not deleted"
+    },
+    {
+      "version": "20261010075001",
+      "name": "core_schema_regex_fix_v2",
+      "origin": "manual MCP apply_migration on 2026-10-10; kept, not deleted"
+    },
+    {
+      "version": "20261010075008",
+      "name": "permission_catalog",
+      "origin": "manual MCP apply_migration on 2026-10-10; kept, not deleted"
+    },
+    {
+      "version": "20261010075040",
+      "name": "revoke_rls_auto_enable_execute",
+      "origin": "manual MCP apply_migration on 2026-10-10; kept, not deleted"
+    }
+  ],
+  "part2_script": {
+    "file": "scripts/sql/reconcile/2026-10-11-jkvxhxrclfvoxqcniyck-apply-0700-to-1010000100.sql",
+    "sha256": "c9bb73300bde0fe4e9b9d8a6b7d97876f8824c1f811d689dfeedd07e7699f257",
+    "migrations": 13
+  },
+  "recovery_snapshot_schema": "nesthire_recovery_20261011 (permissions, role_permissions, schema_migrations, activity_logs_action_format)",
+  "expected_fingerprint_after_part2": {
+    "bucket": "1|1ded69c37d945079e09947025f0d8212",
+    "catalog": "24|9ffbd33100fdf31e07f1dce7773d900b",
+    "col": "187|a2ef6755bea3b8932d027b843f16d1c8",
+    "colgrant": "245|a5164ac968a2337ac1032f1c278cc09a",
+    "con": "116|e941e7db83f3eea7ebfb6662b001cd2d",
+    "fn": "105|821608590d5457e1700188377571dfb0",
+    "fnacl": "105|b401fe4fd22922ed0915b7a91cd8c98a",
+    "grant": "150|ee5b06e994a7a45a9980effb95f24fbe",
+    "idx": "63|4890e6b5e275c21ed9343e0aa4679ffc",
+    "pol": "37|5ed8076a6296d6e50db4872fff33ce50",
+    "rls": "18|8255e6b9af6fa0a90df974caf3ab3d19",
+    "roleperm": "57|c8472cd913fddeb84b93e4656f5183ae",
+    "trg": "25|efa2207d96df46682031aa5768b8612c"
+  }
+}
